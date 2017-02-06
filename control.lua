@@ -15,16 +15,33 @@ local function onTick()
       else
         -- read cc1 signals. Only uses one wire, red if both connected.
         local signet1 = manager.cc1.get_circuit_network(defines.wire_type.red) or manager.cc1.get_circuit_network(defines.wire_type.green)
-        local signet2 = manager.cc1.get_circuit_network(defines.wire_type.red) or manager.cc1.get_circuit_network(defines.wire_type.green)
+        local signet2 = manager.cc2.get_circuit_network(defines.wire_type.red) or manager.cc2.get_circuit_network(defines.wire_type.green)
         if signet1 then
           if signet1.get_signal({name="construction-robot",type="item"}) == 1 then
           -- check for conbot=1, build a thing
-            local item
-            local position = {}
-            local direction
+            local createorder = {
+              name='entity-ghost',
+              position = {
+                x = signet1.get_signal({name="signal-X",type="virtual"}),
+                y = signet1.get_signal({name="signal-Y",type="virtual"})
+              },
+              force = manager.ent.force,
+              createorder.direction = signet1.get_signal({name="signal-D",type="virtual"})
+            }
+
             for _,signal in pairs(signet1.signals) do
-              -- read item signal, XYD, R, cc2 if relevant
+              if signal.signal.type == "item" and signal.signal.name ~= "construction-robot" then
+                createorder.inner_name = game.item_prototypes[signal.signal.name].place_result.name
+
+
+                --TODO: recipe if recipeid lib available
+                --TODO: filters from cc2
+                --TODO: other entity-specific config from cc1 or cc2
+                break
+              end
             end
+            --game.print(serpent.dump(createorder))
+            if createorder.inner_name then manager.ent.surface.create_entity(createorder) end
 
 
           elseif signet1.get_signal({name="red-wire",type="item"}) == 1 then
@@ -66,7 +83,7 @@ local function onTick()
             local w = signet1.get_signal({name="signal-W",type="virtual"})
             local h = signet1.get_signal({name="signal-H",type="virtual"})
 
-            -- if remote.signalstrings, capture name from cc2
+            --TODO: if remote.signalstrings, capture name from cc2
 
 
             local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
@@ -76,26 +93,47 @@ local function onTick()
             bp.create_blueprint{
               surface = manager.ent.surface,
               force = manager.ent.force,
-              area = {{x,y},{x+w,y+h}},
-              always_include_times = signet1.get_signal({name="signal-H",type="virtual"})==1,
+              area = {{x,y},{x+w-0.5,y+h-0.5}},
+              always_include_tiles = signet1.get_signal({name="signal-T",type="virtual"})==1,
             }
 
           elseif signet1.get_signal({name="deconstruction-planner",type="item"}) == 1 then
             -- redprint=1, decon orders
-            if not signet2 or #signet2.signals==0 then
-              -- decon all
-              local x = signet1.get_signal({name="signal-X",type="virtual"})
-              local y = signet1.get_signal({name="signal-Y",type="virtual"})
-              local w = signet1.get_signal({name="signal-W",type="virtual"})
-              local h = signet1.get_signal({name="signal-H",type="virtual"})
+            local x = signet1.get_signal({name="signal-X",type="virtual"})
+            local y = signet1.get_signal({name="signal-Y",type="virtual"})
+            local w = signet1.get_signal({name="signal-W",type="virtual"})
+            local h = signet1.get_signal({name="signal-H",type="virtual"})
 
-              local decon = manager.ent.surface.find_entities({{x,y},{x+w,y+h}})
+            local area = {{x,y},{x+w-0.5,y+h-0.5}}
+
+            if signet2 == nil or #signet2.signals==0 then
+              -- decon all
+              local decon = manager.ent.surface.find_entities(area)
               for _,e in pairs(decon) do
                 e.order_deconstruction(manager.ent.force)
               end
             else
-              -- TODO: filtered decon
-
+              -- filtered decon
+              for _,signal in pairs(signet2.signals) do
+                if signal.type == "item" then
+                  for _,d in pairs(manager.ent.surface.find_entitites_filtered{
+                    name = game.item_prototypes[signal.name].place_result.name, area = area}) do
+                    d.order_deconstruction(manager.ent.force)
+                  end
+                elseif signal.type == "virtual" then
+                  if signal.name == "signal-T" then
+                    for _,d in pairs(manager.ent.surface.find_entitites_filtered{
+                      type = 'tree', area = area}) do
+                      d.order_deconstruction(manager.ent.force)
+                    end
+                  elseif signal.name== "signal-R" then
+                    for _,d in pairs(manager.ent.surface.find_entitites_filtered{
+                      name = 'stone-rock', area = area}) do
+                      d.order_deconstruction(manager.ent.force)
+                    end
+                  end
+                end
+              end
             end
           end
         end

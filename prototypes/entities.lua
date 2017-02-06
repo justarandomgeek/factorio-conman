@@ -15,6 +15,6 @@ print(data.raw["assembling-machine"]["conman"].name .. 'added')
 
 local conmanctrl = table.deepcopy(data.raw["constant-combinator"]["constant-combinator"])
 conmanctrl.name="conman-control"
-conmanctrl.minable = nil
+conmanctrl.minable.result = "conman-control"
 conmanctrl.order="z[lol]-[conmanctrl]"
 data:extend{conmanctrl}

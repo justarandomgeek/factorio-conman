@@ -10,8 +10,11 @@ local function onTick()
   if global.managers then
     for _,manager in pairs(global.managers) do
       if not (manager.ent.valid and manager.cc1.valid and manager.cc2.valid) then
-        -- if anything is invalid, tear it down (print a message?)
-
+        -- if anything is invalid, tear it all down
+        if manager.ent.valid then manager.ent.destroy() end
+        if manager.cc1.valid then manager.cc1.destroy() end
+        if manager.cc2.valid then manager.cc2.destroy() end
+        global.managers[_] = nil
       else
         -- read cc1 signals. Only uses one wire, red if both connected.
         local signet1 = manager.cc1.get_circuit_network(defines.wire_type.red) or manager.cc1.get_circuit_network(defines.wire_type.green)
@@ -26,16 +29,43 @@ local function onTick()
                 y = signet1.get_signal({name="signal-Y",type="virtual"})
               },
               force = manager.ent.force,
-              createorder.direction = signet1.get_signal({name="signal-D",type="virtual"})
+              direction = signet1.get_signal({name="signal-D",type="virtual"})
             }
 
             for _,signal in pairs(signet1.signals) do
               if signal.signal.type == "item" and signal.signal.name ~= "construction-robot" then
-                createorder.inner_name = game.item_prototypes[signal.signal.name].place_result.name
+                local entproto = game.item_prototypes[signal.signal.name].place_result
+                createorder.inner_name = entproto.name
 
+                --set recipe if recipeid lib available
+                if entproto.type == "assembling-machine" and remote.interfaces['recipeid'] then
+                  createorder.recipe = remote.call('recipeid','map_recipe', signet1.get_signal({name="signal-R",type="virtual"}))
+                end
 
-                --TODO: recipe if recipeid lib available
-                --TODO: filters from cc2
+                if entproto.type == "container" then
+                  createorder.bar = signet1.get_signal({name="signal-B",type="virtual"})
+                end
+
+                if entproto.type == "logistic-container" then
+                  createorder.bar = signet1.get_signal({name="signal-B",type="virtual"})
+                end
+
+                if entproto.type == "inserter" then
+                  -- TODO: inserter filters & conditions from cc2
+                  -- filters=1,
+                end
+
+                if entproto.type == "constant-combinator" and signet2 then
+                  createorder.control_behavior = {filters={}}
+                  for i,s in pairs(signet2.signals) do
+                    createorder.control_behavior.filters[i]={
+                      index = i,
+                      count = s.count,
+                      signal = s.signal,
+                    }
+                  end
+                end
+
                 --TODO: other entity-specific config from cc1 or cc2
                 break
               end
@@ -96,6 +126,16 @@ local function onTick()
               area = {{x,y},{x+w-0.5,y+h-0.5}},
               always_include_tiles = signet1.get_signal({name="signal-T",type="virtual"})==1,
             }
+
+            -- reset icons
+            bp.blueprint_icons = bp.default_icons
+
+            -- set or clear label
+            if remote.interfaces['signalstrings'] and signet2 then
+              bp.label = remote.call('signalstrings','signals_to_string',signet2.signals)
+            else
+              bp.label = ''
+            end
 
           elseif signet1.get_signal({name="deconstruction-planner",type="item"}) == 1 then
             -- redprint=1, decon orders

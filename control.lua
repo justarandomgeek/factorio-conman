@@ -1,11 +1,3 @@
-function copyBlueprint(inStack,outStack)
-  if not inStack.is_blueprint_setup() then return end
-  outStack.set_blueprint_entities(inStack.get_blueprint_entities())
-  outStack.set_blueprint_tiles(inStack.get_blueprint_tiles())
-  outStack.blueprint_icons = inStack.blueprint_icons
-  if inStack.label then outStack.label = inStack.label end
-end
-
 local function onTick()
   if global.managers then
     for _,manager in pairs(global.managers) do
@@ -29,7 +21,8 @@ local function onTick()
                 y = signet1.get_signal({name="signal-Y",type="virtual"})
               },
               force = manager.ent.force,
-              direction = signet1.get_signal({name="signal-D",type="virtual"})
+              bar = signet1.get_signal({name="signal-B",type="virtual"}),
+              direction = signet1.get_signal({name="signal-D",type="virtual"}),
             }
 
             for _,signal in pairs(signet1.signals) do
@@ -42,28 +35,9 @@ local function onTick()
                   createorder.recipe = remote.call('recipeid','map_recipe', signet1.get_signal({name="signal-R",type="virtual"}))
                 end
 
-                if entproto.type == "container" then
-                  createorder.bar = signet1.get_signal({name="signal-B",type="virtual"})
-                end
-
-                if entproto.type == "logistic-container" then
-                  createorder.bar = signet1.get_signal({name="signal-B",type="virtual"})
-                end
-
                 if entproto.type == "inserter" then
                   -- TODO: inserter filters & conditions from cc2
                   -- filters=1,
-                end
-
-                if entproto.type == "constant-combinator" and signet2 then
-                  createorder.control_behavior = {filters={}}
-                  for i,s in pairs(signet2.signals) do
-                    createorder.control_behavior.filters[i]={
-                      index = i,
-                      count = s.count,
-                      signal = s.signal,
-                    }
-                  end
                 end
 
                 --TODO: other entity-specific config from cc1 or cc2
@@ -71,7 +45,20 @@ local function onTick()
               end
             end
             --game.print(serpent.dump(createorder))
-            if createorder.inner_name then manager.ent.surface.create_entity(createorder) end
+            if createorder.inner_name then
+              local ghost =  manager.ent.surface.create_entity(createorder)
+
+
+              if ghost.ghost_name == "constant-combinator" and signet2 then
+                local filters = {}
+                for i,s in pairs(signet2.signals) do
+                  filters[#filters+1]={index = #filters+1, count = s.count, signal = s.signal}
+                end
+                ghost.get_or_create_control_behavior().parameters={parameters=filters}
+              end
+
+
+            end
 
 
           elseif signet1.get_signal({name="red-wire",type="item"}) == 1 then
@@ -90,21 +77,24 @@ local function onTick()
           elseif signet1.get_signal({name="blueprint",type="item"}) == 1 then
             -- deploy blueprint at XY
             local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
-            --TODO: confirm it's a blueprint and is setup and such...
+
+            -- confirm it's a blueprint and is setup and such...
             local bp = inInv[1]
+            if bp.valid and bp.valid_for_read and bp.is_blueprint_setup() then
 
-            --TODO: confirm x&y both set, ignore if not
-            local x = signet1.get_signal({name="signal-X",type="virtual"})
-            local y = signet1.get_signal({name="signal-Y",type="virtual"})
+              local x = signet1.get_signal({name="signal-X",type="virtual"})
+              local y = signet1.get_signal({name="signal-Y",type="virtual"})
 
-            local force_build = signet1.get_signal({name="signal-F",type="virtual"})==1
+              local force_build = signet1.get_signal({name="signal-F",type="virtual"})==1
 
-            bp.build_blueprint{
-              surface=manager.ent.surface,
-              force=manager.ent.force,
-              position={x=x,y=y},
-              force_build= force_build
-            }
+              bp.build_blueprint{
+                surface=manager.ent.surface,
+                force=manager.ent.force,
+                position={x=x,y=y},
+                direction = signet1.get_signal({name="signal-D",type="virtual"}),
+                force_build= force_build,
+              }
+            end
 
           elseif signet1.get_signal({name="blueprint",type="item"}) == 2 then
             -- capture blueprint from XYWH
@@ -113,30 +103,45 @@ local function onTick()
             local w = signet1.get_signal({name="signal-W",type="virtual"})
             local h = signet1.get_signal({name="signal-H",type="virtual"})
 
-            --TODO: if remote.signalstrings, capture name from cc2
-
-
             local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
-            --TODO: confirm it's a blueprint and is setup and such...
+            -- confirm it's a blueprint and is setup and such...
             local bp = inInv[1]
+            if bp.valid and bp.valid_for_read then
 
-            bp.create_blueprint{
-              surface = manager.ent.surface,
-              force = manager.ent.force,
-              area = {{x,y},{x+w-0.5,y+h-0.5}},
-              always_include_tiles = signet1.get_signal({name="signal-T",type="virtual"})==1,
-            }
+              bp.create_blueprint{
+                surface = manager.ent.surface,
+                force = manager.ent.force,
+                area = {{x,y},{x+w-0.5,y+h-0.5}},
+                always_include_tiles = signet1.get_signal({name="signal-T",type="virtual"})==1,
+              }
 
-            -- reset icons
-            bp.blueprint_icons = bp.default_icons
+              if bp.is_blueprint_setup() then
+                -- reset icons
+                bp.blueprint_icons = bp.default_icons
+              else
+                bp.blueprint_icons = nil
+              end
 
-            -- set or clear label
-            if remote.interfaces['signalstrings'] and signet2 then
-              bp.label = remote.call('signalstrings','signals_to_string',signet2.signals)
-            else
-              bp.label = ''
+              -- set or clear label and color from cc2
+              if remote.interfaces['signalstrings'] and signet2 then
+                bp.label = remote.call('signalstrings','signals_to_string',signet2.signals)
+
+                local a = signet2.get_signal({name="signal-white",type="virtual"})
+                if a > 0 and and a <= 100 then
+                  local r = signet2.get_signal({name="signal-red",type="virtual"})
+                  local g = signet2.get_signal({name="signal-green",type="virtual"})
+                  local b = signet2.get_signal({name="signal-blue",type="virtual"})
+
+                  bp.label_color = { r=r/100, g=g/100, b=b/100, a=a/100 }
+                end
+
+              else
+                bp.label = ''
+                bp.label_color = {}
+              end
+
+
             end
-
           elseif signet1.get_signal({name="deconstruction-planner",type="item"}) == 1 then
             -- redprint=1, decon orders
             local x = signet1.get_signal({name="signal-X",type="virtual"})

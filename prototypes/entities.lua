@@ -8,10 +8,7 @@ conmanent.crafting_speed = 1
 conmanent.ingredient_count = 4
 conmanent.module_specification = nil
 conmanent.allowed_effects = nil
-print(serpent.block(conmanent))
 data:extend{conmanent}
-print(data.raw["assembling-machine"]["conman"].name .. 'added')
-
 
 local conmanctrl = table.deepcopy(data.raw["constant-combinator"]["constant-combinator"])
 conmanctrl.name="conman-control"

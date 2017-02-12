@@ -8,6 +8,11 @@ local function onTick()
         if manager.cc2.valid then manager.cc2.destroy() end
         global.managers[_] = nil
       else
+        if manager.clearcc2 then
+          manager.clearcc2 = nil
+          manager.cc2.get_or_create_control_behavior().parameters=nil
+        end
+
         -- read cc1 signals. Only uses one wire, red if both connected.
         local signet1 = manager.cc1.get_circuit_network(defines.wire_type.red) or manager.cc1.get_circuit_network(defines.wire_type.green)
         local signet2 = manager.cc2.get_circuit_network(defines.wire_type.red) or manager.cc2.get_circuit_network(defines.wire_type.green)
@@ -21,9 +26,12 @@ local function onTick()
                 y = signet1.get_signal({name="signal-Y",type="virtual"})
               },
               force = manager.ent.force,
-              bar = signet1.get_signal({name="signal-B",type="virtual"}),
               direction = signet1.get_signal({name="signal-D",type="virtual"}),
             }
+
+            -- only set bar if it's non-zero, else chests are disabled by default.
+            local bar = signet1.get_signal({name="signal-B",type="virtual"})
+            if bar > 0 then createorder.bar = bar end
 
             for _,signal in pairs(signet1.signals) do
               if signal.signal.type == "item" and signal.signal.name ~= "construction-robot" then
@@ -127,7 +135,7 @@ local function onTick()
                 bp.label = remote.call('signalstrings','signals_to_string',signet2.signals)
 
                 local a = signet2.get_signal({name="signal-white",type="virtual"})
-                if a > 0 and and a <= 100 then
+                if a > 0 and a <= 100 then
                   local r = signet2.get_signal({name="signal-red",type="virtual"})
                   local g = signet2.get_signal({name="signal-green",type="virtual"})
                   local b = signet2.get_signal({name="signal-blue",type="virtual"})
@@ -137,11 +145,38 @@ local function onTick()
 
               else
                 bp.label = ''
-                bp.label_color = {}
+                bp.label_color = nil
               end
 
 
             end
+          elseif signet1.get_signal({name="blueprint",type="item"}) == 3 then
+            local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
+            -- confirm it's a blueprint and is setup and such...
+            local bp = inInv[1]
+            local outsignals = {}
+            if bp.valid and bp.valid_for_read then
+              if remote.interfaces['signalstrings'] then
+                -- create label signals
+                outsignals = remote.call('signalstrings','string_to_signals', bp.label)
+              end
+
+              -- add color signals
+              if bp.label_color then
+                outsignals[#outsignals+1]={index=#outsignals+1,count=bp.label_color.r*100,signal={name="signal-red",type="virtual"}}
+                outsignals[#outsignals+1]={index=#outsignals+1,count=bp.label_color.g*100,signal={name="signal-green",type="virtual"}}
+                outsignals[#outsignals+1]={index=#outsignals+1,count=bp.label_color.b*100,signal={name="signal-blue",type="virtual"}}
+                outsignals[#outsignals+1]={index=#outsignals+1,count=bp.label_color.a*100,signal={name="signal-white",type="virtual"}}
+              end
+
+              -- add BoM signals
+              for k,v in pairs(bp.cost_to_build) do
+                outsignals[#outsignals+1]={index=#outsignals+1,count=v,signal={name=k,type="item"}}
+              end
+            end
+            manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
+            manager.clearcc2 = true
+
           elseif signet1.get_signal({name="deconstruction-planner",type="item"}) == 1 then
             -- redprint=1, decon orders
             local x = signet1.get_signal({name="signal-X",type="virtual"})

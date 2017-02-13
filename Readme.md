@@ -20,9 +20,9 @@ main entity is assembly machine with special `blueprint -> blueprint` recipe
 * blueprint=2 + XYWH : Capture print from XYWH
   * optional: TEM=what to capture, tiles/entities/modules
   * optional: Control2: signalstring of new blueprint name (with singalstrings lib)
-* blueprint=3: read print info [not yet implemented]
-  * output to Control2: Blueprint label string and color
-  * output to Control2: Blueprint BoM or icons?
+* blueprint=3: read print info
+  * output to Control2: Blueprint label string and color if set
+  * output to Control2: Blueprint BoM
 * redprint=1 + XYWH rectangle : decon order
   * optional: filters on Control2
     * T = trees

@@ -16,7 +16,7 @@ local function onTick()
         -- read cc1 signals. Only uses one wire, red if both connected.
         local signet1 = manager.cc1.get_circuit_network(defines.wire_type.red) or manager.cc1.get_circuit_network(defines.wire_type.green)
         local signet2 = manager.cc2.get_circuit_network(defines.wire_type.red) or manager.cc2.get_circuit_network(defines.wire_type.green)
-        if signet1 then
+        if signet1 and #signet1.signals > 0 then
           if signet1.get_signal({name="construction-robot",type="item"}) == 1 then
           -- check for conbot=1, build a thing
             local createorder = {
@@ -35,27 +35,30 @@ local function onTick()
 
             for _,signal in pairs(signet1.signals) do
               if signal.signal.type == "item" and signal.signal.name ~= "construction-robot" then
-                local entproto = game.item_prototypes[signal.signal.name].place_result
-                createorder.inner_name = entproto.name
+                local itemproto = game.item_prototypes[signal.signal.name]
+                local entproto = itemproto.place_result
+                --TODO: tiles? trains? other mods?
+                if entproto then
+                  createorder.inner_name = entproto.name
 
-                --set recipe if recipeid lib available
-                if entproto.type == "assembling-machine" and remote.interfaces['recipeid'] then
-                  createorder.recipe = remote.call('recipeid','map_recipe', signet1.get_signal({name="signal-R",type="virtual"}))
+                  --set recipe if recipeid lib available
+                  if entproto.type == "assembling-machine" and remote.interfaces['recipeid'] then
+                    createorder.recipe = remote.call('recipeid','map_recipe', signet1.get_signal({name="signal-R",type="virtual"}))
+                  end
+
+                  if entproto.type == "inserter" then
+                    -- TODO: inserter filters & conditions from cc2
+                    -- filters=1,
+                  end
+
+                  --TODO: other entity-specific config from cc1 or cc2
+                  break
                 end
-
-                if entproto.type == "inserter" then
-                  -- TODO: inserter filters & conditions from cc2
-                  -- filters=1,
-                end
-
-                --TODO: other entity-specific config from cc1 or cc2
-                break
               end
             end
-            --game.print(serpent.dump(createorder))
+
             if createorder.inner_name then
               local ghost =  manager.ent.surface.create_entity(createorder)
-
 
               if ghost.ghost_name == "constant-combinator" and signet2 then
                 local filters = {}
@@ -140,7 +143,7 @@ local function onTick()
                   local g = signet2.get_signal({name="signal-green",type="virtual"})
                   local b = signet2.get_signal({name="signal-blue",type="virtual"})
 
-                  bp.label_color = { r=r/100, g=g/100, b=b/100, a=a/100 }
+                  bp.label_color = { r=r/256, g=g/256, b=b/256, a=a/256 }
                 end
 
               else
@@ -163,10 +166,10 @@ local function onTick()
 
               -- add color signals
               if bp.label_color then
-                outsignals[#outsignals+1]={index=#outsignals+1,count=bp.label_color.r*100,signal={name="signal-red",type="virtual"}}
-                outsignals[#outsignals+1]={index=#outsignals+1,count=bp.label_color.g*100,signal={name="signal-green",type="virtual"}}
-                outsignals[#outsignals+1]={index=#outsignals+1,count=bp.label_color.b*100,signal={name="signal-blue",type="virtual"}}
-                outsignals[#outsignals+1]={index=#outsignals+1,count=bp.label_color.a*100,signal={name="signal-white",type="virtual"}}
+                outsignals[#outsignals+1]={index=#outsignals+1,count=bp.label_color.r*256,signal={name="signal-red",type="virtual"}}
+                outsignals[#outsignals+1]={index=#outsignals+1,count=bp.label_color.g*256,signal={name="signal-green",type="virtual"}}
+                outsignals[#outsignals+1]={index=#outsignals+1,count=bp.label_color.b*256,signal={name="signal-blue",type="virtual"}}
+                outsignals[#outsignals+1]={index=#outsignals+1,count=bp.label_color.a*256,signal={name="signal-white",type="virtual"}}
               end
 
               -- add BoM signals
@@ -215,6 +218,44 @@ local function onTick()
                 end
               end
             end
+          elseif signet1.get_signal({name="deconstruction-planner",type="item"}) == -1 then
+            -- redprint=-1, cancel decon orders
+            local x = signet1.get_signal({name="signal-X",type="virtual"})
+            local y = signet1.get_signal({name="signal-Y",type="virtual"})
+            local w = signet1.get_signal({name="signal-W",type="virtual"})
+            local h = signet1.get_signal({name="signal-H",type="virtual"})
+
+            local area = {{x,y},{x+w-0.5,y+h-0.5}}
+
+            if signet2 == nil or #signet2.signals==0 then
+              -- decon all
+              local decon = manager.ent.surface.find_entities(area)
+              for _,e in pairs(decon) do
+                e.cancel_deconstruction(manager.ent.force)
+              end
+            else
+              -- filtered decon
+              for _,signal in pairs(signet2.signals) do
+                if signal.type == "item" then
+                  for _,d in pairs(manager.ent.surface.find_entitites_filtered{
+                    name = game.item_prototypes[signal.name].place_result.name, area = area}) do
+                    d.cancel_deconstruction(manager.ent.force)
+                  end
+                elseif signal.type == "virtual" then
+                  if signal.name == "signal-T" then
+                    for _,d in pairs(manager.ent.surface.find_entitites_filtered{
+                      type = 'tree', area = area}) do
+                      d.cancel_deconstruction(manager.ent.force)
+                    end
+                  elseif signal.name== "signal-R" then
+                    for _,d in pairs(manager.ent.surface.find_entitites_filtered{
+                      name = 'stone-rock', area = area}) do
+                      d.cancel_deconstruction(manager.ent.force)
+                    end
+                  end
+                end
+              end
+            end
           end
         end
       end
@@ -258,7 +299,7 @@ end
 local function onPaste(event)
   local ent = event.destination
   if ent.name == "conman" then
-
+    --TODO: do i need to do anything with paste here? or for CCs
   end
 end
 
@@ -268,4 +309,5 @@ script.on_event(defines.events.on_robot_built_entity, onBuilt)
 script.on_event(defines.events.on_entity_settings_pasted,onPaste)
 
 remote.add_interface('conman',{
+  --TODO: call to register signals for ghost proxies
 })

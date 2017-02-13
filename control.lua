@@ -124,6 +124,45 @@ local function CaptureBlueprint(manager,signet1,signet2)
   end
 end
 
+local function ConnectWire(manager,signet1,signet2,color,disconnect)
+  local x = signet1.get_signal({name="signal-X",type="virtual"})
+  local y = signet1.get_signal({name="signal-Y",type="virtual"})
+  local z = signet1.get_signal({name="signal-Z",type="virtual"})
+  if not (z>0) then z=1 end
+
+  local u = signet1.get_signal({name="signal-U",type="virtual"})
+  local v = signet1.get_signal({name="signal-V",type="virtual"})
+  local w = signet1.get_signal({name="signal-W",type="virtual"})
+  if not (w>0) then w=1 end
+
+  local ent1 = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position={x=x+0.5,y=y+0.5}}[1]
+  local ent2 = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position={x=u+0.5,y=v+0.5}}[1]
+
+  if not color then
+    if ent1.type == "electric-pole" and ent2.type == "electric-pole" then
+      if disconnect then
+        ent1.disconnect_neighbour(ent2)
+      else
+        ent1.connect_neighbour(ent2)
+      end
+    end
+  else
+    local target = {
+      target_entity = ent2,
+      wire = color,
+      source_circuit_id = z,
+      target_circuit_id = w,
+    }
+
+    if disconnect then
+      ent1.disconnect_neighbour(target)
+    else
+      ent1.connect_neighbour(target)
+    end
+
+  end
+end
+
 local function ReportBlueprint(manager,signet1,signet2)
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
   -- confirm it's a blueprint and is setup and such...
@@ -223,11 +262,6 @@ local function onTickManager(manager)
       -- check for conbot=1, build a thing
       ConstructionOrder(manager,signet1,signet2)
 
-    --elseif signet1.get_signal({name="red-wire",type="item"}) == 1 then
-    --elseif signet1.get_signal({name="green-wire",type="item"}) == 1 then
-    --elseif signet1.get_signal({name="copper-cable",type="item"}) == 1 then
-    -- check r/g/c wire=1, connect a thing
-
     elseif bpsig == -1 then
       -- transfer blueprint to output
       EjectBlueprint(manager)
@@ -249,6 +283,19 @@ local function onTickManager(manager)
     elseif signet1.get_signal({name="deconstruction-planner",type="item"}) == -1 then
       -- redprint=-1, cancel decon orders
       DeconstructionOrder(manager,signet1,signet2,true)
+
+    elseif signet1.get_signal({name="red-wire",type="item"}) == 1 then
+      ConnectWire(manager,signet1,signet2,defines.wire_type.red)
+    elseif signet1.get_signal({name="green-wire",type="item"}) == 1 then
+      ConnectWire(manager,signet1,signet2,defines.wire_type.green)
+    elseif signet1.get_signal({name="copper-cable",type="item"}) == 1 then
+      ConnectWire(manager,signet1,signet2)
+    elseif signet1.get_signal({name="red-wire",type="item"}) == -1 then
+      ConnectWire(manager,signet1,signet2,defines.wire_type.red,true)
+    elseif signet1.get_signal({name="green-wire",type="item"}) == -1 then
+      ConnectWire(manager,signet1,signet2,defines.wire_type.green,true)
+    elseif signet1.get_signal({name="copper-cable",type="item"}) == -1 then
+      ConnectWire(manager,signet1,signet2,nil,true)
 
     end
   end

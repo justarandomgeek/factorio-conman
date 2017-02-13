@@ -13,8 +13,9 @@ ConMan allows you to order construction and deconstruction via the circuit netwo
   * optional: R=recipeid (with recipeid lib)
   * optional: filters or CC data on Control2
   * optional: other entity specific?
-* r/g/c wire + XY(z) + UV(w) [not yet implemented]
+* r/g/c wire + XY(z) + UV(w)
   * connect entities at XY and UV with wire, ports z/w if multiple
+  * negative wire to disconnect
 * blueprint=-1 : Eject Blueprint
   * transfer from input to output inventory
 * blueprint=1 + XY : Deploy Blueprint

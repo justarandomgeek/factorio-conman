@@ -100,8 +100,6 @@ local function CaptureBlueprint(manager,signet1,signet2)
     if bp.is_blueprint_setup() then
       -- reset icons
       bp.blueprint_icons = bp.default_icons
-    else
-      bp.blueprint_icons = nil
     end
 
     -- set or clear label and color from cc2
@@ -139,7 +137,7 @@ local function ConnectWire(manager,signet1,signet2,color,disconnect)
   local ent2 = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position={x=u+0.5,y=v+0.5}}[1]
 
   if not (ent1 and ent1.valid and ent2 and ent2.valid) then return end
-  
+
   if not color then
     if ent1.type == "electric-pole" and ent2.type == "electric-pole" then
       if disconnect then
@@ -201,28 +199,35 @@ local function DeconstructionOrder(manager,signet1,signet2,cancel)
 
   local area = {{x,y},{x+w-0.5,y+h-0.5}}
 
-  if signet2 == nil or #signet2.signals==0 then
+  if not signet2 or #signet2.signals==0 then
     -- decon all
     local decon = manager.ent.surface.find_entities(area)
     for _,e in pairs(decon) do
-      e.order_deconstruction(manager.ent.force)
+      if cancel then
+        e.cancel_deconstruction(manager.ent.force)
+      else
+        e.order_deconstruction(manager.ent.force)
+      end
     end
   else
     -- filtered decon
     for _,signal in pairs(signet2.signals) do
-      if signal.type == "item" then
-        for _,d in pairs(manager.ent.surface.find_entitites_filtered{
-          name = game.item_prototypes[signal.name].place_result.name, area = area}) do
+      if signal.signal.type == "item" then
+        local entname = game.item_prototypes[signal.signal.name].place_result.name
+        if entname then
+          for _,d in pairs(manager.ent.surface.find_entities_filtered{
+            name = entname, area = area}) do
 
-          if cancel then
-            d.cancel_deconstruction(manager.ent.force)
-          else
-            d.order_deconstruction(manager.ent.force)
+            if cancel then
+              d.cancel_deconstruction(manager.ent.force)
+            else
+              d.order_deconstruction(manager.ent.force)
+            end
           end
         end
-      elseif signal.type == "virtual" then
-        if signal.name == "signal-T" then
-          for _,d in pairs(manager.ent.surface.find_entitites_filtered{
+      elseif signal.signal.type == "virtual" then
+        if signal.signal.name == "signal-T" then
+          for _,d in pairs(manager.ent.surface.find_entities_filtered{
             type = 'tree', area = area}) do
 
             if cancel then
@@ -231,8 +236,8 @@ local function DeconstructionOrder(manager,signet1,signet2,cancel)
               d.order_deconstruction(manager.ent.force)
             end
           end
-        elseif signal.name== "signal-R" then
-          for _,d in pairs(manager.ent.surface.find_entitites_filtered{
+        elseif signal.signal.name== "signal-R" then
+          for _,d in pairs(manager.ent.surface.find_entities_filtered{
             name = 'stone-rock', area = area}) do
 
             if cancel then

@@ -271,14 +271,15 @@ local function DeliveryOrder(manager,signet1,signet2)
         }
       end
     end
-
-    ent.surface.create_entity{
-      name='item-request-proxy',
-      force=ent.force,
-      position=ent.position,
-      target=ent,
-      modules=items
-    }
+    if #items > 0 then
+      ent.surface.create_entity{
+        name='item-request-proxy',
+        force=ent.force,
+        position=ent.position,
+        target=ent,
+        modules=items
+      }
+    end
   end
 end
 

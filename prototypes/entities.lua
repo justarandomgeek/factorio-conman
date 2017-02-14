@@ -12,6 +12,6 @@ data:extend{conmanent}
 
 local conmanctrl = table.deepcopy(data.raw["constant-combinator"]["constant-combinator"])
 conmanctrl.name="conman-control"
-conmanctrl.minable.result = "conman-control"
+conmanctrl.minable= nil
 conmanctrl.order="z[lol]-[conmanctrl]"
 data:extend{conmanctrl}

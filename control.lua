@@ -360,6 +360,20 @@ local function onTick()
   end
 end
 
+local function CreateControl(manager,position)
+  local ent = manager.surface.create_entity{
+      name='conman-control',
+      position = position,
+      force = manager.force
+    }
+
+  ent.operable=false
+  ent.minable=false
+  ent.destructible=false
+
+  return ent
+end
+
 local function onBuilt(event)
   local ent = event.created_entity
   if ent.name == "conman" then
@@ -368,24 +382,8 @@ local function onBuilt(event)
     ent.active = false
     ent.operable = false
 
-    --TODO: find&revive ghosts like dynamic assemblers do
-    local cc1 = ent.surface.create_entity{
-      name='conman-control',
-      position={x=ent.position.x-1,y=ent.position.y+1},
-      force=ent.force
-    }
-    cc1.operable=false
-    cc1.minable=false
-    cc1.destructible=false
-
-    local cc2 = ent.surface.create_entity{
-      name='conman-control',
-      position={x=ent.position.x+1,y=ent.position.y+1},
-      force=ent.force
-    }
-    cc2.operable=false
-    cc2.minable=false
-    cc2.destructible=false
+    local cc1 = CreateControl(ent, {x=ent.position.x-1,y=ent.position.y+1})
+    local cc2 = CreateControl(ent, {x=ent.position.x+1,y=ent.position.y+1})
 
     if not global.managers then global.managers = {} end
     global.managers[ent.unit_number]={ent=ent, cc1 = cc1, cc2 = cc2}
@@ -393,18 +391,10 @@ local function onBuilt(event)
   end
 end
 
-local function onPaste(event)
-  local ent = event.destination
-  if ent.name == "conman" then
-    --TODO: do i need to do anything with paste here? or for CCs
-  end
-end
-
 script.on_event(defines.events.on_tick, onTick)
 script.on_event(defines.events.on_built_entity, onBuilt)
 script.on_event(defines.events.on_robot_built_entity, onBuilt)
-script.on_event(defines.events.on_entity_settings_pasted,onPaste)
 
 remote.add_interface('conman',{
-  --TODO: call to register signals for ghost proxies
+  --TODO: call to register signals for ghost proxies??
 })

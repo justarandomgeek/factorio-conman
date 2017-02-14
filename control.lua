@@ -34,7 +34,7 @@ local function ConstructionOrder(manager,signet1,signet2)
         --TODO: other entity-specific config from cc1 or cc2
 
 
-        break -- once we're found one, get out of the loop, so we don't build multiple things. 
+        break -- once we're found one, get out of the loop, so we don't build multiple things.
       end
     end
   end
@@ -254,6 +254,34 @@ local function DeconstructionOrder(manager,signet1,signet2,cancel)
   end
 end
 
+local function DeliveryOrder(manager,signet1,signet2)
+  local x = signet1.get_signal({name="signal-X",type="virtual"})
+  local y = signet1.get_signal({name="signal-Y",type="virtual"})
+
+  local ent = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position={x=x+0.5,y=y+0.5}}[1]
+  if not (ent and ent.valid) then return end
+
+  if signet2 and #signet2.signals>0 then
+    local items = {}
+    for _,signal in pairs(signet2.signals) do
+      if signal.signal.type == "item" then
+        items[#items+1]={
+          item=signal.signal.name,
+          count=signal.count,
+        }
+      end
+    end
+
+    ent.surface.create_entity{
+      name='item-request-proxy',
+      force=ent.force,
+      position=ent.position,
+      target=ent,
+      modules=items
+    }
+  end
+end
+
 local function onTickManager(manager)
   if manager.clearcc2 then
     manager.clearcc2 = nil
@@ -266,46 +294,50 @@ local function onTickManager(manager)
     local signet2 = manager.cc2.get_circuit_network(defines.wire_type.red) or manager.cc2.get_circuit_network(defines.wire_type.green)
 
     local bpsig = signet1.get_signal({name="blueprint",type="item"})
+    if bpsig ~= 0 then
+      if bpsig == -1 then
+        -- transfer blueprint to output
+        EjectBlueprint(manager)
 
-    if signet1.get_signal({name="construction-robot",type="item"}) == 1 then
-      -- check for conbot=1, build a thing
-      ConstructionOrder(manager,signet1,signet2)
+      elseif bpsig == 1 then
+        -- deploy blueprint at XY
+        DeployBlueprint(manager,signet1,signet2)
 
-    elseif bpsig == -1 then
-      -- transfer blueprint to output
-      EjectBlueprint(manager)
+      elseif bpsig == 2 then
+        -- capture blueprint from XYWH
+        CaptureBlueprint(manager,signet1,signet2)
 
-    elseif bpsig == 1 then
-      -- deploy blueprint at XY
-      DeployBlueprint(manager,signet1,signet2)
+      elseif bpsig == 3 then
+        ReportBlueprint(manager,signet1,signet2)
+      end
+    else
 
-    elseif bpsig == 2 then
-      -- capture blueprint from XYWH
-      CaptureBlueprint(manager,signet1,signet2)
+      if signet1.get_signal({name="construction-robot",type="item"}) == 1 then
+        -- check for conbot=1, build a thing
+        ConstructionOrder(manager,signet1,signet2)
+      elseif signet1.get_signal({name="logistic-robot",type="item"}) == 1 then
+        DeliveryOrder(manager,signet1,signet2)
 
-    elseif bpsig == 3 then
-      ReportBlueprint(manager,signet1,signet2)
+      elseif signet1.get_signal({name="deconstruction-planner",type="item"}) == 1 then
+        -- redprint=1, decon orders
+        DeconstructionOrder(manager,signet1,signet2)
+      elseif signet1.get_signal({name="deconstruction-planner",type="item"}) == -1 then
+        -- redprint=-1, cancel decon orders
+        DeconstructionOrder(manager,signet1,signet2,true)
 
-    elseif signet1.get_signal({name="deconstruction-planner",type="item"}) == 1 then
-      -- redprint=1, decon orders
-      DeconstructionOrder(manager,signet1,signet2)
-    elseif signet1.get_signal({name="deconstruction-planner",type="item"}) == -1 then
-      -- redprint=-1, cancel decon orders
-      DeconstructionOrder(manager,signet1,signet2,true)
-
-    elseif signet1.get_signal({name="red-wire",type="item"}) == 1 then
-      ConnectWire(manager,signet1,signet2,defines.wire_type.red)
-    elseif signet1.get_signal({name="green-wire",type="item"}) == 1 then
-      ConnectWire(manager,signet1,signet2,defines.wire_type.green)
-    elseif signet1.get_signal({name="copper-cable",type="item"}) == 1 then
-      ConnectWire(manager,signet1,signet2)
-    elseif signet1.get_signal({name="red-wire",type="item"}) == -1 then
-      ConnectWire(manager,signet1,signet2,defines.wire_type.red,true)
-    elseif signet1.get_signal({name="green-wire",type="item"}) == -1 then
-      ConnectWire(manager,signet1,signet2,defines.wire_type.green,true)
-    elseif signet1.get_signal({name="copper-cable",type="item"}) == -1 then
-      ConnectWire(manager,signet1,signet2,nil,true)
-
+      elseif signet1.get_signal({name="red-wire",type="item"}) == 1 then
+        ConnectWire(manager,signet1,signet2,defines.wire_type.red)
+      elseif signet1.get_signal({name="green-wire",type="item"}) == 1 then
+        ConnectWire(manager,signet1,signet2,defines.wire_type.green)
+      elseif signet1.get_signal({name="copper-cable",type="item"}) == 1 then
+        ConnectWire(manager,signet1,signet2)
+      elseif signet1.get_signal({name="red-wire",type="item"}) == -1 then
+        ConnectWire(manager,signet1,signet2,defines.wire_type.red,true)
+      elseif signet1.get_signal({name="green-wire",type="item"}) == -1 then
+        ConnectWire(manager,signet1,signet2,defines.wire_type.green,true)
+      elseif signet1.get_signal({name="copper-cable",type="item"}) == -1 then
+        ConnectWire(manager,signet1,signet2,nil,true)
+      end
     end
   end
 end

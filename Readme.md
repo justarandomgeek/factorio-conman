@@ -13,6 +13,9 @@ ConMan allows you to order construction and deconstruction via the circuit netwo
   * optional: R=recipeid (with recipeid lib)
   * optional: filters or CC data on Control2
   * optional: other entity specific?
+* logbot + items on Control2 + XY : Delivery order
+  * Deliver items specified by Control2 to entity at XY
+  * Note that these items will be delivered by conbots despite being signalled by logbot.
 * r/g/c wire + XY(z) + UV(w)
   * connect entities at XY and UV with wire, ports z/w if multiple
   * negative wire to disconnect

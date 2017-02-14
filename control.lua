@@ -138,6 +138,8 @@ local function ConnectWire(manager,signet1,signet2,color,disconnect)
   local ent1 = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position={x=x+0.5,y=y+0.5}}[1]
   local ent2 = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position={x=u+0.5,y=v+0.5}}[1]
 
+  if not (ent1 and ent1.valid and ent2 and ent2.valid) then return end
+  
   if not color then
     if ent1.type == "electric-pole" and ent2.type == "electric-pole" then
       if disconnect then

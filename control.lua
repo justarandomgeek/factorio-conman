@@ -32,7 +32,9 @@ local function ConstructionOrder(manager,signet1,signet2)
         end
 
         --TODO: other entity-specific config from cc1 or cc2
-        break
+
+
+        break -- once we're found one, get out of the loop, so we don't build multiple things. 
       end
     end
   end

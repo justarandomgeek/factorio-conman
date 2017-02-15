@@ -216,8 +216,9 @@ local function DeconstructionOrder(manager,signet1,signet2,cancel)
     -- filtered decon
     for _,signal in pairs(signet2.signals) do
       if signal.signal.type == "item" then
-        local entname = game.item_prototypes[signal.signal.name].place_result.name
-        if entname then
+        local itemproto = game.item_prototypes[signal.signal.name]
+        if itemproto.place_result then
+          local entname = itemproto.place_result.name
           for _,d in pairs(manager.ent.surface.find_entities_filtered{
             name = entname, area = area}) do
 

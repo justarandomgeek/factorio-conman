@@ -1,10 +1,28 @@
+local function ReadPosition(signet,secondary,offset)
+  if not offset then offset=0.5 end
+  if not secondary then
+    return {
+      x = signet.get_signal({name="signal-X",type="virtual"})+offset,
+      y = signet.get_signal({name="signal-Y",type="virtual"})+offset
+    }
+  else
+    return {
+      x = signet.get_signal({name="signal-U",type="virtual"})+offset,
+      y = signet.get_signal({name="signal-V",type="virtual"})+offset
+    }
+  end
+end
+
+local function ReadBoundingBox(signet)
+  -- adjust offests to make *inclusive* selection
+  return {ReadPosition(signet,false,0),ReadPosition(signet,true,1)}
+end
+
+
 local function ConstructionOrder(manager,signet1,signet2)
   local createorder = {
     name='entity-ghost',
-    position = {
-      x = signet1.get_signal({name="signal-X",type="virtual"}),
-      y = signet1.get_signal({name="signal-Y",type="virtual"})
-    },
+    position = ReadPosition(signet1),
     force = manager.ent.force,
     direction = signet1.get_signal({name="signal-D",type="virtual"}),
   }
@@ -66,15 +84,12 @@ local function DeployBlueprint(manager,signet1,signet2)
   local bp = inInv[1]
   if bp.valid and bp.valid_for_read and bp.is_blueprint_setup() then
 
-    local x = signet1.get_signal({name="signal-X",type="virtual"})
-    local y = signet1.get_signal({name="signal-Y",type="virtual"})
-
     local force_build = signet1.get_signal({name="signal-F",type="virtual"})==1
 
     bp.build_blueprint{
       surface=manager.ent.surface,
       force=manager.ent.force,
-      position={x=x,y=y},
+      position=ReadPosition(signet1),
       direction = signet1.get_signal({name="signal-D",type="virtual"}),
       force_build= force_build,
     }
@@ -82,11 +97,6 @@ local function DeployBlueprint(manager,signet1,signet2)
 end
 
 local function CaptureBlueprint(manager,signet1,signet2)
-  local x = signet1.get_signal({name="signal-X",type="virtual"})
-  local y = signet1.get_signal({name="signal-Y",type="virtual"})
-  local w = signet1.get_signal({name="signal-W",type="virtual"})
-  local h = signet1.get_signal({name="signal-H",type="virtual"})
-
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
   -- confirm it's a blueprint and is setup and such...
   local bp = inInv[1]
@@ -95,7 +105,7 @@ local function CaptureBlueprint(manager,signet1,signet2)
     bp.create_blueprint{
       surface = manager.ent.surface,
       force = manager.ent.force,
-      area = {{x,y},{x+w-0.5,y+h-0.5}},
+      area = ReadBoundingBox(signet1),
       always_include_tiles = signet1.get_signal({name="signal-T",type="virtual"})==1,
     }
 
@@ -125,18 +135,14 @@ local function CaptureBlueprint(manager,signet1,signet2)
 end
 
 local function ConnectWire(manager,signet1,signet2,color,disconnect)
-  local x = signet1.get_signal({name="signal-X",type="virtual"})
-  local y = signet1.get_signal({name="signal-Y",type="virtual"})
   local z = signet1.get_signal({name="signal-Z",type="virtual"})
   if not (z>0) then z=1 end
 
-  local u = signet1.get_signal({name="signal-U",type="virtual"})
-  local v = signet1.get_signal({name="signal-V",type="virtual"})
   local w = signet1.get_signal({name="signal-W",type="virtual"})
   if not (w>0) then w=1 end
 
-  local ent1 = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position={x=x+0.5,y=y+0.5}}[1]
-  local ent2 = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position={x=u+0.5,y=v+0.5}}[1]
+  local ent1 = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(signet1)}[1]
+  local ent2 = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(signet1,true)}[1]
 
   if not (ent1 and ent1.valid and ent2 and ent2.valid) then return end
 
@@ -194,12 +200,7 @@ local function ReportBlueprint(manager,signet1,signet2)
 end
 
 local function DeconstructionOrder(manager,signet1,signet2,cancel)
-  local x = signet1.get_signal({name="signal-X",type="virtual"})
-  local y = signet1.get_signal({name="signal-Y",type="virtual"})
-  local w = signet1.get_signal({name="signal-W",type="virtual"})
-  local h = signet1.get_signal({name="signal-H",type="virtual"})
-
-  local area = {{x,y},{x+w-0.5,y+h-0.5}}
+  local area = ReadBoundingBox(signet1)
 
   if not signet2 or #signet2.signals==0 then
     -- decon all
@@ -255,10 +256,8 @@ local function DeconstructionOrder(manager,signet1,signet2,cancel)
 end
 
 local function DeliveryOrder(manager,signet1,signet2)
-  local x = signet1.get_signal({name="signal-X",type="virtual"})
-  local y = signet1.get_signal({name="signal-Y",type="virtual"})
 
-  local ent = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position={x=x+0.5,y=y+0.5}}[1]
+  local ent = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(signet1)}[1]
   if not (ent and ent.valid) then return end
 
   if signet2 and #signet2.signals>0 then

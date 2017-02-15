@@ -7,9 +7,12 @@ ConMan allows you to order construction and deconstruction via the circuit netwo
     * CC Control 2: secondary data - SE corner
     * Control nodes only read one wire - if both are connected it will only read the red one. Use a combinator to merge wires if required. This is mostly a performance optimization, and is not likely to change.
 
+Position: {X,Y} and {U,V}
+BoundingBox: {{X,Y},{U,V}}
+Conditions: circuit:C=1, logistics:L=1, op:O={<=>/*-+}, constant:K  {firstsig=1,secondsig=2,output=3}
 
 ### Commands:
-* conbot + item signal + D=dir + X,Y=pos : Construction Order
+* conbot + item signal + D=dir + XY : Construction Order
   * optional: B=bar : Number of slots usable in a chest
   * optional: R=recipeid (with recipeid lib)
   * optional: filters or CC data on Control2
@@ -24,13 +27,13 @@ ConMan allows you to order construction and deconstruction via the circuit netwo
   * transfer from input to output inventory
 * blueprint=1 + XY : Deploy Blueprint
   * optional: F=force - auto decon trees/rocks in the way
-* blueprint=2 + XYUV=boundingbox : Capture Blueprint
+* blueprint=2 + BoundingBox : Capture Blueprint
   * optional: TEM=what to capture, tiles/entities/modules
   * optional: Control2: signalstring of new blueprint name (with singalstrings lib)
 * blueprint=3: Read Blueprint Info
   * output to Control2: Blueprint label string and color if set
   * output to Control2: Blueprint BoM
-* redprint=1 + XYUV : Deconstruction Order
+* redprint=1 + BoundingBox : Deconstruction Order
   * redprint=-1 to cancel
   * optional: filters on Control2
     * T = trees

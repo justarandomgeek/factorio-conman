@@ -42,15 +42,30 @@ local function ConstructionOrder(manager,signet1,signet2)
         --set recipe if recipeid lib available
         if entproto.type == "assembling-machine" and remote.interfaces['recipeid'] then
           createorder.recipe = remote.call('recipeid','map_recipe', signet1.get_signal({name="signal-R",type="virtual"}))
+          --TODO: item proxies from CC2? modules/prefilled mats
         end
 
         if entproto.type == "inserter" then
-          -- TODO: inserter filters & conditions from cc2
-          -- filters=1,
+          local filters = {}
+          for i,s in pairs(signet2.signals) do
+            if s.signal.type == "item" then
+              filters[#filters+1]={index = #filters+1, name = s.signal.name}
+              --TODO: break if #filters > filter count
+            end
+          end
+          createorder.filters = filters
         end
 
-        --TODO: other entity-specific config from cc1 or cc2
-
+        if entproto.type == "logistic-container" then
+          local filters = {}
+          for i,s in pairs(signet2.signals) do
+            if s.signal.type == "item" then
+              filters[#filters+1]={index = #filters+1, count = s.count, name = s.signal.name}
+              --TODO: break if #filters > filter count
+            end
+          end
+          createorder.request_filters = filters
+        end
 
         break -- once we're found one, get out of the loop, so we don't build multiple things.
       end
@@ -60,7 +75,7 @@ local function ConstructionOrder(manager,signet1,signet2)
   if createorder.inner_name then
     local ghost =  manager.ent.surface.create_entity(createorder)
 
-    if ghost.ghost_name == "constant-combinator" and signet2 then
+    if ghost.ghost_type == "constant-combinator" and signet2 then
       local filters = {}
       for i,s in pairs(signet2.signals) do
         filters[#filters+1]={index = #filters+1, count = s.count, signal = s.signal}

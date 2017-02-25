@@ -48,13 +48,7 @@ Conditions: circuit:C=1, logistics:L=1, op:O={<=>/*-+}, constant:K  CC2{firstsig
 ![Annotatted Test Rig](conman_annotated.png)
 This is a test rig for manually inputting commands. I use this for developing/testing commands. This requires my mods Location Combinator, Pushbutton, and Nixie Tubes.
 
-The [blueprint](ConMan Test Rig.blueprint) does not include the direct wiring connections to ConMan itself, so you'll have to plug in the following manually after placing:
-
-![Wiring Diagram](conman_wiring.png)
-* Red wire from CC1 to the combinators directly below it
-* Red wire from CC2 to the large pole to the left
-* Green wire from CC2 to the decider below it
-
+The [blueprint](ConMan Test Rig.blueprint) will configure it ready for use.
 
 The cursor box shows the XY and UV selections in red and green, respectively. For rectangle selections, XY shoudl be the upper/left, and UV should be lower/right. The cursors are moved by the two D-pads, and can be reset to the upper left using the black button in the center. Cursor selections outside the box are valid, but will not be drawn due to physical limitations of the display.
 

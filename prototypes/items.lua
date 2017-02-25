@@ -13,7 +13,7 @@ data:extend{
     type = "item",
     name = "conman-control",
     icon = "__base__/graphics/icons/roboport.png",
-    flags = {"goes-to-quickbar"},
+    flags = {"goes-to-quickbar", "hidden"},
     subgroup = "logistic-network",
     order = "c[signal]-b[conman-control]",
     place_result="conman-control",

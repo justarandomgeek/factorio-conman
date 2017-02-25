@@ -376,7 +376,13 @@ local function onTick()
 end
 
 local function CreateControl(manager,position)
-  local ent = manager.surface.create_entity{
+  local ghost = manager.surface.find_entity('entity-ghost', position)
+  if ghost then
+    -- if there's a ghost here, just claim it!
+    _,ghost = ghost.revive()
+  end
+
+  local ent = ghost or manager.surface.create_entity{
       name='conman-control',
       position = position,
       force = manager.force
@@ -397,8 +403,8 @@ local function onBuilt(event)
     ent.active = false
     ent.operable = false
 
-    local cc1 = CreateControl(ent, {x=ent.position.x-1,y=ent.position.y+1})
-    local cc2 = CreateControl(ent, {x=ent.position.x+1,y=ent.position.y+1})
+    local cc1 = CreateControl(ent, {x=ent.position.x-1,y=ent.position.y+1.5})
+    local cc2 = CreateControl(ent, {x=ent.position.x+1,y=ent.position.y+1.5})
 
     if not global.managers then global.managers = {} end
     global.managers[ent.unit_number]={ent=ent, cc1 = cc1, cc2 = cc2}

@@ -8,10 +8,13 @@ conmanent.crafting_speed = 1
 conmanent.ingredient_count = 4
 conmanent.module_specification = nil
 conmanent.allowed_effects = nil
+conmanent.fluid_boxes = {}
+conmanent.collision_box = {{-1.2, -1.2}, {1.2, 0.8}} -- collision_box = {{-1.2, -1.2}, {1.2, 1.2}}
 data:extend{conmanent}
 
 local conmanctrl = table.deepcopy(data.raw["constant-combinator"]["constant-combinator"])
 conmanctrl.name="conman-control"
 conmanctrl.minable= nil
 conmanctrl.order="z[lol]-[conmanctrl]"
+conmanctrl.collision_box = {{-0.4,  0.0}, {0.4, 0.4}}
 data:extend{conmanctrl}

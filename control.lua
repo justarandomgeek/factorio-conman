@@ -287,13 +287,19 @@ local function DeliveryOrder(manager,signet1,signet2)
       end
     end
     if #items > 0 then
-      ent.surface.create_entity{
-        name='item-request-proxy',
-        force=ent.force,
-        position=ent.position,
-        target=ent,
-        modules=items
-      }
+      if ent.name == "entity-ghost" then
+        -- just set the ghost requests
+        -- TODO: probably ought to merge these?
+        ent.item_requests = items
+      else
+        ent.surface.create_entity{
+          name='item-request-proxy',
+          force=ent.force,
+          position=ent.position,
+          target=ent,
+          modules=items
+        }
+      end
     end
   end
 end

@@ -6,7 +6,7 @@ data:extend{
     ingredients =
     {
       {"assembling-machine-2", 1},
-      {"blueprint", 10},
+      {"constant-combinator", 2},
       {"roboport", 1},
     },
     result="conman",

@@ -16,5 +16,6 @@ local conmanctrl = table.deepcopy(data.raw["constant-combinator"]["constant-comb
 conmanctrl.name="conman-control"
 conmanctrl.minable= nil
 conmanctrl.order="z[lol]-[conmanctrl]"
+conmanctrl.item_slot_count = 500
 conmanctrl.collision_box = {{-0.4,  0.0}, {0.4, 0.4}}
 data:extend{conmanctrl}

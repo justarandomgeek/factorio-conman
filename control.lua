@@ -18,6 +18,18 @@ local function ReadBoundingBox(signet)
   return {ReadPosition(signet,false,0),ReadPosition(signet,true,1)}
 end
 
+local function ReadFilters(signet,count)
+  local filters = {}
+  if signet.signals and #signet.signals > 0 then
+    for i,s in pairs(signet.signals) do
+      if s.signal.type == "item" then
+        filters[#filters+1]={index = #filters+1, name = s.signal.name}
+        if count and #filters==count then break end
+      end
+    end
+  end
+  return filters
+end
 
 local function ConstructionOrder(manager,signet1,signet2)
   local createorder = {
@@ -46,25 +58,12 @@ local function ConstructionOrder(manager,signet1,signet2)
         end
 
         if entproto.type == "inserter" then
-          local filters = {}
-          for i,s in pairs(signet2.signals) do
-            if s.signal.type == "item" then
-              filters[#filters+1]={index = #filters+1, name = s.signal.name}
-              --TODO: break if #filters > filter count
-            end
-          end
-          createorder.filters = filters
+          --TODO: limit filter count
+          createorder.filters = ReadFilters(signet2)
         end
 
         if entproto.type == "logistic-container" then
-          local filters = {}
-          for i,s in pairs(signet2.signals) do
-            if s.signal.type == "item" then
-              filters[#filters+1]={index = #filters+1, count = s.count, name = s.signal.name}
-              --TODO: break if #filters > filter count
-            end
-          end
-          createorder.request_filters = filters
+          createorder.request_filters = ReadFilters(signet2)
         end
 
         break -- once we're found one, get out of the loop, so we don't build multiple things.
@@ -77,8 +76,10 @@ local function ConstructionOrder(manager,signet1,signet2)
 
     if ghost.ghost_type == "constant-combinator" and signet2 then
       local filters = {}
-      for i,s in pairs(signet2.signals) do
-        filters[#filters+1]={index = #filters+1, count = s.count, signal = s.signal}
+      if signet2.signals and #signet2.signals > 0 then
+        for i,s in pairs(signet2.signals) do
+          filters[#filters+1]={index = #filters+1, count = s.count, signal = s.signal}
+        end
       end
       ghost.get_or_create_control_behavior().parameters={parameters=filters}
     end
@@ -130,7 +131,7 @@ local function CaptureBlueprint(manager,signet1,signet2)
     end
 
     -- set or clear label and color from cc2
-    if remote.interfaces['signalstrings'] and signet2 then
+    if remote.interfaces['signalstrings'] and signet2 and signet2.signals and #signet2.signals > 0  then
       bp.label = remote.call('signalstrings','signals_to_string',signet2.signals)
 
       local a = signet2.get_signal({name="signal-white",type="virtual"})
@@ -217,7 +218,7 @@ end
 local function DeconstructionOrder(manager,signet1,signet2,cancel)
   local area = ReadBoundingBox(signet1)
 
-  if not signet2 or #signet2.signals==0 then
+  if not signet2 or not signet2.signals or #signet2.signals==0 then
     -- decon all
     local decon = manager.ent.surface.find_entities(area)
     for _,e in pairs(decon) do
@@ -276,7 +277,7 @@ local function DeliveryOrder(manager,signet1,signet2)
   local ent = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(signet1)}[1]
   if not (ent and ent.valid) then return end
 
-  if signet2 and #signet2.signals>0 then
+  if signet2 and signet2.signals and #signet2.signals>0 then
     local items = {}
     for _,signal in pairs(signet2.signals) do
       if signal.signal.type == "item" then
@@ -312,7 +313,7 @@ local function onTickManager(manager)
 
   -- read cc1 signals. Only uses one wire, red if both connected.
   local signet1 = manager.cc1.get_circuit_network(defines.wire_type.red) or manager.cc1.get_circuit_network(defines.wire_type.green)
-  if signet1 and #signet1.signals > 0 then
+  if signet1 and signet1.signals and #signet1.signals > 0 then
     local signet2 = manager.cc2.get_circuit_network(defines.wire_type.red) or manager.cc2.get_circuit_network(defines.wire_type.green)
 
     local bpsig = signet1.get_signal({name="blueprint",type="item"})

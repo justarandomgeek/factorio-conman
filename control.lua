@@ -23,12 +23,25 @@ local function ReadFilters(signet,count)
   if signet.signals and #signet.signals > 0 then
     for i,s in pairs(signet.signals) do
       if s.signal.type == "item" then
-        filters[#filters+1]={index = #filters+1, name = s.signal.name}
+        filters[#filters+1]={index = #filters+1, name = s.signal.name, count = s.count}
         if count and #filters==count then break end
       end
     end
   end
   return filters
+end
+
+local function ReadItems(signet,count)
+  local items = {}
+  if signet.signals and #signet.signals > 0 then
+    for i,s in pairs(signet.signals) do
+      if s.signal.type == "item" then
+        items[s.signal.name] = s.count
+        if count and #items==count then break end
+      end
+    end
+  end
+  return items
 end
 
 local function ConstructionOrder(manager,signet1,signet2)
@@ -38,6 +51,7 @@ local function ConstructionOrder(manager,signet1,signet2)
     force = manager.ent.force,
     direction = signet1.get_signal({name="signal-D",type="virtual"}),
   }
+  local usecc2items = true
 
   -- only set bar if it's non-zero, else chests are disabled by default.
   local bar = signet1.get_signal({name="signal-B",type="virtual"})
@@ -47,23 +61,24 @@ local function ConstructionOrder(manager,signet1,signet2)
     if signal.signal.type == "item" and signal.signal.name ~= "construction-robot" then
       local itemproto = game.item_prototypes[signal.signal.name]
       local entproto = itemproto.place_result
-      --TODO: tiles? trains? other mods?
+
+      --TODO: tiles?
       if entproto then
         createorder.inner_name = entproto.name
 
         --set recipe if recipeid lib available
-        if entproto.type == "assembling-machine" and remote.interfaces['recipeid'] then
-          createorder.recipe = remote.call('recipeid','map_recipe', signet1.get_signal({name="signal-R",type="virtual"}))
-          --TODO: item proxies from CC2? modules/prefilled mats
-        end
-
-        if entproto.type == "inserter" then
+        if entproto.type == "assembling-machine" then
+          if remote.interfaces['recipeid'] then
+            createorder.recipe = remote.call('recipeid','map_recipe', signet1.get_signal({name="signal-R",type="virtual"}))
+          end
+        elseif entproto.type == "inserter" then
           --TODO: limit filter count
           createorder.filters = ReadFilters(signet2)
-        end
-
-        if entproto.type == "logistic-container" then
+          usecc2items=false
+        elseif entproto.type == "logistic-container" then
+          --TODO: limit filter count
           createorder.request_filters = ReadFilters(signet2)
+          usecc2items=false
         end
 
         break -- once we're found one, get out of the loop, so we don't build multiple things.
@@ -74,14 +89,18 @@ local function ConstructionOrder(manager,signet1,signet2)
   if createorder.inner_name then
     local ghost =  manager.ent.surface.create_entity(createorder)
 
-    if ghost.ghost_type == "constant-combinator" and signet2 then
-      local filters = {}
-      if signet2.signals and #signet2.signals > 0 then
-        for i,s in pairs(signet2.signals) do
-          filters[#filters+1]={index = #filters+1, count = s.count, signal = s.signal}
+    if signet2 then
+      if ghost.ghost_type == "constant-combinator" then
+        local filters = {}
+        if signet2.signals and #signet2.signals > 0 then
+          for i,s in pairs(signet2.signals) do
+            filters[#filters+1]={index = #filters+1, count = s.count, signal = s.signal}
+          end
         end
+        ghost.get_or_create_control_behavior().parameters={parameters=filters}
+      elseif usecc2items then
+        ghost.item_requests = ReadItems(signet2)
       end
-      ghost.get_or_create_control_behavior().parameters={parameters=filters}
     end
   end
 end

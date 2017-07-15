@@ -44,6 +44,20 @@ local function ReadItems(signet,count)
   return items
 end
 
+local function ReadSignalList(signet)
+  local signals = {}
+  for i=0,31 do
+    for _,sig in pairs(signet.signals) do
+      local sigbit = bit32.extract(sig.count,i)
+      if sigbit==1 then
+        signals[i+1] = sig.signal
+        break
+      end
+    end
+  end
+  return signals
+end
+
 local function ConstructionOrder(manager,signet1,signet2)
   local createorder = {
     name='entity-ghost',
@@ -79,6 +93,7 @@ local function ConstructionOrder(manager,signet1,signet2)
           --TODO: limit filter count
           createorder.request_filters = ReadFilters(signet2)
           usecc2items=false
+
         end
 
         break -- once we're found one, get out of the loop, so we don't build multiple things.
@@ -87,6 +102,7 @@ local function ConstructionOrder(manager,signet1,signet2)
   end
 
   if createorder.inner_name then
+    --game.print(serpent.block(createorder))
     local ghost =  manager.ent.surface.create_entity(createorder)
 
     if signet2 then
@@ -98,6 +114,25 @@ local function ConstructionOrder(manager,signet1,signet2)
           end
         end
         ghost.get_or_create_control_behavior().parameters={parameters=filters}
+
+      elseif ghost.ghost_type == "arithmetic-combinator" then
+        local siglist = ReadSignalList(signet2)
+
+        --TODO: this doesn't work
+        --local params = {
+        --  first_signal = siglist[1],
+        --  second_signal = siglist[2],
+        --  constant = signet1.get_signal({name="signal-K",type="virtual"}),
+        --  operation = "+",
+        --  output_signal = siglist[3],
+        --  }
+        --game.print(serpent.block(params))
+        --ghost.get_or_create_control_behavior().parameters=params
+
+      elseif entproto.type == "decider-combinator" then
+        local siglist = ReadSignalList(signet2)
+
+
       elseif usecc2items then
         ghost.item_requests = ReadItems(signet2)
       end
@@ -154,7 +189,7 @@ local function CaptureBlueprint(manager,signet1,signet2)
       bp.label = remote.call('signalstrings','signals_to_string',signet2.signals)
 
       local a = signet2.get_signal({name="signal-white",type="virtual"})
-      if a > 0 and a <= 100 then
+      if a > 0 and a <= 256 then
         local r = signet2.get_signal({name="signal-red",type="virtual"})
         local g = signet2.get_signal({name="signal-green",type="virtual"})
         local b = signet2.get_signal({name="signal-blue",type="virtual"})
@@ -164,7 +199,7 @@ local function CaptureBlueprint(manager,signet1,signet2)
 
     else
       bp.label = ''
-      bp.label_color = nil
+      bp.label_color = { r=1, g=1, b=1, a=1 }
     end
   end
 end

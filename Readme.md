@@ -9,7 +9,8 @@ ConMan allows you to order construction and deconstruction via the circuit netwo
 
 Position: {X,Y} and {U,V}
 BoundingBox: {{X,Y},{U,V}}
-Conditions: circuit:C=1, logistics:L=1, op:O={<=>/*-+}, constant:K  CC2{firstsig=1,secondsig=2,output=3} [not implemented yet]
+
+Conditions: circuit:C=1, logistics:L=1, op:O={<=>/*-+}, constant:K  CC2{firstsig=1,secondsig=2,output=4} [not implemented yet]
 
 ### Commands:
 

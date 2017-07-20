@@ -332,16 +332,8 @@ local function DeliveryOrder(manager,signet1,signet2)
   if not (ent and ent.valid) then return end
 
   if signet2 and signet2.signals and #signet2.signals>0 then
-    local items = {}
-    for _,signal in pairs(signet2.signals) do
-      if signal.signal.type == "item" then
-        items[#items+1]={
-          item=signal.signal.name,
-          count=signal.count,
-        }
-      end
-    end
-    if #items > 0 then
+    local items = ReadItems(signet2)
+    if next(items,nil) then
       if ent.name == "entity-ghost" then
         -- just set the ghost requests
         -- TODO: probably ought to merge these?

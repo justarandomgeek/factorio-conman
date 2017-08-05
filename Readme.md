@@ -10,7 +10,43 @@ ConMan allows you to order construction and deconstruction via the circuit netwo
 Position: {X,Y} and {U,V}
 BoundingBox: {{X,Y},{U,V}}
 
-Conditions: circuit:C=1, logistics:L=1, op:O={<=>/*-+}, constant:K  CC2{firstsig=1,secondsig=2,output=4} [not implemented yet]
+Conditions: circuit:C=1, logistics:L=1, op:O=op index, signal mode:S constant:K
+
+| O  | Arithmetic Op | Decider Op |
+|----|---------------|------------|
+| 0  | *             | <          |
+| 1  | /             | >          |
+| 2  | +             | =          |
+| 3  | -             | ≥          |
+| 4  | %             | ≤          |
+| 5  | ^             | ≠          |
+| 6  | <<            | n/a        |
+| 7  | >>            | n/a        |
+| 8  | AND           | n/a        |
+| 9  | OR            | n/a        |
+| 10 | XOR           | n/a        |
+
+
+| S | Signal Mode          |
+|---|----------------------|
+| 0 | Scalars              |
+| 1 | Each in              |
+| 2 | Each in & out        |
+| 3 | Any in               |
+| 4 | Any in & Every out   |
+| 5 | Every in             |
+| 6 | Every in & Every out |
+
+Signal lists for decider/arithmetic combinators are provided on CC2 by setting sequential bits in the selected signals.
+
+| bit  | Signal slot   |
+|------|---------------|
+| 0x01 | First Signal  |
+| 0x02 | Second Signal |
+| 0x04 | Output Signal |
+
+
+
 
 ### Commands:
 

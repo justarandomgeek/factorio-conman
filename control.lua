@@ -118,19 +118,25 @@ local function ConstructionOrder(manager,signet1,signet2)
       elseif ghost.ghost_type == "arithmetic-combinator" then
         local siglist = ReadSignalList(signet2)
 
-        --TODO: this doesn't work
-        --local params = {
-        --  first_signal = siglist[1],
-        --  second_signal = siglist[2],
-        --  constant = signet1.get_signal({name="signal-K",type="virtual"}),
-        --  operation = "+",
-        --  output_signal = siglist[3],
-        --  }
-        --game.print(serpent.block(params))
-        --ghost.get_or_create_control_behavior().parameters=params
+        ghost.get_or_create_control_behavior().parameters={parameters = {
+          first_signal = siglist[1],
+          second_signal = siglist[2],
+          constant = signet1.get_signal({name="signal-K",type="virtual"}),
+          operation = "+", --TODO: pull this from a CC1 signal
+          output_signal = siglist[3],
+          }}
 
       elseif entproto.type == "decider-combinator" then
         local siglist = ReadSignalList(signet2)
+
+        ghost.get_or_create_control_behavior().parameters={parameters = {
+          first_signal = siglist[1],
+          second_signal = siglist[2],
+          constant = signet1.get_signal({name="signal-K",type="virtual"}),
+          comparator = "=", --TODO: pull this from a CC1 signal
+          output_signal = siglist[3],
+          copy_count_from_input = true, --TODO: pull this from a CC1 signal
+          }}
 
 
       elseif usecc2items then

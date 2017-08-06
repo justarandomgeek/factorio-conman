@@ -10,32 +10,33 @@ ConMan allows you to order construction and deconstruction via the circuit netwo
 Position: {X,Y} and {U,V}
 BoundingBox: {{X,Y},{U,V}}
 
-Conditions: circuit:C=1, logistics:L=1, op:O=op index, signal mode:S constant:K
+Conditions: circuit:C=1, logistics:L=1, op:O=op index, signal mode:S constant:K output1:F
 
 | O  | Arithmetic Op | Decider Op |
 |----|---------------|------------|
-| 0  | *             | <          |
-| 1  | /             | >          |
-| 2  | +             | =          |
-| 3  | -             | ≥          |
-| 4  | %             | ≤          |
-| 5  | ^             | ≠          |
-| 6  | <<            | n/a        |
-| 7  | >>            | n/a        |
-| 8  | AND           | n/a        |
-| 9  | OR            | n/a        |
-| 10 | XOR           | n/a        |
+| 1  | *             | <          |
+| 2  | /             | >          |
+| 3  | +             | =          |
+| 4  | -             | ≥          |
+| 5  | %             | ≤          |
+| 6  | ^             | ≠          |
+| 7  | <<            | n/a        |
+| 8  | >>            | n/a        |
+| 9  | AND           | n/a        |
+| 10 | OR            | n/a        |
+| 11 | XOR           | n/a        |
 
 
-| S | Signal Mode          |
-|---|----------------------|
-| 0 | Scalars              |
-| 1 | Each in              |
-| 2 | Each in & out        |
-| 3 | Any in               |
-| 4 | Any in & Every out   |
-| 5 | Every in             |
-| 6 | Every in & Every out |
+| S | Signal Mode           |
+|---|-----------------------|
+| 0 | Scalars               |
+| 1 | Each in               |
+| 2 | Each in & out         |
+| 3 | Any in                |
+| 4 | Any in & Every out    |
+| 5 | Every in              |
+| 6 | Every in & Every out  |
+| 7 | Scalar in & Every out |
 
 Signal lists for decider/arithmetic combinators are provided on CC2 by setting sequential bits in the selected signals.
 

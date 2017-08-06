@@ -58,6 +58,14 @@ local function ReadSignalList(signet)
   return signals
 end
 
+local arithop = { "*", "/", "+", "-", "%", "^", "<<", ">>", "AND", "OR", "XOR" }
+local deciderop = { "<", ">", "=", "≥", "≤", "≠" }
+local specials = {
+  each  = {name="signal-each",       type="virtual"},
+  any   = {name="signal-anything",   type="virtual"},
+  every = {name="signal-everything", type="virtual"},
+}
+
 local function ConstructionOrder(manager,signet1,signet2)
   local createorder = {
     name='entity-ghost',
@@ -117,25 +125,51 @@ local function ConstructionOrder(manager,signet1,signet2)
 
       elseif ghost.ghost_type == "arithmetic-combinator" then
         local siglist = ReadSignalList(signet2)
+        local sigmode = signet1.get_signal({name="signal-S",type="virtual"})
+        if sigmode == 1 then
+          siglist[1] = specials.each
+        elseif sigmode == 2 then
+          siglist[1] = specials.each
+          siglist[3] = specials.each
+        end
 
         ghost.get_or_create_control_behavior().parameters={parameters = {
           first_signal = siglist[1],
           second_signal = siglist[2],
           constant = signet1.get_signal({name="signal-K",type="virtual"}),
-          operation = "+", --TODO: pull this from a CC1 signal
+          operation = arithop[signet1.get_signal({name="signal-O",type="virtual"})] or "*",
           output_signal = siglist[3],
           }}
 
-      elseif entproto.type == "decider-combinator" then
+      elseif ghost.ghost_type == "decider-combinator" then
         local siglist = ReadSignalList(signet2)
+        local sigmode = signet1.get_signal({name="signal-S",type="virtual"})
+        if sigmode == 1 then
+          siglist[1] = specials.each
+        elseif sigmode == 2 then
+          siglist[1] = specials.each
+          siglist[3] = specials.each
+        elseif sigmode == 3 then
+          siglist[1] = specials.any
+        elseif sigmode == 4 then
+          siglist[1] = specials.any
+          siglist[3] = specials.every
+        elseif sigmode == 5 then
+          siglist[1] = specials.every
+        elseif sigmode == 6 then
+          siglist[1] = specials.every
+          siglist[3] = specials.every
+        elseif sigmode == 7 then
+          siglist[3] = specials.every
+        end
 
         ghost.get_or_create_control_behavior().parameters={parameters = {
           first_signal = siglist[1],
           second_signal = siglist[2],
           constant = signet1.get_signal({name="signal-K",type="virtual"}),
-          comparator = "=", --TODO: pull this from a CC1 signal
+          comparator =  deciderop[signet1.get_signal({name="signal-O",type="virtual"})] or "<",
           output_signal = siglist[3],
-          copy_count_from_input = true, --TODO: pull this from a CC1 signal
+          copy_count_from_input = signet1.get_signal({name="signal-F",type="virtual"}) == 0,
           }}
 
 

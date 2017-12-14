@@ -10,7 +10,7 @@ ConMan allows you to order construction and deconstruction via the circuit netwo
 Position: {X,Y} and {U,V}
 BoundingBox: {{X,Y},{U,V}}
 
-Conditions: circuit:C=1, logistics:L=1, op:O=op index, signal mode:S constant:K output1:F
+Conditions: circuit:C=1, logistics:L=1, op:O=op index, signal mode:S firstconstant:J secondconstant:K output1:F
 
 | O  | Arithmetic Op | Decider Op |
 |----|---------------|------------|

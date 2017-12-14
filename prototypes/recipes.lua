@@ -29,6 +29,7 @@ data:extend{
     result = "blueprint",
     result_count = 1,
     icon = "__base__/graphics/icons/roboport.png",
+    icon_size = 32,
   },
 
 }

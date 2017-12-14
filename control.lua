@@ -113,67 +113,75 @@ local function ConstructionOrder(manager,signet1,signet2)
     --game.print(serpent.block(createorder))
     local ghost =  manager.ent.surface.create_entity(createorder)
 
-    if signet2 then
-      if ghost.ghost_type == "constant-combinator" then
-        local filters = {}
-        if signet2.signals and #signet2.signals > 0 then
-          for i,s in pairs(signet2.signals) do
-            filters[#filters+1]={index = #filters+1, count = s.count, signal = s.signal}
-          end
+
+    if ghost.ghost_type == "constant-combinator" then
+      local filters = {}
+      if signet2 and signet2.signals and #signet2.signals > 0 then
+        for i,s in pairs(signet2.signals) do
+          filters[#filters+1]={index = #filters+1, count = s.count, signal = s.signal}
         end
-        ghost.get_or_create_control_behavior().parameters={parameters=filters}
+      end
+      ghost.get_or_create_control_behavior().parameters={parameters=filters}
 
-      elseif ghost.ghost_type == "arithmetic-combinator" then
-        local siglist = ReadSignalList(signet2)
-        local sigmode = signet1.get_signal({name="signal-S",type="virtual"})
-        if sigmode == 1 then
-          siglist[1] = specials.each
-        elseif sigmode == 2 then
-          siglist[1] = specials.each
-          siglist[3] = specials.each
-        end
+    elseif ghost.ghost_type == "arithmetic-combinator" then
+      local siglist = {}
+      if signet2 and signet2.signals and #signet2.signals > 0 then
+        siglist = ReadSignalList(signet2)
+      end
+      local sigmode = signet1.get_signal({name="signal-S",type="virtual"})
+      if sigmode == 1 then
+        siglist[1] = specials.each
+      elseif sigmode == 2 then
+        siglist[1] = specials.each
+        siglist[3] = specials.each
+      end
 
-        ghost.get_or_create_control_behavior().parameters={parameters = {
-          first_signal = siglist[1],
-          second_signal = siglist[2],
-          constant = signet1.get_signal({name="signal-K",type="virtual"}),
-          operation = arithop[signet1.get_signal({name="signal-O",type="virtual"})] or "*",
-          output_signal = siglist[3],
-          }}
+      ghost.get_or_create_control_behavior().parameters={parameters = {
+        first_signal = siglist[1],
+        second_signal = siglist[2],
+        first_constant = signet1.get_signal({name="signal-J",type="virtual"}),
+        second_constant = signet1.get_signal({name="signal-K",type="virtual"}),
+        operation = arithop[signet1.get_signal({name="signal-O",type="virtual"})] or "*",
+        output_signal = siglist[3],
+        }}
 
-      elseif ghost.ghost_type == "decider-combinator" then
-        local siglist = ReadSignalList(signet2)
-        local sigmode = signet1.get_signal({name="signal-S",type="virtual"})
-        if sigmode == 1 then
-          siglist[1] = specials.each
-        elseif sigmode == 2 then
-          siglist[1] = specials.each
-          siglist[3] = specials.each
-        elseif sigmode == 3 then
-          siglist[1] = specials.any
-        elseif sigmode == 4 then
-          siglist[1] = specials.any
-          siglist[3] = specials.every
-        elseif sigmode == 5 then
-          siglist[1] = specials.every
-        elseif sigmode == 6 then
-          siglist[1] = specials.every
-          siglist[3] = specials.every
-        elseif sigmode == 7 then
-          siglist[3] = specials.every
-        end
+    elseif ghost.ghost_type == "decider-combinator" then
+      local siglist = {}
+      if signet2 and signet2.signals and #signet2.signals > 0 then
+        siglist = ReadSignalList(signet2)
+      end
+      local sigmode = signet1.get_signal({name="signal-S",type="virtual"})
+      if sigmode == 1 then
+        siglist[1] = specials.each
+      elseif sigmode == 2 then
+        siglist[1] = specials.each
+        siglist[3] = specials.each
+      elseif sigmode == 3 then
+        siglist[1] = specials.any
+      elseif sigmode == 4 then
+        siglist[1] = specials.any
+        siglist[3] = specials.every
+      elseif sigmode == 5 then
+        siglist[1] = specials.every
+      elseif sigmode == 6 then
+        siglist[1] = specials.every
+        siglist[3] = specials.every
+      elseif sigmode == 7 then
+        siglist[3] = specials.every
+      end
 
-        ghost.get_or_create_control_behavior().parameters={parameters = {
-          first_signal = siglist[1],
-          second_signal = siglist[2],
-          constant = signet1.get_signal({name="signal-K",type="virtual"}),
-          comparator =  deciderop[signet1.get_signal({name="signal-O",type="virtual"})] or "<",
-          output_signal = siglist[3],
-          copy_count_from_input = signet1.get_signal({name="signal-F",type="virtual"}) == 0,
-          }}
+      ghost.get_or_create_control_behavior().parameters={parameters = {
+        first_signal = siglist[1],
+        second_signal = siglist[2],
+        constant = signet1.get_signal({name="signal-K",type="virtual"}),
+        comparator =  deciderop[signet1.get_signal({name="signal-O",type="virtual"})] or "<",
+        output_signal = siglist[3],
+        copy_count_from_input = signet1.get_signal({name="signal-F",type="virtual"}) == 0,
+        }}
 
 
-      elseif usecc2items then
+    elseif usecc2items then
+      if signet2 and signet2.signals and #signet2.signals > 0 then
         ghost.item_requests = ReadItems(signet2)
       end
     end
@@ -492,7 +500,7 @@ local function onBuilt(event)
   local ent = event.created_entity
   if ent.name == "conman" then
 
-    ent.recipe = "conman-process"
+    ent.set_recipe("conman-process")
     ent.active = false
     ent.operable = false
 

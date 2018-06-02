@@ -399,6 +399,19 @@ local function DeliveryOrder(manager,signet1,signet2)
   end
 end
 
+local function ArtilleryOrder(manager,signet1,signet2)
+  manager.ent.surface.create_entity{
+    name='artillery-flare',
+    force=manager.ent.force,
+    position=ReadPosition(signet1),
+    movement={0,0},
+    frame_speed = 1,
+    vertical_speed = 0,
+    height = 0,
+
+  }
+end
+
 local function onTickManager(manager)
   if manager.clearcc2 then
     manager.clearcc2 = nil
@@ -434,6 +447,9 @@ local function onTickManager(manager)
         ConstructionOrder(manager,signet1,signet2)
       elseif signet1.get_signal({name="logistic-robot",type="item"}) == 1 then
         DeliveryOrder(manager,signet1,signet2)
+      elseif signet1.get_signal({name="artillery-targeting-remote",type="item"}) == 1 then
+        ArtilleryOrder(manager,signet1,signet2)
+
 
       elseif signet1.get_signal({name="deconstruction-planner",type="item"}) == 1 then
         -- redprint=1, decon orders

@@ -78,6 +78,7 @@ Signal lists for decider/arithmetic combinators are provided on CC2 by setting s
       * T = trees
       * R = rocks
       * if empty, decon all!!!
+  * artillery remote + XY: Artillery Targetting order
 
 
 

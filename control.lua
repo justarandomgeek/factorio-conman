@@ -382,10 +382,13 @@ local function DeliveryOrder(manager,signet1,signet2)
   if signet2 and signet2.signals and #signet2.signals>0 then
     local items = ReadItems(signet2)
     if next(items,nil) then
-      if ent.name == "entity-ghost" then
+      if ent.name == "entity-ghost" or ent.name == "item-request-proxy" then
         -- just set the ghost requests
-        -- TODO: probably ought to merge these?
-        ent.item_requests = items
+        local reqs = ent.item_requests
+        for name,count in pairs(items) do
+          reqs[name] = (reqs[name] or 0) + count
+        end
+        ent.item_requests = reqs
       else
         ent.surface.create_entity{
           name='item-request-proxy',

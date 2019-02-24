@@ -3,6 +3,7 @@ local conmanent = table.deepcopy(data.raw["assembling-machine"]["assembling-mach
 conmanent.name="conman"
 conmanent.minable.result = "conman"
 conmanent.fast_replaceable_group = nil
+conmanent.next_upgrade = nil
 conmanent.crafting_categories = {"conman"}
 conmanent.crafting_speed = 1
 conmanent.ingredient_count = 4

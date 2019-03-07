@@ -79,6 +79,7 @@ Signal lists for decider/arithmetic combinators are provided on CC2 by setting s
       * R = rocks
       * if empty, decon all!!!
   * artillery remote + XY: Artillery Targetting order
+  * signal-schedule: If Stringy Train Stops is installed, ConMan can use the same commands to build a schedule, and program it into any train. When sending -1 to program/start the schedule, also send XY to select a train to be programmed. Note that you must *NOT* send XY (or other position signals) while building the schedule, as those signals are used to form the stop name. Also note that trains cannot be programmed with a schedule until after they are constructed.
 
 
 

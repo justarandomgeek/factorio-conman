@@ -1,27 +1,36 @@
-local function ReadPosition(signet,secondary,offset)
+function get_signal_from_set(signal,set)
+  for _,sig in pairs(set) do
+    if sig.signal.type == signal.type and sig.signal.name == signal.name then
+      return sig.count
+    end
+  end
+  return 0
+end
+
+local function ReadPosition(signals,secondary,offset)
   if not offset then offset=0.5 end
   if not secondary then
     return {
-      x = signet.get_signal({name="signal-X",type="virtual"})+offset,
-      y = signet.get_signal({name="signal-Y",type="virtual"})+offset
+      x = get_signal_from_set({name="signal-X",type="virtual"},signals)+offset,
+      y = get_signal_from_set({name="signal-Y",type="virtual"},signals)+offset
     }
   else
     return {
-      x = signet.get_signal({name="signal-U",type="virtual"})+offset,
-      y = signet.get_signal({name="signal-V",type="virtual"})+offset
+      x = get_signal_from_set({name="signal-U",type="virtual"},signals)+offset,
+      y = get_signal_from_set({name="signal-V",type="virtual"},signals)+offset
     }
   end
 end
 
-local function ReadBoundingBox(signet)
+local function ReadBoundingBox(signals)
   -- adjust offests to make *inclusive* selection
-  return {ReadPosition(signet,false,0),ReadPosition(signet,true,1)}
+  return {ReadPosition(signals,false,0),ReadPosition(signals,true,1)}
 end
 
-local function ReadFilters(signet,count)
+local function ReadFilters(signals,count)
   local filters = {}
-  if signet.signals and #signet.signals > 0 then
-    for i,s in pairs(signet.signals) do
+  if signals then
+    for i,s in pairs(signals) do
       if s.signal.type == "item" then
         filters[#filters+1]={index = #filters+1, name = s.signal.name, count = s.count}
         if count and #filters==count then break end
@@ -31,10 +40,10 @@ local function ReadFilters(signet,count)
   return filters
 end
 
-local function ReadItems(signet,count)
+local function ReadItems(signals,count)
   local items = {}
-  if signet.signals and #signet.signals > 0 then
-    for i,s in pairs(signet.signals) do
+  if signals then
+    for i,s in pairs(signals) do
       if s.signal.type == "item" then
         items[s.signal.name] = s.count
         if count and #items==count then break end
@@ -44,18 +53,18 @@ local function ReadItems(signet,count)
   return items
 end
 
-local function ReadSignalList(signet)
-  local signals = {}
+local function ReadSignalList(signals)
+  local selected = {}
   for i=0,31 do
-    for _,sig in pairs(signet.signals) do
+    for _,sig in pairs(signals) do
       local sigbit = bit32.extract(sig.count,i)
       if sigbit==1 then
-        signals[i+1] = sig.signal
+        selected[i+1] = sig.signal
         break
       end
     end
   end
-  return signals
+  return selected
 end
 
 local arithop = { "*", "/", "+", "-", "%", "^", "<<", ">>", "AND", "OR", "XOR" }
@@ -66,20 +75,20 @@ local specials = {
   every = {name="signal-everything", type="virtual"},
 }
 
-local function ConstructionOrder(manager,signet1,signet2)
+local function ConstructionOrder(manager,signals1,signals2)
   local createorder = {
     name='entity-ghost',
-    position = ReadPosition(signet1),
+    position = ReadPosition(signals1),
     force = manager.ent.force,
-    direction = signet1.get_signal({name="signal-D",type="virtual"}),
+    direction = get_signal_from_set({name="signal-D",type="virtual"},signals1),
   }
   local usecc2items = true
 
   -- only set bar if it's non-zero, else chests are disabled by default.
-  local bar = signet1.get_signal({name="signal-B",type="virtual"})
+  local bar = get_signal_from_set({name="signal-B",type="virtual"},signals1)
   if bar > 0 then createorder.bar = bar end
 
-  for _,signal in pairs(signet1.signals) do
+  for _,signal in pairs(signals1) do
     if signal.signal.type == "item" and signal.signal.name ~= "construction-robot" then
       local itemproto = game.item_prototypes[signal.signal.name]
       local entproto = itemproto.place_result
@@ -91,15 +100,15 @@ local function ConstructionOrder(manager,signet1,signet2)
         --set recipe if recipeid lib available
         if entproto.type == "assembling-machine" then
           if remote.interfaces['recipeid'] then
-            createorder.recipe = remote.call('recipeid','map_recipe', signet1.get_signal({name="signal-R",type="virtual"}))
+            createorder.recipe = remote.call('recipeid','map_recipe', get_signal_from_set({name="signal-R",type="virtual"},signals1))
           end
         elseif entproto.type == "inserter" then
           --TODO: limit filter count
-          createorder.filters = ReadFilters(signet2)
+          createorder.filters = ReadFilters(signals2)
           usecc2items=false
         elseif entproto.type == "logistic-container" then
           --TODO: limit filter count
-          createorder.request_filters = ReadFilters(signet2)
+          createorder.request_filters = ReadFilters(signals2)
           usecc2items=false
 
         end
@@ -116,8 +125,8 @@ local function ConstructionOrder(manager,signet1,signet2)
 
     if ghost.ghost_type == "constant-combinator" then
       local filters = {}
-      if signet2 and signet2.signals and #signet2.signals > 0 then
-        for i,s in pairs(signet2.signals) do
+      if signals2 then
+        for i,s in pairs(signals2) do
           filters[#filters+1]={index = #filters+1, count = s.count, signal = s.signal}
         end
       end
@@ -125,10 +134,10 @@ local function ConstructionOrder(manager,signet1,signet2)
 
     elseif ghost.ghost_type == "arithmetic-combinator" then
       local siglist = {}
-      if signet2 and signet2.signals and #signet2.signals > 0 then
-        siglist = ReadSignalList(signet2)
+      if signals2 then
+        siglist = ReadSignalList(signals2)
       end
-      local sigmode = signet1.get_signal({name="signal-S",type="virtual"})
+      local sigmode = get_signal_from_set({name="signal-S",type="virtual"},signals1)
       if sigmode == 1 then
         siglist[1] = specials.each
       elseif sigmode == 2 then
@@ -139,18 +148,18 @@ local function ConstructionOrder(manager,signet1,signet2)
       ghost.get_or_create_control_behavior().parameters={parameters = {
         first_signal = siglist[1],
         second_signal = siglist[2],
-        first_constant = signet1.get_signal({name="signal-J",type="virtual"}),
-        second_constant = signet1.get_signal({name="signal-K",type="virtual"}),
-        operation = arithop[signet1.get_signal({name="signal-O",type="virtual"})] or "*",
+        first_constant = get_signal_from_set({name="signal-J",type="virtual"},signals1),
+        second_constant = get_signal_from_set({name="signal-K",type="virtual"},signals1),
+        operation = arithop[get_signal_from_set({name="signal-O",type="virtual"},signals1)] or "*",
         output_signal = siglist[3],
         }}
 
     elseif ghost.ghost_type == "decider-combinator" then
       local siglist = {}
-      if signet2 and signet2.signals and #signet2.signals > 0 then
-        siglist = ReadSignalList(signet2)
+      if signals2 then
+        siglist = ReadSignalList(signals2)
       end
-      local sigmode = signet1.get_signal({name="signal-S",type="virtual"})
+      local sigmode = get_signal_from_set({name="signal-S",type="virtual"},signals1)
       if sigmode == 1 then
         siglist[1] = specials.each
       elseif sigmode == 2 then
@@ -173,16 +182,16 @@ local function ConstructionOrder(manager,signet1,signet2)
       ghost.get_or_create_control_behavior().parameters={parameters = {
         first_signal = siglist[1],
         second_signal = siglist[2],
-        constant = signet1.get_signal({name="signal-K",type="virtual"}),
-        comparator =  deciderop[signet1.get_signal({name="signal-O",type="virtual"})] or "<",
+        constant = get_signal_from_set({name="signal-K",type="virtual"},signals1),
+        comparator =  deciderop[get_signal_from_set({name="signal-O",type="virtual"},signals1)] or "<",
         output_signal = siglist[3],
-        copy_count_from_input = signet1.get_signal({name="signal-F",type="virtual"}) == 0,
+        copy_count_from_input = get_signal_from_set({name="signal-F",type="virtual"},signals1) == 0,
         }}
 
 
     elseif usecc2items then
-      if signet2 and signet2.signals and #signet2.signals > 0 then
-        ghost.item_requests = ReadItems(signet2)
+      if signals2 then
+        ghost.item_requests = ReadItems(signals2)
       end
     end
   end
@@ -195,26 +204,26 @@ local function EjectBlueprint(manager)
   inInv[1].clear()
 end
 
-local function DeployBlueprint(manager,signet1,signet2)
+local function DeployBlueprint(manager,signals1,signals2)
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
 
   -- confirm it's a blueprint and is setup and such...
   local bp = inInv[1]
   if bp.valid and bp.valid_for_read and bp.is_blueprint_setup() then
 
-    local force_build = signet1.get_signal({name="signal-F",type="virtual"})==1
+    local force_build = get_signal_from_set({name="signal-F",type="virtual"},signals1)==1
 
     bp.build_blueprint{
       surface=manager.ent.surface,
       force=manager.ent.force,
-      position=ReadPosition(signet1),
-      direction = signet1.get_signal({name="signal-D",type="virtual"}),
+      position=ReadPosition(signals1),
+      direction = get_signal_from_set({name="signal-D",type="virtual"},signals1),
       force_build= force_build,
     }
   end
 end
 
-local function CaptureBlueprint(manager,signet1,signet2)
+local function CaptureBlueprint(manager,signals1,signals2)
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
   -- confirm it's a blueprint and is setup and such...
   local bp = inInv[1]
@@ -223,8 +232,8 @@ local function CaptureBlueprint(manager,signet1,signet2)
     bp.create_blueprint{
       surface = manager.ent.surface,
       force = manager.ent.force,
-      area = ReadBoundingBox(signet1),
-      always_include_tiles = signet1.get_signal({name="signal-T",type="virtual"})==1,
+      area = ReadBoundingBox(signals1),
+      always_include_tiles = get_signal_from_set({name="signal-T",type="virtual"},signals1)==1,
     }
 
     if bp.is_blueprint_setup() then
@@ -233,14 +242,14 @@ local function CaptureBlueprint(manager,signet1,signet2)
     end
 
     -- set or clear label and color from cc2
-    if remote.interfaces['signalstrings'] and signet2 and signet2.signals and #signet2.signals > 0  then
-      bp.label = remote.call('signalstrings','signals_to_string',signet2.signals)
+    if remote.interfaces['signalstrings'] and signals2 then
+      bp.label = remote.call('signalstrings','signals_to_string',signals2)
 
-      local a = signet2.get_signal({name="signal-white",type="virtual"})
+      local a = get_signal_from_set({name="signal-white",type="virtual"},signals2)
       if a > 0 and a <= 256 then
-        local r = signet2.get_signal({name="signal-red",type="virtual"})
-        local g = signet2.get_signal({name="signal-green",type="virtual"})
-        local b = signet2.get_signal({name="signal-blue",type="virtual"})
+        local r = get_signal_from_set({name="signal-red",type="virtual"},signals2)
+        local g = get_signal_from_set({name="signal-green",type="virtual"},signals2)
+        local b = get_signal_from_set({name="signal-blue",type="virtual"},signals2)
 
         bp.label_color = { r=r/256, g=g/256, b=b/256, a=a/256 }
       end
@@ -252,15 +261,15 @@ local function CaptureBlueprint(manager,signet1,signet2)
   end
 end
 
-local function ConnectWire(manager,signet1,signet2,color,disconnect)
-  local z = signet1.get_signal({name="signal-Z",type="virtual"})
+local function ConnectWire(manager,signals1,signals2,color,disconnect)
+  local z = get_signal_from_set({name="signal-Z",type="virtual"},signals1)
   if not (z>0) then z=1 end
 
-  local w = signet1.get_signal({name="signal-W",type="virtual"})
+  local w = get_signal_from_set({name="signal-W",type="virtual"},signals1)
   if not (w>0) then w=1 end
 
-  local ent1 = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(signet1)}[1]
-  local ent2 = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(signet1,true)}[1]
+  local ent1 = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(signals1)}[1]
+  local ent2 = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(signals1,true)}[1]
 
   if not (ent1 and ent1.valid and ent2 and ent2.valid) then return end
 
@@ -289,7 +298,7 @@ local function ConnectWire(manager,signet1,signet2,color,disconnect)
   end
 end
 
-local function ReportBlueprint(manager,signet1,signet2)
+local function ReportBlueprint(manager,signals1,signals2)
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
   -- confirm it's a blueprint and is setup and such...
   local bp = inInv[1]
@@ -317,10 +326,10 @@ local function ReportBlueprint(manager,signet1,signet2)
   manager.clearcc2 = true
 end
 
-local function DeconstructionOrder(manager,signet1,signet2,cancel)
-  local area = ReadBoundingBox(signet1)
+local function DeconstructionOrder(manager,signals1,signals2,cancel)
+  local area = ReadBoundingBox(signals1)
 
-  if not signet2 or not signet2.signals or #signet2.signals==0 then
+  if not signals2 then
     -- decon all
     local decon = manager.ent.surface.find_entities(area)
     for _,e in pairs(decon) do
@@ -332,7 +341,7 @@ local function DeconstructionOrder(manager,signet1,signet2,cancel)
     end
   else
     -- filtered decon
-    for _,signal in pairs(signet2.signals) do
+    for _,signal in pairs(signals2) do
       if signal.signal.type == "item" then
         local itemproto = game.item_prototypes[signal.signal.name]
         if itemproto.place_result then
@@ -374,13 +383,13 @@ local function DeconstructionOrder(manager,signet1,signet2,cancel)
   end
 end
 
-local function DeliveryOrder(manager,signet1,signet2)
+local function DeliveryOrder(manager,signals1,signals2)
 
-  local ent = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(signet1)}[1]
+  local ent = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(signals1)}[1]
   if not (ent and ent.valid) then return end
 
-  if signet2 and signet2.signals and #signet2.signals>0 then
-    local items = ReadItems(signet2)
+  if signals2 then
+    local items = ReadItems(signals2)
     if next(items,nil) then
       if ent.name == "entity-ghost" or ent.name == "item-request-proxy" then
         -- just set the ghost requests
@@ -402,11 +411,11 @@ local function DeliveryOrder(manager,signet1,signet2)
   end
 end
 
-local function ArtilleryOrder(manager,signet1,signet2)
+local function ArtilleryOrder(manager,signals1,signals2)
   manager.ent.surface.create_entity{
     name='artillery-flare',
     force=manager.ent.force,
-    position=ReadPosition(signet1),
+    position=ReadPosition(signals1),
     movement={0,0},
     frame_speed = 1,
     vertical_speed = 0,
@@ -415,18 +424,18 @@ local function ArtilleryOrder(manager,signet1,signet2)
   }
 end
 
+
 local function onTickManager(manager)
   if manager.clearcc2 then
     manager.clearcc2 = nil
     manager.cc2.get_or_create_control_behavior().parameters=nil
   end
 
-  -- read cc1 signals. Only uses one wire, red if both connected.
-  local signet1 = manager.cc1.get_circuit_network(defines.wire_type.red) or manager.cc1.get_circuit_network(defines.wire_type.green)
-  if signet1 and signet1.signals and #signet1.signals > 0 then
-    local signet2 = manager.cc2.get_circuit_network(defines.wire_type.red) or manager.cc2.get_circuit_network(defines.wire_type.green)
+  local signals1 = manager.cc1.get_merged_signals()
+  if signals1 then
+    local signals2 = manager.cc2.get_merged_signals()
 
-    local bpsig = signet1.get_signal({name="blueprint",type="item"})
+    local bpsig = get_signal_from_set({name="blueprint",type="item"},signals1)
     if bpsig ~= 0 then
       if bpsig == -1 then
         -- transfer blueprint to output
@@ -434,45 +443,47 @@ local function onTickManager(manager)
 
       elseif bpsig == 1 then
         -- deploy blueprint at XY
-        DeployBlueprint(manager,signet1,signet2)
+        DeployBlueprint(manager,signals1,signals2)
 
       elseif bpsig == 2 then
         -- capture blueprint from XYWH
-        CaptureBlueprint(manager,signet1,signet2)
+        CaptureBlueprint(manager,signals1,signals2)
 
       elseif bpsig == 3 then
-        ReportBlueprint(manager,signet1,signet2)
+        ReportBlueprint(manager,signals1,signals2)
       end
     else
 
-      if signet1.get_signal({name="construction-robot",type="item"}) == 1 then
+      if get_signal_from_set({name="construction-robot",type="item"},signals1) == 1 then
         -- check for conbot=1, build a thing
-        ConstructionOrder(manager,signet1,signet2)
-      elseif signet1.get_signal({name="logistic-robot",type="item"}) == 1 then
-        DeliveryOrder(manager,signet1,signet2)
-      elseif signet1.get_signal({name="artillery-targeting-remote",type="item"}) == 1 then
-        ArtilleryOrder(manager,signet1,signet2)
+        ConstructionOrder(manager,signals1,signals2)
+      elseif get_signal_from_set({name="logistic-robot",type="item"},signals1) == 1 then
+        DeliveryOrder(manager,signals1,signals2)
+
+      --TODO: look for all artillery remotes
+      elseif get_signal_from_set({name="artillery-targeting-remote",type="item"},signals1) == 1 then
+        ArtilleryOrder(manager,signals1,signals2)
 
 
-      elseif signet1.get_signal({name="deconstruction-planner",type="item"}) == 1 then
+      elseif get_signal_from_set({name="deconstruction-planner",type="item"},signals1) == 1 then
         -- redprint=1, decon orders
-        DeconstructionOrder(manager,signet1,signet2)
-      elseif signet1.get_signal({name="deconstruction-planner",type="item"}) == -1 then
+        DeconstructionOrder(manager,signals1,signals2)
+      elseif get_signal_from_set({name="deconstruction-planner",type="item"},signals1) == -1 then
         -- redprint=-1, cancel decon orders
-        DeconstructionOrder(manager,signet1,signet2,true)
+        DeconstructionOrder(manager,signals1,signals2,true)
 
-      elseif signet1.get_signal({name="red-wire",type="item"}) == 1 then
-        ConnectWire(manager,signet1,signet2,defines.wire_type.red)
-      elseif signet1.get_signal({name="green-wire",type="item"}) == 1 then
-        ConnectWire(manager,signet1,signet2,defines.wire_type.green)
-      elseif signet1.get_signal({name="copper-cable",type="item"}) == 1 then
-        ConnectWire(manager,signet1,signet2)
-      elseif signet1.get_signal({name="red-wire",type="item"}) == -1 then
-        ConnectWire(manager,signet1,signet2,defines.wire_type.red,true)
-      elseif signet1.get_signal({name="green-wire",type="item"}) == -1 then
-        ConnectWire(manager,signet1,signet2,defines.wire_type.green,true)
-      elseif signet1.get_signal({name="copper-cable",type="item"}) == -1 then
-        ConnectWire(manager,signet1,signet2,nil,true)
+      elseif get_signal_from_set({name="red-wire",type="item"},signals1) == 1 then
+        ConnectWire(manager,signals1,signals2,defines.wire_type.red)
+      elseif get_signal_from_set({name="green-wire",type="item"},signals1) == 1 then
+        ConnectWire(manager,signals1,signals2,defines.wire_type.green)
+      elseif get_signal_from_set({name="copper-cable",type="item"},signals1) == 1 then
+        ConnectWire(manager,signals1,signals2)
+      elseif get_signal_from_set({name="red-wire",type="item"},signals1) == -1 then
+        ConnectWire(manager,signals1,signals2,defines.wire_type.red,true)
+      elseif get_signal_from_set({name="green-wire",type="item"},signals1) == -1 then
+        ConnectWire(manager,signals1,signals2,defines.wire_type.green,true)
+      elseif get_signal_from_set({name="copper-cable",type="item"},signals1) == -1 then
+        ConnectWire(manager,signals1,signals2,nil,true)
       end
     end
   end

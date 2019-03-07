@@ -138,12 +138,10 @@ local function ConstructionOrder(manager,signals1,signals2)
             createorder.recipe = remote.call('recipeid','map_recipe', get_signal_from_set(knownsignals.R,signals1))
           end
         elseif entproto.type == "inserter" then
-          --TODO: limit filter count
-          createorder.filters = ReadFilters(signals2)
+          createorder.filters = ReadFilters(signals2, entproto.filter_count)
           usecc2items=false
         elseif entproto.type == "logistic-container" then
-          --TODO: limit filter count
-          createorder.request_filters = ReadFilters(signals2)
+          createorder.request_filters = ReadFilters(signals2, entproto.filter_count)
           usecc2items=false
 
         end

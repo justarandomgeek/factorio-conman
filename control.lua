@@ -7,17 +7,52 @@ function get_signal_from_set(signal,set)
   return 0
 end
 
+-- pre-built signal tables to save loads of table/string constructions
+local knownsignals = {
+  B = {name="signal-B",type="virtual"},
+  D = {name="signal-D",type="virtual"},
+  F = {name="signal-F",type="virtual"},
+  J = {name="signal-J",type="virtual"},
+  K = {name="signal-K",type="virtual"},
+  O = {name="signal-O",type="virtual"},
+  R = {name="signal-R",type="virtual"},
+  S = {name="signal-S",type="virtual"},
+  T = {name="signal-T",type="virtual"},
+
+  U = {name="signal-U",type="virtual"},
+  V = {name="signal-V",type="virtual"},
+  W = {name="signal-W",type="virtual"},
+  X = {name="signal-X",type="virtual"},
+  Y = {name="signal-Y",type="virtual"},
+  Z = {name="signal-Z",type="virtual"},
+
+  white = {name="signal-white",type="virtual"},
+  red = {name="signal-red",type="virtual"},
+  green = {name="signal-green",type="virtual"},
+  blue = {name="signal-blue",type="virtual"},
+
+  blueprint = {name="blueprint",type="item"},
+  redprint = {name="deconstruction-planner",type="item"},
+  conbot = {name="construction-robot",type="item"},
+  logbot = {name="logistic-robot",type="item"},
+
+  redwire = {name="red-wire",type="item"},
+  greenwire = {name="green-wire",type="item"},
+  coppercable = {name="copper-cable",type="item"},
+}
+
+
 local function ReadPosition(signals,secondary,offset)
   if not offset then offset=0.5 end
   if not secondary then
     return {
-      x = get_signal_from_set({name="signal-X",type="virtual"},signals)+offset,
-      y = get_signal_from_set({name="signal-Y",type="virtual"},signals)+offset
+      x = get_signal_from_set(knownsignals.X,signals)+offset,
+      y = get_signal_from_set(knownsignals.Y,signals)+offset
     }
   else
     return {
-      x = get_signal_from_set({name="signal-U",type="virtual"},signals)+offset,
-      y = get_signal_from_set({name="signal-V",type="virtual"},signals)+offset
+      x = get_signal_from_set(knownsignals.U,signals)+offset,
+      y = get_signal_from_set(knownsignals.V,signals)+offset
     }
   end
 end
@@ -80,12 +115,12 @@ local function ConstructionOrder(manager,signals1,signals2)
     name='entity-ghost',
     position = ReadPosition(signals1),
     force = manager.ent.force,
-    direction = get_signal_from_set({name="signal-D",type="virtual"},signals1),
+    direction = get_signal_from_set(knownsignals.D,signals1),
   }
   local usecc2items = true
 
   -- only set bar if it's non-zero, else chests are disabled by default.
-  local bar = get_signal_from_set({name="signal-B",type="virtual"},signals1)
+  local bar = get_signal_from_set(knownsignals.B,signals1)
   if bar > 0 then createorder.bar = bar end
 
   for _,signal in pairs(signals1) do
@@ -100,7 +135,7 @@ local function ConstructionOrder(manager,signals1,signals2)
         --set recipe if recipeid lib available
         if entproto.type == "assembling-machine" then
           if remote.interfaces['recipeid'] then
-            createorder.recipe = remote.call('recipeid','map_recipe', get_signal_from_set({name="signal-R",type="virtual"},signals1))
+            createorder.recipe = remote.call('recipeid','map_recipe', get_signal_from_set(knownsignals.R,signals1))
           end
         elseif entproto.type == "inserter" then
           --TODO: limit filter count
@@ -137,7 +172,7 @@ local function ConstructionOrder(manager,signals1,signals2)
       if signals2 then
         siglist = ReadSignalList(signals2)
       end
-      local sigmode = get_signal_from_set({name="signal-S",type="virtual"},signals1)
+      local sigmode = get_signal_from_set(knownsignals.S,signals1)
       if sigmode == 1 then
         siglist[1] = specials.each
       elseif sigmode == 2 then
@@ -148,9 +183,9 @@ local function ConstructionOrder(manager,signals1,signals2)
       ghost.get_or_create_control_behavior().parameters={parameters = {
         first_signal = siglist[1],
         second_signal = siglist[2],
-        first_constant = get_signal_from_set({name="signal-J",type="virtual"},signals1),
-        second_constant = get_signal_from_set({name="signal-K",type="virtual"},signals1),
-        operation = arithop[get_signal_from_set({name="signal-O",type="virtual"},signals1)] or "*",
+        first_constant = get_signal_from_set(knownsignals.J,signals1),
+        second_constant = get_signal_from_set(knownsignals.K,signals1),
+        operation = arithop[get_signal_from_set(knownsignals.O,signals1)] or "*",
         output_signal = siglist[3],
         }}
 
@@ -159,7 +194,7 @@ local function ConstructionOrder(manager,signals1,signals2)
       if signals2 then
         siglist = ReadSignalList(signals2)
       end
-      local sigmode = get_signal_from_set({name="signal-S",type="virtual"},signals1)
+      local sigmode = get_signal_from_set(knownsignals.S,signals1)
       if sigmode == 1 then
         siglist[1] = specials.each
       elseif sigmode == 2 then
@@ -182,10 +217,10 @@ local function ConstructionOrder(manager,signals1,signals2)
       ghost.get_or_create_control_behavior().parameters={parameters = {
         first_signal = siglist[1],
         second_signal = siglist[2],
-        constant = get_signal_from_set({name="signal-K",type="virtual"},signals1),
-        comparator =  deciderop[get_signal_from_set({name="signal-O",type="virtual"},signals1)] or "<",
+        constant = get_signal_from_set(knownsignals.K,signals1),
+        comparator =  deciderop[get_signal_from_set(knownsignals.O,signals1)] or "<",
         output_signal = siglist[3],
-        copy_count_from_input = get_signal_from_set({name="signal-F",type="virtual"},signals1) == 0,
+        copy_count_from_input = get_signal_from_set(knownsignals.F,signals1) == 0,
         }}
 
 
@@ -211,13 +246,13 @@ local function DeployBlueprint(manager,signals1,signals2)
   local bp = inInv[1]
   if bp.valid and bp.valid_for_read and bp.is_blueprint_setup() then
 
-    local force_build = get_signal_from_set({name="signal-F",type="virtual"},signals1)==1
+    local force_build = get_signal_from_set(knownsignals.F,signals1)==1
 
     bp.build_blueprint{
       surface=manager.ent.surface,
       force=manager.ent.force,
       position=ReadPosition(signals1),
-      direction = get_signal_from_set({name="signal-D",type="virtual"},signals1),
+      direction = get_signal_from_set(knownsignals.D,signals1),
       force_build= force_build,
     }
   end
@@ -233,7 +268,7 @@ local function CaptureBlueprint(manager,signals1,signals2)
       surface = manager.ent.surface,
       force = manager.ent.force,
       area = ReadBoundingBox(signals1),
-      always_include_tiles = get_signal_from_set({name="signal-T",type="virtual"},signals1)==1,
+      always_include_tiles = get_signal_from_set(knownsignals.T,signals1)==1,
     }
 
     if bp.is_blueprint_setup() then
@@ -245,11 +280,11 @@ local function CaptureBlueprint(manager,signals1,signals2)
     if remote.interfaces['signalstrings'] and signals2 then
       bp.label = remote.call('signalstrings','signals_to_string',signals2)
 
-      local a = get_signal_from_set({name="signal-white",type="virtual"},signals2)
+      local a = get_signal_from_set(knownsignals.white,signals2)
       if a > 0 and a <= 256 then
-        local r = get_signal_from_set({name="signal-red",type="virtual"},signals2)
-        local g = get_signal_from_set({name="signal-green",type="virtual"},signals2)
-        local b = get_signal_from_set({name="signal-blue",type="virtual"},signals2)
+        local r = get_signal_from_set(knownsignals.red,signals2)
+        local g = get_signal_from_set(knownsignals.green,signals2)
+        local b = get_signal_from_set(knownsignals.blue,signals2)
 
         bp.label_color = { r=r/256, g=g/256, b=b/256, a=a/256 }
       end
@@ -262,10 +297,10 @@ local function CaptureBlueprint(manager,signals1,signals2)
 end
 
 local function ConnectWire(manager,signals1,signals2,color,disconnect)
-  local z = get_signal_from_set({name="signal-Z",type="virtual"},signals1)
+  local z = get_signal_from_set(knownsignals.Z,signals1)
   if not (z>0) then z=1 end
 
-  local w = get_signal_from_set({name="signal-W",type="virtual"},signals1)
+  local w = get_signal_from_set(knownsignals.W,signals1)
   if not (w>0) then w=1 end
 
   local ent1 = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(signals1)}[1]
@@ -311,10 +346,10 @@ local function ReportBlueprint(manager,signals1,signals2)
 
     -- add color signals
     if bp.label_color then
-      outsignals[#outsignals+1]={index=#outsignals+1,count=bp.label_color.r*256,signal={name="signal-red",type="virtual"}}
-      outsignals[#outsignals+1]={index=#outsignals+1,count=bp.label_color.g*256,signal={name="signal-green",type="virtual"}}
-      outsignals[#outsignals+1]={index=#outsignals+1,count=bp.label_color.b*256,signal={name="signal-blue",type="virtual"}}
-      outsignals[#outsignals+1]={index=#outsignals+1,count=bp.label_color.a*256,signal={name="signal-white",type="virtual"}}
+      outsignals[#outsignals+1]={index=#outsignals+1,count=bp.label_color.r*256,signal=knownsignals.red}
+      outsignals[#outsignals+1]={index=#outsignals+1,count=bp.label_color.g*256,signal=knownsignals.green}
+      outsignals[#outsignals+1]={index=#outsignals+1,count=bp.label_color.b*256,signal=knownsignals.blue}
+      outsignals[#outsignals+1]={index=#outsignals+1,count=bp.label_color.a*256,signal=knownsignals.white}
     end
 
     -- add BoM signals
@@ -435,7 +470,7 @@ local function onTickManager(manager)
   if signals1 then
     local signals2 = manager.cc2.get_merged_signals()
 
-    local bpsig = get_signal_from_set({name="blueprint",type="item"},signals1)
+    local bpsig = get_signal_from_set(knownsignals.blueprint,signals1)
     if bpsig ~= 0 then
       if bpsig == -1 then
         -- transfer blueprint to output
@@ -454,10 +489,10 @@ local function onTickManager(manager)
       end
     else
 
-      if get_signal_from_set({name="construction-robot",type="item"},signals1) == 1 then
+      if get_signal_from_set(knownsignals.conbot,signals1) == 1 then
         -- check for conbot=1, build a thing
         ConstructionOrder(manager,signals1,signals2)
-      elseif get_signal_from_set({name="logistic-robot",type="item"},signals1) == 1 then
+      elseif get_signal_from_set(knownsignals.logbot,signals1) == 1 then
         DeliveryOrder(manager,signals1,signals2)
 
       --TODO: look for all artillery remotes
@@ -465,24 +500,24 @@ local function onTickManager(manager)
         ArtilleryOrder(manager,signals1,signals2)
 
 
-      elseif get_signal_from_set({name="deconstruction-planner",type="item"},signals1) == 1 then
+      elseif get_signal_from_set(knownsignals.redprint,signals1) == 1 then
         -- redprint=1, decon orders
         DeconstructionOrder(manager,signals1,signals2)
-      elseif get_signal_from_set({name="deconstruction-planner",type="item"},signals1) == -1 then
+      elseif get_signal_from_set(knownsignals.redprint,signals1) == -1 then
         -- redprint=-1, cancel decon orders
         DeconstructionOrder(manager,signals1,signals2,true)
 
-      elseif get_signal_from_set({name="red-wire",type="item"},signals1) == 1 then
+      elseif get_signal_from_set(knownsignals.redwire,signals1) == 1 then
         ConnectWire(manager,signals1,signals2,defines.wire_type.red)
-      elseif get_signal_from_set({name="green-wire",type="item"},signals1) == 1 then
+      elseif get_signal_from_set(knownsignals.greenwire,signals1) == 1 then
         ConnectWire(manager,signals1,signals2,defines.wire_type.green)
-      elseif get_signal_from_set({name="copper-cable",type="item"},signals1) == 1 then
+      elseif get_signal_from_set(knownsignals.coppercable,signals1) == 1 then
         ConnectWire(manager,signals1,signals2)
-      elseif get_signal_from_set({name="red-wire",type="item"},signals1) == -1 then
+      elseif get_signal_from_set(knownsignals.redwire,signals1) == -1 then
         ConnectWire(manager,signals1,signals2,defines.wire_type.red,true)
-      elseif get_signal_from_set({name="green-wire",type="item"},signals1) == -1 then
+      elseif get_signal_from_set(knownsignals.greenwire,signals1) == -1 then
         ConnectWire(manager,signals1,signals2,defines.wire_type.green,true)
-      elseif get_signal_from_set({name="copper-cable",type="item"},signals1) == -1 then
+      elseif get_signal_from_set(knownsignals.coppercable,signals1) == -1 then
         ConnectWire(manager,signals1,signals2,nil,true)
       end
     end

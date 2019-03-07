@@ -447,16 +447,15 @@ local function DeliveryOrder(manager,signals1,signals2)
   end
 end
 
-local function ArtilleryOrder(manager,signals1,signals2)
+local function ArtilleryOrder(manager,signals1,signals2,flare)
   manager.ent.surface.create_entity{
-    name='artillery-flare',
+    name=flare,
     force=manager.ent.force,
     position=ReadPosition(signals1),
     movement={0,0},
     frame_speed = 1,
     vertical_speed = 0,
     height = 0,
-
   }
 end
 
@@ -496,11 +495,6 @@ local function onTickManager(manager)
       elseif get_signal_from_set(knownsignals.logbot,signals1) == 1 then
         DeliveryOrder(manager,signals1,signals2)
 
-      --TODO: look for all artillery remotes
-      elseif get_signal_from_set({name="artillery-targeting-remote",type="item"},signals1) == 1 then
-        ArtilleryOrder(manager,signals1,signals2)
-
-
       elseif get_signal_from_set(knownsignals.redprint,signals1) == 1 then
         -- redprint=1, decon orders
         DeconstructionOrder(manager,signals1,signals2)
@@ -520,26 +514,35 @@ local function onTickManager(manager)
         ConnectWire(manager,signals1,signals2,defines.wire_type.green,true)
       elseif get_signal_from_set(knownsignals.coppercable,signals1) == -1 then
         ConnectWire(manager,signals1,signals2,nil,true)
-      elseif game.active_mods["stringy-train-stop"] then
-        local sigsched = get_signal_from_set(knownsignals.schedule,signals1)
-        if sigsched > 0 then
-          if not manager.schedule then manager.schedule = {} end
-          local schedule = remote.call("stringy-train-stop", "parseScheduleEntry", signals1)
-          if schedule.name == "" then
-            manager.schedule[sigsched] = {}
-          else
-            manager.schedule[sigsched] = schedule
+      else
+        if game.active_mods["stringy-train-stop"] then
+          local sigsched = get_signal_from_set(knownsignals.schedule,signals1)
+          if sigsched > 0 then
+            if not manager.schedule then manager.schedule = {} end
+            local schedule = remote.call("stringy-train-stop", "parseScheduleEntry", signals1)
+            if schedule.name == "" then
+              manager.schedule[sigsched] = {}
+            else
+              manager.schedule[sigsched] = schedule
+            end
+            return
+          elseif sigsched == -1 and manager.schedule then
+            local ent = manager.ent.surface.find_entities_filtered{
+              type={'locomotive','cargo-wagon','fluid-wagon','artillery-wagon'},
+              force=manager.ent.force,
+              position=ReadPosition(signals1)}[1]
+            if ent and ent.valid then
+              ent.train.manual_mode = true
+              ent.train.schedule = { current = 1, records = manager.schedule}
+              ent.train.manual_mode = false
+              manager.schedule = {}
+            end
+            return
           end
-        elseif sigsched == -1 and manager.schedule then
-          local ent = manager.ent.surface.find_entities_filtered{
-            type={'locomotive','cargo-wagon','fluid-wagon','artillery-wagon'},
-            force=manager.ent.force,
-            position=ReadPosition(signals1)}[1]
-          if ent and ent.valid then
-            ent.train.manual_mode = true
-            ent.train.schedule = { current = 1, records = manager.schedule}
-            ent.train.manual_mode = false
-            manager.schedule = {}
+        end
+        for _,remote in pairs(global.remotes) do
+          if get_signal_from_set(remote.signal,signals1) == 1 then
+            ArtilleryOrder(manager,signals1,signals2,remote.flare)
           end
         end
       end
@@ -600,6 +603,31 @@ local function onBuilt(event)
 
   end
 end
+
+function reindex_remotes()
+ local remotes={}
+
+ for name,itemproto in pairs(game.item_prototypes) do
+   if itemproto.type == "capsule" and itemproto.capsule_action.type == "artillery-remote" then
+     remotes[name] = { signal = {name=name,type="item"}, flare = itemproto.capsule_action.flare }
+   end
+ end
+
+ global.remotes = remotes
+end
+
+script.on_init(function()
+  -- Index recipes for new install
+  reindex_remotes()
+end
+)
+
+script.on_configuration_changed(function(data)
+  -- when any mods change, reindex recipes
+  reindex_remotes()
+end
+)
+
 
 script.on_event(defines.events.on_tick, onTick)
 script.on_event(defines.events.on_built_entity, onBuilt)

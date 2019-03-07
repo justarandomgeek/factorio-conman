@@ -39,6 +39,9 @@ local knownsignals = {
   redwire = {name="red-wire",type="item"},
   greenwire = {name="green-wire",type="item"},
   coppercable = {name="copper-cable",type="item"},
+
+  -- stringy train stops defines this
+  schedule = {name="signal-schedule",type="virtual"},
 }
 
 
@@ -517,6 +520,28 @@ local function onTickManager(manager)
         ConnectWire(manager,signals1,signals2,defines.wire_type.green,true)
       elseif get_signal_from_set(knownsignals.coppercable,signals1) == -1 then
         ConnectWire(manager,signals1,signals2,nil,true)
+      elseif game.active_mods["stringy-train-stop"] then
+        local sigsched = get_signal_from_set(knownsignals.schedule,signals1)
+        if sigsched > 0 then
+          if not manager.schedule then manager.schedule = {} end
+          local schedule = remote.call("stringy-train-stop", "parseScheduleEntry", signals1)
+          if schedule.name == "" then
+            manager.schedule[sigsched] = {}
+          else
+            manager.schedule[sigsched] = schedule
+          end
+        elseif sigsched == -1 and manager.schedule then
+          local ent = manager.ent.surface.find_entities_filtered{
+            type={'locomotive','cargo-wagon','fluid-wagon','artillery-wagon'},
+            force=manager.ent.force,
+            position=ReadPosition(signals1)}[1]
+          if ent and ent.valid then
+            ent.train.manual_mode = true
+            ent.train.schedule = { current = 1, records = manager.schedule}
+            ent.train.manual_mode = false
+            manager.schedule = {}
+          end
+        end
       end
     end
   end

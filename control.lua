@@ -9,22 +9,23 @@ end
 
 -- pre-built signal tables to save loads of table/string constructions
 local knownsignals = {
-  B = {name="signal-B",type="virtual"},
-  D = {name="signal-D",type="virtual"},
-  F = {name="signal-F",type="virtual"},
-  J = {name="signal-J",type="virtual"},
-  K = {name="signal-K",type="virtual"},
-  O = {name="signal-O",type="virtual"},
-  R = {name="signal-R",type="virtual"},
-  S = {name="signal-S",type="virtual"},
-  T = {name="signal-T",type="virtual"},
+  B = {name="signal-B",type="virtual"}, -- bar
+  D = {name="signal-D",type="virtual"}, -- direction
+  F = {name="signal-F",type="virtual"}, -- force build blueprint
+                                        -- combinator "flag" (=1) output
+  J = {name="signal-J",type="virtual"}, -- combinator first constant
+  K = {name="signal-K",type="virtual"}, -- combinator second constant
+  O = {name="signal-O",type="virtual"}, -- combinator operation
+  R = {name="signal-R",type="virtual"}, -- recipeid (with recipeid mod)
+  S = {name="signal-S",type="virtual"}, -- combinator special signal mode
+  T = {name="signal-T",type="virtual"}, -- captured blueprint incldues tiles
 
-  U = {name="signal-U",type="virtual"},
-  V = {name="signal-V",type="virtual"},
-  W = {name="signal-W",type="virtual"},
-  X = {name="signal-X",type="virtual"},
-  Y = {name="signal-Y",type="virtual"},
-  Z = {name="signal-Z",type="virtual"},
+  U = {name="signal-U",type="virtual"}, -- X2
+  V = {name="signal-V",type="virtual"}, -- Y2
+  W = {name="signal-W",type="virtual"}, -- wire connection select for XY2
+  X = {name="signal-X",type="virtual"}, -- X1
+  Y = {name="signal-Y",type="virtual"}, -- Y1
+  Z = {name="signal-Z",type="virtual"}, -- wire connection select for XY1
 
   white = {name="signal-white",type="virtual"},
   red = {name="signal-red",type="virtual"},
@@ -72,6 +73,31 @@ local function ReadFilters(signals,count)
       if s.signal.type == "item" then
         filters[#filters+1]={index = #filters+1, name = s.signal.name, count = s.count}
         if count and #filters==count then break end
+      end
+    end
+  end
+  return filters
+end
+
+local function ReadInventoryFilters(signals,count)
+  local filters = {}
+  local nfilters = 0
+  if signals then
+    for _,s in pairs(signals) do
+      if s.signal.type == "item" then
+        for b=0,31 do
+          local bit = bit32.extract(s.count,b)
+          if bit == 1 and not filters[b+1] then
+            filters[b+1]={index = b+1, name = s.signal.name}
+            nfilters = nfilters +1
+            if b == 31 and count > 31 then
+              for n=32,count do
+                filters[n]={index = n, name = s.signal.name}
+                nfilters = nfilters +1
+              end
+            end
+          end
+        end
       end
     end
   end
@@ -146,7 +172,15 @@ local function ConstructionOrder(manager,signals1,signals2)
         elseif entproto.type == "logistic-container" then
           createorder.request_filters = ReadFilters(signals2, entproto.filter_count)
           usecc2items=false
+        elseif entproto.type == "cargo-wagon" then
 
+          createorder.inventory = {
+            bar = createorder.bar,
+            --TODO: read a scale multiplier from signals1... F? S?
+            filters = ReadInventoryFilters(signals2, entproto.get_inventory_size(defines.inventory.cargo_wagon))
+          }
+          createorder.bar = nil
+          usecc2items=false
         end
 
         break -- once we're found one, get out of the loop, so we don't build multiple things.

@@ -109,7 +109,9 @@ local function ReadItems(signals,count)
   if signals then
     for i,s in pairs(signals) do
       if s.signal.type == "item" then
-        items[s.signal.name] = s.count
+        local n = s.count
+        if n < 0 then n = n + 0x100000000 end
+        items[s.signal.name] = n
         if count and #items==count then break end
       end
     end
@@ -144,6 +146,7 @@ local function ConstructionOrder(manager,signals1,signals2)
     name='entity-ghost',
     position = ReadPosition(signals1),
     force = manager.ent.force,
+    expires = false,
     direction = get_signal_from_set(knownsignals.D,signals1),
   }
   local usecc2items = true
@@ -156,8 +159,8 @@ local function ConstructionOrder(manager,signals1,signals2)
     if signal.signal.type == "item" and signal.signal.name ~= "construction-robot" then
       local itemproto = game.item_prototypes[signal.signal.name]
       local entproto = itemproto.place_result
+      local tileresult = itemproto.place_as_tile_result
 
-      --TODO: tiles?
       if entproto then
         createorder.inner_name = entproto.name
 
@@ -184,6 +187,10 @@ local function ConstructionOrder(manager,signals1,signals2)
         end
 
         break -- once we're found one, get out of the loop, so we don't build multiple things.
+      elseif tileresult then
+        createorder.name = "tile-ghost"
+        createorder.inner_name = tileresult.result.name
+        break -- once we're found one, get out of the loop, so we don't build multiple things.
       end
     end
   end
@@ -192,76 +199,77 @@ local function ConstructionOrder(manager,signals1,signals2)
     --game.print(serpent.block(createorder))
     local ghost =  manager.ent.surface.create_entity(createorder)
 
-
-    if ghost.ghost_type == "constant-combinator" then
-      local filters = {}
-      if signals2 then
-        for i,s in pairs(signals2) do
-          filters[#filters+1]={index = #filters+1, count = s.count, signal = s.signal}
+    if ghost.name == "entity-ghost" then
+      if ghost.ghost_type == "constant-combinator" then
+        local filters = {}
+        if signals2 then
+          for i,s in pairs(signals2) do
+            filters[#filters+1]={index = #filters+1, count = s.count, signal = s.signal}
+          end
         end
-      end
-      ghost.get_or_create_control_behavior().parameters={parameters=filters}
+        ghost.get_or_create_control_behavior().parameters={parameters=filters}
 
-    elseif ghost.ghost_type == "arithmetic-combinator" then
-      local siglist = {}
-      if signals2 then
-        siglist = ReadSignalList(signals2)
-      end
-      local sigmode = get_signal_from_set(knownsignals.S,signals1)
-      if sigmode == 1 then
-        siglist[1] = specials.each
-      elseif sigmode == 2 then
-        siglist[1] = specials.each
-        siglist[3] = specials.each
-      end
+      elseif ghost.ghost_type == "arithmetic-combinator" then
+        local siglist = {}
+        if signals2 then
+          siglist = ReadSignalList(signals2)
+        end
+        local sigmode = get_signal_from_set(knownsignals.S,signals1)
+        if sigmode == 1 then
+          siglist[1] = specials.each
+        elseif sigmode == 2 then
+          siglist[1] = specials.each
+          siglist[3] = specials.each
+        end
 
-      ghost.get_or_create_control_behavior().parameters={parameters = {
-        first_signal = siglist[1],
-        second_signal = siglist[2],
-        first_constant = get_signal_from_set(knownsignals.J,signals1),
-        second_constant = get_signal_from_set(knownsignals.K,signals1),
-        operation = arithop[get_signal_from_set(knownsignals.O,signals1)] or "*",
-        output_signal = siglist[3],
-        }}
+        ghost.get_or_create_control_behavior().parameters={parameters = {
+          first_signal = siglist[1],
+          second_signal = siglist[2],
+          first_constant = get_signal_from_set(knownsignals.J,signals1),
+          second_constant = get_signal_from_set(knownsignals.K,signals1),
+          operation = arithop[get_signal_from_set(knownsignals.O,signals1)] or "*",
+          output_signal = siglist[3],
+          }}
 
-    elseif ghost.ghost_type == "decider-combinator" then
-      local siglist = {}
-      if signals2 then
-        siglist = ReadSignalList(signals2)
-      end
-      local sigmode = get_signal_from_set(knownsignals.S,signals1)
-      if sigmode == 1 then
-        siglist[1] = specials.each
-      elseif sigmode == 2 then
-        siglist[1] = specials.each
-        siglist[3] = specials.each
-      elseif sigmode == 3 then
-        siglist[1] = specials.any
-      elseif sigmode == 4 then
-        siglist[1] = specials.any
-        siglist[3] = specials.every
-      elseif sigmode == 5 then
-        siglist[1] = specials.every
-      elseif sigmode == 6 then
-        siglist[1] = specials.every
-        siglist[3] = specials.every
-      elseif sigmode == 7 then
-        siglist[3] = specials.every
-      end
+      elseif ghost.ghost_type == "decider-combinator" then
+        local siglist = {}
+        if signals2 then
+          siglist = ReadSignalList(signals2)
+        end
+        local sigmode = get_signal_from_set(knownsignals.S,signals1)
+        if sigmode == 1 then
+          siglist[1] = specials.each
+        elseif sigmode == 2 then
+          siglist[1] = specials.each
+          siglist[3] = specials.each
+        elseif sigmode == 3 then
+          siglist[1] = specials.any
+        elseif sigmode == 4 then
+          siglist[1] = specials.any
+          siglist[3] = specials.every
+        elseif sigmode == 5 then
+          siglist[1] = specials.every
+        elseif sigmode == 6 then
+          siglist[1] = specials.every
+          siglist[3] = specials.every
+        elseif sigmode == 7 then
+          siglist[3] = specials.every
+        end
 
-      ghost.get_or_create_control_behavior().parameters={parameters = {
-        first_signal = siglist[1],
-        second_signal = siglist[2],
-        constant = get_signal_from_set(knownsignals.K,signals1),
-        comparator =  deciderop[get_signal_from_set(knownsignals.O,signals1)] or "<",
-        output_signal = siglist[3],
-        copy_count_from_input = get_signal_from_set(knownsignals.F,signals1) == 0,
-        }}
+        ghost.get_or_create_control_behavior().parameters={parameters = {
+          first_signal = siglist[1],
+          second_signal = siglist[2],
+          constant = get_signal_from_set(knownsignals.K,signals1),
+          comparator =  deciderop[get_signal_from_set(knownsignals.O,signals1)] or "<",
+          output_signal = siglist[3],
+          copy_count_from_input = get_signal_from_set(knownsignals.F,signals1) == 0,
+          }}
 
 
-    elseif usecc2items then
-      if signals2 then
-        ghost.item_requests = ReadItems(signals2)
+      elseif usecc2items then
+        if signals2 then
+          ghost.item_requests = ReadItems(signals2)
+        end
       end
     end
   end

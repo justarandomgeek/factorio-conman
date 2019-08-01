@@ -7,21 +7,56 @@ function get_signal_from_set(signal,set)
   return 0
 end
 
+function get_signals_filtered(filters,signals)
+  --   filters = {
+  --  SignalID,
+  --  }
+  local results = {}
+  local count = 0
+  for _,sig in pairs(signals) do
+    for i,f in pairs(filters) do
+      if f.name and sig.signal.type == f.type and sig.signal.name == f.name then
+        results[i] = sig.count
+        count = count + 1
+        if count == #filters then return results end
+      end
+    end
+  end
+  return results
+end
+
 -- pre-built signal tables to save loads of table/string constructions
 local knownsignals = {
+  A = {name="signal-A",type="virtual"}, -- show alerts
   B = {name="signal-B",type="virtual"}, -- bar
+  C = {name="signal-C",type="virtual"}, -- use colors
   D = {name="signal-D",type="virtual"}, -- direction
+  E = {name="signal-E",type="virtual"}, -- enable/disable mode, open gate
   F = {name="signal-F",type="virtual"}, -- force build blueprint
                                         -- combinator "flag" (=1) output
+                                        -- inserters set filters from signals
+  G = {name="signal-G",type="virtual"}, -- global playback
+  I = {name="signal-I",type="virtual"}, -- splitter input priority
+                                        -- inserter overrice stack size
+                                        -- speaker instrument
   J = {name="signal-J",type="virtual"}, -- combinator first constant
-  K = {name="signal-K",type="virtual"}, -- combinator second constant
+                                        -- speaker pitch
+  K = {name="signal-K",type="virtual"}, -- second constant
+  M = {name="signal-M",type="virtual"}, -- show on map
   O = {name="signal-O",type="virtual"}, -- combinator operation
+  P = {name="signal-P",type="virtual"}, -- allow polyphony
   R = {name="signal-R",type="virtual"}, -- recipeid (with recipeid mod)
+                                        -- read mode (various machines)
+                                        -- infinity chest remove unfiltered
   S = {name="signal-S",type="virtual"}, -- combinator special signal mode
   T = {name="signal-T",type="virtual"}, -- captured blueprint incldues tiles
+                                        -- train stop send signals to train
 
   U = {name="signal-U",type="virtual"}, -- X2
+                                        -- loader "unload"
+                                        -- underground belt "up"
   V = {name="signal-V",type="virtual"}, -- Y2
+                                        -- speaker signal value is pitch
   W = {name="signal-W",type="virtual"}, -- wire connection select for XY2
   X = {name="signal-X",type="virtual"}, -- X1
   Y = {name="signal-Y",type="virtual"}, -- Y1
@@ -45,20 +80,46 @@ local knownsignals = {
   schedule = {name="signal-schedule",type="virtual"},
 }
 
+local signalsets = {
+  position1 = {
+    x = knownsignals.X,
+    y = knownsignals.Y,
+  },
+  position2 = {
+    x = knownsignals.Y,
+    y = knownsignals.V,
+  },
+  color = {
+    r = knownsignals.red,
+    g = knownsignals.green,
+    b = knownsignals.blue,
+  }
+}
+
 
 local function ReadPosition(signals,secondary,offset)
   if not offset then offset=0.5 end
   if not secondary then
+    local p = get_signals_filtered(signalsets.position1,signals)
     return {
-      x = get_signal_from_set(knownsignals.X,signals)+offset,
-      y = get_signal_from_set(knownsignals.Y,signals)+offset
+      x = (p.x or 0)+offset,
+      y = (p.y or 0)+offset,
     }
   else
+    local p = get_signals_filtered(signalsets.position2,signals)
     return {
-      x = get_signal_from_set(knownsignals.U,signals)+offset,
-      y = get_signal_from_set(knownsignals.V,signals)+offset
+      x = (p.x or 0)+offset,
+      y = (p.y or 0)+offset,
     }
   end
+end
+
+local function ReadColor(signals)
+  local c = get_signals_filtered(signalsets.color,signals)
+  if not c.r then c.r = 0 end
+  if not c.g then c.g = 0 end
+  if not c.b then c.b = 0 end
+  return c
 end
 
 local function ReadBoundingBox(signals)
@@ -119,9 +180,10 @@ local function ReadItems(signals,count)
   return items
 end
 
-local function ReadSignalList(signals)
+--TODO use iconstrip reader from magiclamp
+local function ReadSignalList(signals,nbits)
   local selected = {}
-  for i=0,31 do
+  for i=0,(nbits or 31) do
     for _,sig in pairs(signals) do
       local sigbit = bit32.extract(sig.count,i)
       if sigbit==1 then
@@ -141,6 +203,373 @@ local specials = {
   every = {name="signal-everything", type="virtual"},
 }
 
+local splitterside = {
+  "left",
+  "right",
+}
+
+local function nocc2(createorder,entproto,signals1,signals2)
+  createorder.usecc2items=false
+end
+local ConstructionOrderEntitySpecific =
+{
+  ["assembling-machine"] = function(createorder,entproto,signals1,signals2)
+    --set recipe if recipeid lib available
+    if remote.interfaces['recipeid'] then
+      createorder.recipe = remote.call('recipeid','map_recipe', get_signal_from_set(knownsignals.R,signals1))
+    end
+  end,
+  ["logistic-container"] = function(createorder,entproto,signals1,signals2)
+    if entproto.logistic_mode == "requester" or entproto.logistic_mode == "storage" then
+      createorder.request_filters = ReadFilters(signals2, entproto.filter_count)
+      createorder.usecc2items=false
+    elseif entproto.logistic_mode == "buffer" then
+      createorder.request_filters = ReadFilters(signals2, entproto.filter_count)
+      createorder.usecc2items=false
+      createorder.request_from_buffers = get_signal_from_set(knownsignals.R,signals1) ~= 0
+    end
+  end,
+  ["cargo-wagon"] = function(createorder,entproto,signals1,signals2)
+    createorder.inventory = {
+      bar = createorder.bar,
+      filters = ReadInventoryFilters(signals2, entproto.get_inventory_size(defines.inventory.cargo_wagon))
+    }
+    createorder.bar = nil
+    createorder.color = ReadColor(signals1)
+    createorder.usecc2items=false
+  end,
+  ["splitter"] = function(createorder,entproto,signals1,signals2)
+    createorder.input_priority = splitterside[get_signal_from_set(knownsignals.I,signals1)] or "none"
+    createorder.output_priority = splitterside[get_signal_from_set(knownsignals.O,signals1)] or "none"
+
+    createorder.filter = ReadItems(signals2,1)[1]
+    createorder.usecc2items=false
+  end,
+  ["underground-belt"] = function(createorder,entproto,signals1,signals2)
+    if get_signal_from_set(knownsignals.U,signals1) ~= 0 then 
+      createorder.type = "output"
+    else
+      createorder.type = "input"
+    end
+    createorder.usecc2items=false
+  end,
+  ["loader"] = function(createorder,entproto,signals1,signals2)
+    if get_signal_from_set(knownsignals.U,signals1) ~= 0 then 
+      createorder.type = "output"
+    else
+      createorder.type = "input"
+    end
+    createorder.usecc2items=false
+  end,
+  ["train-stop"] = function(createorder,entproto,signals1,signals2)
+    createorder.usecc2items=false
+    local a = get_signal_from_set(knownsignals.white,signals1)
+    if a > 0 and a <= 256 then
+      createorder.color = ReadColor(signals1)
+      createorder.color.a = a
+    end
+  end,
+  ["locomotive"] = function(createorder,entproto,signals1,signals2)
+    local a = get_signal_from_set(knownsignals.white,signals1)
+    if a > 0 and a <= 256 then
+      createorder.color = ReadColor(signals1)
+      createorder.color.a = a
+    end
+  end,
+  ["offshore-pump"] = nocc2,
+  ["pump"] = nocc2,
+  ["miner"] = nocc2,
+  ["inserter"] = nocc2,
+  ["rail-signal"] = nocc2,
+  ["rail-chain-signal"] = nocc2,
+  ["wall"] = nocc2,
+  ["transport-belt"] = nocc2,
+  ["lamp"] = nocc2,
+  ["programmable-speaker"] = nocc2,
+  ["power-switch"] = nocc2,
+  ["roboport"] = nocc2,
+  ["accumulator"] = nocc2,
+}
+
+local function ReadGenericOnOffControl(ghost,control,signals1,signals2)
+  local siglist = {}
+  if signals2 then
+    siglist = ReadSignalList(signals2)
+  end
+  local sigmode = get_signal_from_set(knownsignals.S,signals1)
+  if sigmode == 3 then
+    siglist[1] = specials.any
+  elseif sigmode == 4 then
+    siglist[1] = specials.any
+  elseif sigmode == 5 then
+    siglist[1] = specials.every
+  elseif sigmode == 6 then
+    siglist[1] = specials.every
+  end
+
+  control.circuit_condition={ condition = {
+    first_signal = siglist[1],
+    second_signal = siglist[2],
+    constant = get_signal_from_set(knownsignals.K,signals1),
+    comparator =  deciderop[get_signal_from_set(knownsignals.O,signals1)] or "<",
+    }}
+
+  -- for more complex controls to read additional signals
+  return siglist
+end
+
+local ConstructionOrderControlBehavior =
+{
+  [defines.control_behavior.type.constant_combinator] = function(ghost,control,signals1,signals2)
+    local filters = {}
+    if signals2 then
+      for i,s in pairs(signals2) do
+        filters[#filters+1]={index = #filters+1, count = s.count, signal = s.signal}
+      end
+    end
+    control.parameters={parameters=filters}
+  end,
+  [defines.control_behavior.type.arithmetic_combinator] = function(ghost,control,signals1,signals2)
+    local siglist = {}
+    if signals2 then
+      siglist = ReadSignalList(signals2)
+    end
+    local sigmode = get_signal_from_set(knownsignals.S,signals1)
+    if sigmode == 1 then
+      siglist[1] = specials.each
+    elseif sigmode == 2 then
+      siglist[1] = specials.each
+      siglist[3] = specials.each
+    end
+
+    control.parameters={parameters = {
+      first_signal = siglist[1],
+      second_signal = siglist[2],
+      first_constant = get_signal_from_set(knownsignals.J,signals1),
+      second_constant = get_signal_from_set(knownsignals.K,signals1),
+      operation = arithop[get_signal_from_set(knownsignals.O,signals1)] or "*",
+      output_signal = siglist[3],
+      }}
+  end,
+  [defines.control_behavior.type.decider_combinator] = function(ghost,control,signals1,signals2)
+    local siglist = {}
+    if signals2 then
+      siglist = ReadSignalList(signals2)
+    end
+    local sigmode = get_signal_from_set(knownsignals.S,signals1)
+    if sigmode == 1 then
+      siglist[1] = specials.each
+    elseif sigmode == 2 then
+      siglist[1] = specials.each
+      siglist[3] = specials.each
+    elseif sigmode == 3 then
+      siglist[1] = specials.any
+    elseif sigmode == 4 then
+      siglist[1] = specials.any
+      siglist[3] = specials.every
+    elseif sigmode == 5 then
+      siglist[1] = specials.every
+    elseif sigmode == 6 then
+      siglist[1] = specials.every
+      siglist[3] = specials.every
+    elseif sigmode == 7 then
+      siglist[3] = specials.every
+    end
+
+    control.parameters={parameters = {
+      first_signal = siglist[1],
+      second_signal = siglist[2],
+      constant = get_signal_from_set(knownsignals.K,signals1),
+      comparator =  deciderop[get_signal_from_set(knownsignals.O,signals1)] or "<",
+      output_signal = siglist[3],
+      copy_count_from_input = get_signal_from_set(knownsignals.F,signals1) == 0,
+      }}
+  end,
+  [defines.control_behavior.type.generic_on_off] = ReadGenericOnOffControl,
+  [defines.control_behavior.type.mining_drill] = function(ghost,control,signals1,signals2)
+    ReadGenericOnOffControl(ghost,control,signals1,signals2)
+
+    control.circuit_enable_disable = get_signal_from_set(knownsignals.E,signals1) ~= 0
+    local r = get_signal_from_set(knownsignals.R,signals1)
+    if r == 1 then 
+      control.circuit_read_resources = true
+      control.read_resource_mode = defines.control_behavior.mining_drill.resource_read_mode.this_miner
+    elseif r == 2 then
+      control.circuit_read_resources = true
+      control.read_resource_mode = defines.control_behavior.mining_drill.resource_read_mode.entire_patch
+    else 
+      control.circuit_read_resources = false
+    end
+  end,
+  [defines.control_behavior.type.train_stop] = function(ghost,control,signals1,signals2)
+    local siglist = ReadGenericOnOffControl(ghost,control,signals1,signals2)
+
+    control.enable_disable = get_signal_from_set(knownsignals.E,signals1) ~= 0
+    control.read_from_train = get_signal_from_set(knownsignals.R,signals1) ~= 0
+    control.send_to_train = get_signal_from_set(knownsignals.S,signals1) ~= 0
+
+    if siglist[3] then
+      control.stopped_train_signal = siglist[3]
+      control.read_stopped_train = true
+    else
+      control.read_stopped_train = false
+    end
+  end,
+  [defines.control_behavior.type.inserter] = function(ghost,control,signals1,signals2)
+    local siglist = ReadGenericOnOffControl(ghost,control,signals1,signals2)
+
+    if get_signal_from_set(knownsignals.B,signals1) ~= 0 then 
+      ghost.inserter_filter_mode = "blacklist"
+    else
+      ghost.inserter_filter_mode = "whitelist"
+    end
+
+    if get_signal_from_set(knownsignals.E,signals1) ~= 0 then 
+      control.circuit_mode_of_operation = defines.control_behavior.inserter.circuit_mode_of_operation.enable_disable
+    elseif get_signal_from_set(knownsignals.F,signals1) ~= 0 then
+      control.circuit_mode_of_operation = defines.control_behavior.inserter.circuit_mode_of_operation.set_filters
+    else
+      control.circuit_mode_of_operation = defines.control_behavior.inserter.circuit_mode_of_operation.none
+    end
+    
+    local sig_i = get_signal_from_set(knownsignals.I,signals1)
+    if sig_i then
+      ghost.inserter_stack_size_override = sig_i
+    end
+
+    local r = get_signal_from_set(knownsignals.R,signals1)
+    if r == 1 then 
+      control.circuit_read_hand_contents = true
+      control.circuit_hand_read_mode = defines.control_behavior.inserter.hand_read_mode.pulse
+    elseif r == 2 then
+      control.circuit_read_hand_contents = true
+      control.circuit_hand_read_mode = defines.control_behavior.inserter.hand_read_mode.hold
+    else 
+      control.circuit_read_hand_contents = false
+    end
+
+    if siglist[3] then 
+      control.circuit_set_stack_size = true
+      control.circuit_stack_control_signal = siglist[3]
+    end
+
+    for i=1,ghost.ghost_prototype.filter_count do 
+      if siglist[i+3] and siglist[i+3].type == "item" then 
+        ghost.set_filter(i, siglist[i+3].name)
+      else
+        ghost.set_filter(i, nil)
+      end
+    end
+  end,
+  [defines.control_behavior.type.lamp] = function(ghost,control,signals1,signals2)
+    local siglist = ReadGenericOnOffControl(ghost,control,signals1,signals2)
+    control.use_colors = get_signal_from_set(knownsignals.C,signals1) ~= 0
+  end,
+  [defines.control_behavior.type.logistic_container] = function(ghost,control,signals1,signals2)
+    if ghost.ghost_prototype.logistic_mode == "requester" or ghost.ghost_prototype.logistic_mode == "buffer" then
+      if get_signal_from_set(knownsignals.R,signals1) ~= 0 then 
+        control.circuit_mode_of_operation = defines.control_behavior.logistic_container.circuit_mode_of_operation.set_requests
+      end
+    end    
+  end,
+  [defines.control_behavior.type.roboport] = function(ghost,control,signals1,signals2)
+    local siglist = {}
+    if signals2 then
+      siglist = ReadSignalList(signals2)
+    end
+
+    if get_signal_from_set(knownsignals.R,signals1) ~= 0 then
+      control.mode_of_operation = defines.control_behavior.roboport.circuit_mode_of_operation.read_robot_stats	
+    else
+      control.mode_of_operation = defines.control_behavior.roboport.circuit_mode_of_operation.read_logistics	
+    end      
+    
+    control.available_logistic_output_signal = siglist[1]
+    control.total_logistic_output_signal = siglist[2]
+    control.available_construction_output_signal = siglist[3]
+    control.total_construction_output_signal = siglist[4]
+  end,
+  [defines.control_behavior.type.transport_belt] = function(ghost,control,signals1,signals2)
+    local siglist = ReadGenericOnOffControl(ghost,control,signals1,signals2)
+    control.enable_disable = get_signal_from_set(knownsignals.E,signals1) ~= 0
+
+    local r = get_signal_from_set(knownsignals.R,signals1)
+    if r == 1 then 
+      control.read_contents = true
+      control.read_contents_mode = defines.control_behavior.transport_belt.content_read_mode.pulse
+    elseif r == 2 then
+      control.read_contents = true
+      control.read_contents_mode = defines.control_behavior.transport_belt.content_read_mode.hold
+    else 
+      control.read_contents = false
+    end
+  end,
+  [defines.control_behavior.type.accumulator] = function(ghost,control,signals1,signals2)
+    local siglist = {}
+    if signals2 then
+      siglist = ReadSignalList(signals2)
+    end
+    
+    control.output_signal = siglist[1]
+  end,
+  [defines.control_behavior.type.rail_signal] = function(ghost,control,signals1,signals2)
+    -- Rail doesn't actually inheret from Generic, but it's close enough to work
+    local siglist = ReadGenericOnOffControl(ghost,control,signals1,signals2)
+
+    control.close_signal = get_signal_from_set(knownsignals.E,signals1) ~= 0
+    control.read_signal = get_signal_from_set(knownsignals.R,signals1) ~= 0
+    
+    control.red_signal = siglist[3]
+    control.orange_signal = siglist[4]
+    control.green_signal = siglist[5]
+  end,
+  [defines.control_behavior.type.rail_chain_signal] = function(ghost,control,signals1,signals2)
+    local siglist = {}
+    if signals2 then
+      siglist = ReadSignalList(signals2)
+    end
+
+    control.read_signal = get_signal_from_set(knownsignals.R,signals1) ~= 0
+    
+    control.red_signal = siglist[3]
+    control.orange_signal = siglist[4]
+    control.green_signal = siglist[5]
+    control.blue_signal = siglist[6]
+  end,
+  [defines.control_behavior.type.wall] = function(ghost,control,signals1,signals2)
+    -- Wall doesn't actually inheret from Generic, but it's close enough to work
+    local siglist = ReadGenericOnOffControl(ghost,control,signals1,signals2)
+
+    control.open_gate = get_signal_from_set(knownsignals.E,signals1) ~= 0
+    control.read_sensor = get_signal_from_set(knownsignals.R,signals1) ~= 0
+    
+    control.output_signal = siglist[3]
+  end,
+  [defines.control_behavior.type.programmable_speaker] = function(ghost,control,signals1,signals2)
+    -- Speaker doesn't actually inheret from Generic, but it's close enough to work
+    local siglist = ReadGenericOnOffControl(ghost,control,signals1,signals2)
+
+    local volume = (get_signal_from_set(knownsignals.V,signals1) or 100)/100
+    
+    ghost.parameters = {
+      playback_volume = volume,
+      playback_globally = get_signal_from_set(knownsignals.G,signals1) ~= 0,
+      allow_polyphony = get_signal_from_set(knownsignals.P,signals1) ~= 0,
+    }
+    ghost.alert_parameters = {
+      show_alert = get_signal_from_set(knownsignals.A,signals1) ~= 0,
+      show_on_map = get_signal_from_set(knownsignals.M,signals1) ~= 0,
+      icon_signal_id = siglist[3],
+      alert_message = "",
+    }
+    control.circuit_parameters = {
+      signal_value_is_pitch = get_signal_from_set(knownsignals.V,signals1) ~= 0,
+      instrument_id = get_signal_from_set(knownsignals.I,signals1) or 1,
+      note_id = get_signal_from_set(knownsignals.J,signals1) or 1,
+    }
+  end,
+}
+
 local function ConstructionOrder(manager,signals1,signals2)
   local createorder = {
     name='entity-ghost',
@@ -148,8 +577,8 @@ local function ConstructionOrder(manager,signals1,signals2)
     force = manager.ent.force,
     expires = false,
     direction = get_signal_from_set(knownsignals.D,signals1),
+    usecc2items = true
   }
-  local usecc2items = true
 
   -- only set bar if it's non-zero, else chests are disabled by default.
   local bar = get_signal_from_set(knownsignals.B,signals1)
@@ -164,28 +593,11 @@ local function ConstructionOrder(manager,signals1,signals2)
       if entproto then
         createorder.inner_name = entproto.name
 
-        --set recipe if recipeid lib available
-        if entproto.type == "assembling-machine" then
-          if remote.interfaces['recipeid'] then
-            createorder.recipe = remote.call('recipeid','map_recipe', get_signal_from_set(knownsignals.R,signals1))
-          end
-        elseif entproto.type == "inserter" then
-          createorder.filters = ReadFilters(signals2, entproto.filter_count)
-          usecc2items=false
-        elseif entproto.type == "logistic-container" then
-          createorder.request_filters = ReadFilters(signals2, entproto.filter_count)
-          usecc2items=false
-        elseif entproto.type == "cargo-wagon" then
-
-          createorder.inventory = {
-            bar = createorder.bar,
-            --TODO: read a scale multiplier from signals1... F? S?
-            filters = ReadInventoryFilters(signals2, entproto.get_inventory_size(defines.inventory.cargo_wagon))
-          }
-          createorder.bar = nil
-          usecc2items=false
+        local special = ConstructionOrderEntitySpecific[entproto.type]
+        if special then
+          special(createorder,entproto,signals1,signals2)
         end
-
+        
         break -- once we're found one, get out of the loop, so we don't build multiple things.
       elseif tileresult then
         createorder.name = "tile-ghost"
@@ -200,73 +612,15 @@ local function ConstructionOrder(manager,signals1,signals2)
     local ghost =  manager.ent.surface.create_entity(createorder)
 
     if ghost.name == "entity-ghost" then
-      if ghost.ghost_type == "constant-combinator" then
-        local filters = {}
-        if signals2 then
-          for i,s in pairs(signals2) do
-            filters[#filters+1]={index = #filters+1, count = s.count, signal = s.signal}
-          end
+      local control = ghost.get_or_create_control_behavior()
+      if control and control.valid then
+        local special = ConstructionOrderControlBehavior[control.type]
+        if special then
+          special(ghost,control,signals1,signals2)
         end
-        ghost.get_or_create_control_behavior().parameters={parameters=filters}
+      end
 
-      elseif ghost.ghost_type == "arithmetic-combinator" then
-        local siglist = {}
-        if signals2 then
-          siglist = ReadSignalList(signals2)
-        end
-        local sigmode = get_signal_from_set(knownsignals.S,signals1)
-        if sigmode == 1 then
-          siglist[1] = specials.each
-        elseif sigmode == 2 then
-          siglist[1] = specials.each
-          siglist[3] = specials.each
-        end
-
-        ghost.get_or_create_control_behavior().parameters={parameters = {
-          first_signal = siglist[1],
-          second_signal = siglist[2],
-          first_constant = get_signal_from_set(knownsignals.J,signals1),
-          second_constant = get_signal_from_set(knownsignals.K,signals1),
-          operation = arithop[get_signal_from_set(knownsignals.O,signals1)] or "*",
-          output_signal = siglist[3],
-          }}
-
-      elseif ghost.ghost_type == "decider-combinator" then
-        local siglist = {}
-        if signals2 then
-          siglist = ReadSignalList(signals2)
-        end
-        local sigmode = get_signal_from_set(knownsignals.S,signals1)
-        if sigmode == 1 then
-          siglist[1] = specials.each
-        elseif sigmode == 2 then
-          siglist[1] = specials.each
-          siglist[3] = specials.each
-        elseif sigmode == 3 then
-          siglist[1] = specials.any
-        elseif sigmode == 4 then
-          siglist[1] = specials.any
-          siglist[3] = specials.every
-        elseif sigmode == 5 then
-          siglist[1] = specials.every
-        elseif sigmode == 6 then
-          siglist[1] = specials.every
-          siglist[3] = specials.every
-        elseif sigmode == 7 then
-          siglist[3] = specials.every
-        end
-
-        ghost.get_or_create_control_behavior().parameters={parameters = {
-          first_signal = siglist[1],
-          second_signal = siglist[2],
-          constant = get_signal_from_set(knownsignals.K,signals1),
-          comparator =  deciderop[get_signal_from_set(knownsignals.O,signals1)] or "<",
-          output_signal = siglist[3],
-          copy_count_from_input = get_signal_from_set(knownsignals.F,signals1) == 0,
-          }}
-
-
-      elseif usecc2items then
+      if createorder.usecc2items then
         if signals2 then
           ghost.item_requests = ReadItems(signals2)
         end
@@ -321,15 +675,13 @@ local function CaptureBlueprint(manager,signals1,signals2)
 
     -- set or clear label and color from cc2
     if remote.interfaces['signalstrings'] and signals2 then
-      bp.label = remote.call('signalstrings','signals_to_string',signals2)
+      bp.label = remote.call('signalstrings','signals_to_string',signals2,true)
 
       local a = get_signal_from_set(knownsignals.white,signals2)
       if a > 0 and a <= 256 then
-        local r = get_signal_from_set(knownsignals.red,signals2)
-        local g = get_signal_from_set(knownsignals.green,signals2)
-        local b = get_signal_from_set(knownsignals.blue,signals2)
-
-        bp.label_color = { r=r/256, g=g/256, b=b/256, a=a/256 }
+        local color = ReadColor(signals2)
+        color.a = a
+        bp.label_color = color
       end
 
     else
@@ -614,6 +966,9 @@ local function CreateControl(manager,position)
   if ghost then
     -- if there's a ghost here, just claim it!
     _,ghost = ghost.revive()
+  else
+    -- or a pre-built one, if it was built in editor and script.dat cleared...
+    ghost = manager.surface.find_entity('conman-control', position)
   end
 
   local ent = ghost or manager.surface.create_entity{
@@ -661,6 +1016,13 @@ end
 script.on_init(function()
   -- Index recipes for new install
   reindex_remotes()
+
+  -- Scan for pre-built ConMan in the world already...
+  for _,surface in pairs(game.surfaces) do
+    for _,entity in pairs(surface.find_entities_filtered{name="conman"}) do
+      onBuilt({created_entity=entity})
+    end
+  end
 end
 )
 

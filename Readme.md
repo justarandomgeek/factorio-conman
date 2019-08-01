@@ -1,18 +1,23 @@
-### ConMan - Construction Manager
+# ConMan
 
-ConMan allows you to order construction and deconstruction via the circuit network. Limited construction of individual entities can be done directly, and blueprints can be deployed and captured.
+ConMan allows you to manage construction and deconstruction orders via the circuit network. Construction/deconstruction of individual entities can be ordered, as well as capturing and deploying entire blueprints. Additionally, Item Requests can be ordered on any entity, and artillery strikes can be ordered.
 
-  * sub entities:
-    * CC Control 1: primary commands - SW corner
-    * CC Control 2: secondary data - SE corner
-    * Control nodes only read one wire - if both are connected it will only read the red one. Use a combinator to merge wires if required. This is mostly a performance optimization, and is not likely to change.
+Because of the complexity of the command set, ConMan requires two connectors, Control 1 and Control 2, placed in the lower corners. Control 1 is input-only, and is the primary command input. Control 2 is either an additional input or output data depending on the command.
 
-Position: {X,Y} and {U,V}
-BoundingBox: {{X,Y},{U,V}}
+`image of ConMan with Controls marked`
 
-Conditions: circuit:C=1, logistics:L=1, op:O=op index, signal mode:S firstconstant:J secondconstant:K output1:F
 
-| O  | Arithmetic Op | Decider Op |
+### Positions
+
+ConMan uses absolute positions for nearly all operations, so it is reccomended to use the Location Combinator from [Utility Combinators](https://mods.factorio.com/mod/utility-combinators) for a location reference. ConMan does not currently support any operations across surfaces. When an operation requires one position arguement, it is supplied on ![X] and ![Y]. When an operation requires two position arguments or a bounding box, the first point is supplied on ![X] and ![Y] and the second on ![U] and ![V].
+
+
+### Circuit Configurations
+
+
+Conditions: circuit:C=1, logistics:L=1, op:O=opindex, signalmode:S firstconstant:J secondconstant:K output1:F
+
+| ![O]  | Arithmetic Op | Decider Op |
 |----|---------------|------------|
 | 1  | *             | <          |
 | 2  | /             | >          |
@@ -27,7 +32,7 @@ Conditions: circuit:C=1, logistics:L=1, op:O=op index, signal mode:S firstconsta
 | 11 | XOR           | n/a        |
 
 
-| S | Signal Mode           |
+| ![S] | Special Signal Mode           |
 |---|-----------------------|
 | 0 | Scalars               |
 | 1 | Each in               |
@@ -38,7 +43,7 @@ Conditions: circuit:C=1, logistics:L=1, op:O=op index, signal mode:S firstconsta
 | 6 | Every in & Every out  |
 | 7 | Scalar in & Every out |
 
-Signal lists for decider/arithmetic combinators are provided on CC2 by setting sequential bits in the selected signals.
+Signal lists for decider/arithmetic combinators are provided on Control 2 (input) by setting sequential bits in the selected signals.
 
 | bit  | Signal slot   |
 |------|---------------|
@@ -49,29 +54,105 @@ Signal lists for decider/arithmetic combinators are provided on CC2 by setting s
 
 
 
-### Commands:
+## Commands
 
-  * conbot + item signal + D=dir + XY : Construction Order
-    * optional: B=bar : Number of slots usable in a chest
-    * optional: R=recipeid (with recipeid lib)
-    * optional: filters or CC data on Control2
-    * optional: other entity specific?
-  * logbot + items on Control2 + XY : Delivery order
-    * Deliver items specified by Control2 to entity at XY
-    * Note that these items will be delivered by conbots despite being signalled by logbot.
-  * r/g/c wire + XY(Z) + UV(W)
-    * connect entities at positions XY and UV with wire, ports Z/W if multiple
-    * negative wire to disconnect
-  * blueprint=-1 : Eject Blueprint
-    * transfer from input to output inventory
-  * blueprint=1 + XY : Deploy Blueprint
-    * optional: F=force - auto decon trees/rocks in the way
-  * blueprint=2 + BoundingBox : Capture Blueprint
-    * optional: TEM=what to capture, tiles/entities/modules
-    * optional: Control2: signalstring of new blueprint name (with singalstrings lib)
-  * blueprint=3: Read Blueprint Info
-    * output to Control2: Blueprint label string and color if set
-    * output to Control2: Blueprint BoM
+### Order Construction
+
+ * ![conbot]=1
+ * ![D] = Direction. 8 steps starting from North
+ * ![X]![Y] = Position.
+
+One of:
+
+| Item Build Result     | Control 1 Extra Data           | Control 2 Data                                                        |
+|-----------------------|--------------------------------|-----------------------------------------------------------------------|
+| assembling-machine    | ![R]ecipe                      | IN: one-time item requests                                            |
+| chest                 | Inventory ![B]ar               | IN: one-time item requests                                            |
+| logistics-container   | Inventory ![B]ar               | IN: logistics requests                                                |
+| cargo-wagon           | Inventory ![B]ar               | IN: inventory filters (bitmask, high bit repeated until end of wagon) |
+| constant-combinator   |                                | IN: data                                                              |
+| arithmetic-combinator | ![O]peration ![S]pecial signal | IN: signal list (bitmasks)                                            |
+| decider-combinator    | ![O]peration ![S]pecial signal | IN: signal list (bitmasks)                                            |
+| tiles                 |                                |                                                                       |
+| other entities        |                                | IN: one-time item requests                                            |
+
+A ghost for the selected/configured entity will be placed at ![X]![Y].
+
+
+### Order Item Delivery
+
+ * ![logbot]=1
+ * ![X]![Y] = Position.
+
+Control 2 (input) = Items to delivery
+
+
+An `item-request-proxy` will be created on the entity at ![X]![Y] for the items specified on Control 2.
+
+
+### Connect Wire
+
+ * ![redwire] or ![greenwire] or ![copperwire] =1
+ * ![X]![Y] = Position 1
+ * ![Z] = Connector ID 1
+ * ![U]![V] = Position 2
+ * ![W] = Connector ID 2
+
+
+The selected wire will be connected. ![Z] and ![W] are only required if the entity selected by the corresponding position is a combinator with multiple connectors.
+
+### Disconnect Wire
+
+ * ![redwire] or ![greenwire] or ![copperwire] = -1
+ * ![X]![Y] = Position 1
+ * ![Z] = Connector ID 1
+ * ![U]![V] = Position 2
+ * ![W] = Connector ID 2
+
+
+The selected wire will be disconnected. ![Z] and ![W] are only required if the entity selected by the corresponding position is a combinator with multiple connectors.
+
+### Eject Blueprint
+
+ * ![blueprint] = -1
+
+
+The blueprint in the input/working inventory (if present) will be moved to the output inventory.
+
+### Deploy Blueprint
+
+ * ![blueprint] = 1
+ * ![X]![Y] = Blueprint origin
+ * ![F] = Force build
+
+
+The blueprint in the input/working inventory (if present) will be deployed at the specified postion. If ![F] is non-zero, proceed even if part of teh blueprint is unbuildable (and remove trees/rocks if required).
+
+### Capture Blueprint
+
+ * ![blueprint] = 2
+ * ![X]![Y]![U]![V] = Blueprint area
+ * ![T]![E]![M] = flags to capture tiles/entities/modules
+
+Control 2 (input) = SignalString of blueprint name + ![red]![green]![blue]![white] 0-255 name color
+
+
+The blueprint in the input/working inventory (if present) will be used to capture teh specified area, and saved with the provided name.
+
+### Read Blueprint Info
+
+ * ![blueprint] = 3
+
+Control 2 (output) = items to build blueprint + SignalString name + ![red]![green]![blue]![white] 0-255 name color
+
+
+The items needed to build the blueprint in the input/working inventory (if present), along with its name, will be output to Control 2
+
+
+### Order Deconstruction
+
+
+
   * redprint=1 + BoundingBox : Deconstruction Order
     * redprint=-1 to cancel
     * optional: filters on Control2

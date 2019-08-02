@@ -229,15 +229,6 @@ local ConstructionOrderEntitySpecific =
       createorder.request_from_buffers = get_signal_from_set(knownsignals.R,signals1) ~= 0
     end
   end,
-  ["cargo-wagon"] = function(createorder,entproto,signals1,signals2)
-    createorder.inventory = {
-      bar = createorder.bar,
-      filters = ReadInventoryFilters(signals2, entproto.get_inventory_size(defines.inventory.cargo_wagon))
-    }
-    createorder.bar = nil
-    createorder.color = ReadColor(signals1)
-    createorder.usecc2items=false
-  end,
   ["splitter"] = function(createorder,entproto,signals1,signals2)
     createorder.input_priority = splitterside[get_signal_from_set(knownsignals.I,signals1)] or "none"
     createorder.output_priority = splitterside[get_signal_from_set(knownsignals.O,signals1)] or "none"
@@ -275,6 +266,26 @@ local ConstructionOrderEntitySpecific =
       createorder.color = ReadColor(signals1)
       createorder.color.a = a
     end
+    -- un-offset locos, they don't snap very well apparently
+    createorder.position.x = createorder.position.x - 0.5
+    createorder.position.y = createorder.position.y - 0.5
+    
+  end,
+  ["cargo-wagon"] = function(createorder,entproto,signals1,signals2)
+    createorder.inventory = {
+      bar = createorder.bar,
+      filters = ReadInventoryFilters(signals2, entproto.get_inventory_size(defines.inventory.cargo_wagon))
+    }
+    createorder.bar = nil
+    -- un-offset cargo wagons, they don't snap very well apparently
+    createorder.position.x = createorder.position.x - 0.5
+    createorder.position.y = createorder.position.y - 0.5
+    local a = get_signal_from_set(knownsignals.white,signals1)
+    if a > 0 and a <= 256 then
+      createorder.color = ReadColor(signals1)
+      createorder.color.a = a
+    end
+    createorder.usecc2items=false
   end,
   ["offshore-pump"] = nocc2,
   ["pump"] = nocc2,
@@ -479,9 +490,9 @@ local ConstructionOrderControlBehavior =
     end
 
     if get_signal_from_set(knownsignals.R,signals1) ~= 0 then
-      control.mode_of_operation = defines.control_behavior.roboport.circuit_mode_of_operation.read_robot_stats	
+      control.mode_of_operations = defines.control_behavior.roboport.circuit_mode_of_operation.read_robot_stats	
     else
-      control.mode_of_operation = defines.control_behavior.roboport.circuit_mode_of_operation.read_logistics	
+      control.mode_of_operations = defines.control_behavior.roboport.circuit_mode_of_operation.read_logistics	
     end      
     
     control.available_logistic_output_signal = siglist[1]
@@ -609,7 +620,7 @@ local function ConstructionOrder(manager,signals1,signals2)
     --game.print(serpent.block(createorder))
     local ghost =  manager.ent.surface.create_entity(createorder)
 
-    if ghost.name == "entity-ghost" then
+    if ghost and ghost.name == "entity-ghost" then
       local control = ghost.get_or_create_control_behavior()
       if control and control.valid then
         local special = ConstructionOrderControlBehavior[control.type]
@@ -726,7 +737,7 @@ local function ConnectWire(manager,signals1,signals2,color,disconnect)
   end
 end
 
-local function ReportBlueprint(manager,signals1,signals2)
+local function ReportBlueprintLabel(manager,signals1,signals2)
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
   -- confirm it's a blueprint and is setup and such...
   local bp = inInv[1]
@@ -744,8 +755,18 @@ local function ReportBlueprint(manager,signals1,signals2)
       outsignals[#outsignals+1]={index=#outsignals+1,count=bp.label_color.b*256,signal=knownsignals.blue}
       outsignals[#outsignals+1]={index=#outsignals+1,count=bp.label_color.a*256,signal=knownsignals.white}
     end
+  end
+  manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
+  manager.clearcc2 = true
+end
 
-    -- add BoM signals
+local function ReportBlueprintBoM(manager,signals1,signals2)
+  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
+  -- confirm it's a blueprint and is setup and such...
+  local bp = inInv[1]
+  local outsignals = {}
+  if bp.valid and bp.valid_for_read then
+    -- BoM signals
     for k,v in pairs(bp.cost_to_build) do
       outsignals[#outsignals+1]={index=#outsignals+1,count=v,signal={name=k,type="item"}}
     end
@@ -877,7 +898,9 @@ local function onTickManager(manager)
         CaptureBlueprint(manager,signals1,signals2)
 
       elseif bpsig == 3 then
-        ReportBlueprint(manager,signals1,signals2)
+        ReportBlueprintBoM(manager,signals1,signals2)
+      elseif bpsig == 4 then
+        ReportBlueprintLabel(manager,signals1,signals2)
       end
     else
 

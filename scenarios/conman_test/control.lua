@@ -780,6 +780,485 @@ local tests = {
             return true
         end
     },
+    ["wall"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "stone-wall"}, count = 1},
+            {signal = knownsignals.X, count = -3},
+            {signal = knownsignals.Y, count = -3},
+            {signal = knownsignals.R, count = 1},
+        },
+        cc2 = {
+            {signal = knownsignals.A, count = 4},
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+
+            if irp then
+                return false
+            end
+
+            local control = ghost.get_or_create_control_behavior()
+            if not ( control.read_sensor and
+                control.output_signal.name == knownsignals.A.name) then return false end
+            
+            
+            ghost.destroy()
+            return true
+        end
+    },
+    ["loader"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "express-loader"}, count = 1},
+            {signal = knownsignals.X, count = -3},
+            {signal = knownsignals.Y, count = -3},
+        },
+        cc2 = {
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+
+            if irp then
+                return false
+            end
+
+            if not ( ghost.loader_type == "input") then return false end
+            
+            
+            ghost.destroy()
+            return true
+        end
+    },
+    ["underbelt"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "underground-belt"}, count = 1},
+            {signal = knownsignals.X, count = -3},
+            {signal = knownsignals.Y, count = -3},
+            {signal = knownsignals.U, count = 1},
+        },
+        cc2 = {
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+
+            if irp then
+                return false
+            end
+
+            if not ( ghost.belt_to_ground_type == "output") then return false end
+            
+            
+            ghost.destroy()
+            return true
+        end
+    },
+    ["inserter"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "filter-inserter"}, count = 1},
+            {signal = knownsignals.X, count = -3},
+            {signal = knownsignals.Y, count = -3},
+            {signal = knownsignals.E, count = 1},
+            {signal = knownsignals.O, count = 1},
+            {signal = knownsignals.R, count = 2},
+        },
+        cc2 = {
+            {signal = knownsignals.A, count = 1},
+            {signal = knownsignals.B, count = 2},
+            
+            {signal = knownsignals.C, count = 4},
+
+            {signal = knownsignals.redprint, count = 8},
+            {signal = knownsignals.blueprint, count = 16},
+            {signal = knownsignals.conbot, count = 32},
+            {signal = knownsignals.logbot, count = 64},
+            {signal = knownsignals.redwire, count = 128},
+
+            {signal = knownsignals.greenwire, count = 256}, -- one too many to be discarded
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+
+            if irp then
+                return false
+            end
+
+            local control = ghost.get_or_create_control_behavior()
+            if not (
+                control.circuit_condition.condition.first_signal.name == "signal-A" and 
+                control.circuit_condition.condition.second_signal.name == "signal-B" and
+                control.circuit_condition.condition.comparator == "<" and
+                control.circuit_mode_of_operation == defines.control_behavior.inserter.circuit_mode_of_operation.enable_disable and
+                control.circuit_read_hand_contents and
+                control.circuit_hand_read_mode == defines.control_behavior.inserter.hand_read_mode.hold and
+                control.circuit_set_stack_size and control.circuit_stack_control_signal.name == knownsignals.C.name and
+                ghost.get_filter(1) == knownsignals.redprint.name and
+                ghost.get_filter(2) == knownsignals.blueprint.name and
+                ghost.get_filter(3) == knownsignals.conbot.name and
+                ghost.get_filter(4) == knownsignals.logbot.name and
+                ghost.get_filter(5) == knownsignals.redwire.name
+                ) then return false end
+            
+            
+            ghost.destroy()
+            return true
+        end
+    },
+    ["insertercirc"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "stack-filter-inserter"}, count = 1},
+            {signal = knownsignals.X, count = -3},
+            {signal = knownsignals.Y, count = -3},
+            {signal = knownsignals.B, count = 1},
+            {signal = knownsignals.F, count = 1},
+            {signal = knownsignals.I, count = 3},
+        },
+        cc2 = {
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+
+            if irp then
+                return false
+            end
+
+            local control = ghost.get_or_create_control_behavior()
+            if not (
+                ghost.inserter_stack_size_override == 3 and
+                control.circuit_mode_of_operation == defines.control_behavior.inserter.circuit_mode_of_operation.set_filters and
+                ghost.inserter_filter_mode == "blacklist"
+                ) then return false end
+            
+            
+            ghost.destroy()
+            return true
+        end
+    },
+    ["belt"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "transport-belt"}, count = 1},
+            {signal = knownsignals.X, count = -3},
+            {signal = knownsignals.Y, count = -3},
+            {signal = knownsignals.R, count = 2},
+        },
+        cc2 = {
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+
+            if irp then
+                return false
+            end
+
+            local control = ghost.get_or_create_control_behavior()
+            if not ( control.read_contents and 
+                control.read_contents_mode == defines.control_behavior.transport_belt.content_read_mode.hold
+                ) then return false end
+            
+            
+            ghost.destroy()
+            return true
+        end
+    },
+    ["lamp"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "small-lamp"}, count = 1},
+            {signal = knownsignals.X, count = -3},
+            {signal = knownsignals.Y, count = -3},
+            {signal = knownsignals.C, count = 1},
+            {signal = knownsignals.O, count = 1},
+        },
+        cc2 = {
+            {signal = knownsignals.A, count = 1},
+            {signal = knownsignals.B, count = 2},
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+
+            if irp then
+                return false
+            end
+
+            local control = ghost.get_or_create_control_behavior()
+            if not ( control.use_colors and 
+                control.circuit_condition.condition.first_signal.name == "signal-A" and 
+                control.circuit_condition.condition.second_signal.name == "signal-B" and
+                control.circuit_condition.condition.comparator == "<"
+                ) then return false end
+            
+            
+            ghost.destroy()
+            return true
+        end
+    },
+    ["powerswitch"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "power-switch"}, count = 1},
+            {signal = knownsignals.X, count = -3},
+            {signal = knownsignals.Y, count = -3},
+            {signal = knownsignals.C, count = 1},
+            {signal = knownsignals.O, count = 1},
+            {signal = knownsignals.S, count = 3},
+        },
+        cc2 = {
+            {signal = knownsignals.B, count = 2},
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+
+            if irp then
+                return false
+            end
+
+            local control = ghost.get_or_create_control_behavior()
+            if not (
+                control.circuit_condition.condition.first_signal.name == "signal-anything" and 
+                control.circuit_condition.condition.second_signal.name == "signal-B" and
+                control.circuit_condition.condition.comparator == "<"
+                ) then return false end
+            
+            
+            ghost.destroy()
+            return true
+        end
+    },
+    ["offshore-pump"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "offshore-pump"}, count = 1},
+            {signal = knownsignals.X, count = -3},
+            {signal = knownsignals.Y, count = -3},
+            {signal = knownsignals.C, count = 1},
+            {signal = knownsignals.O, count = 1},
+            {signal = knownsignals.S, count = 5},
+        },
+        cc2 = {
+            {signal = knownsignals.B, count = 2},
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+
+            if irp then
+                return false
+            end
+
+            local control = ghost.get_or_create_control_behavior()
+            if not (
+                control.circuit_condition.condition.first_signal.name == "signal-everything" and 
+                control.circuit_condition.condition.second_signal.name == "signal-B" and
+                control.circuit_condition.condition.comparator == "<"
+                ) then return false end
+            
+            
+            ghost.destroy()
+            return true
+        end
+    },
+    ["roboport"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "roboport"}, count = 1},
+            {signal = knownsignals.X, count = -4},
+            {signal = knownsignals.Y, count = -4},
+
+            {signal = knownsignals.R, count = 1},
+
+
+        },
+        cc2 = {
+            {signal = knownsignals.A, count = 1},
+            {signal = knownsignals.B, count = 2},
+            {signal = knownsignals.C, count = 4},
+            {signal = knownsignals.D, count = 8},
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-3,-3})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+
+            if irp then
+                return false
+            end
+
+            local control = ghost.get_or_create_control_behavior()
+            if not (
+                control.mode_of_operations == defines.control_behavior.roboport.circuit_mode_of_operation.read_robot_stats and
+                control.available_logistic_output_signal.name == knownsignals.A.name and
+                control.total_logistic_output_signal.name == knownsignals.B.name and
+                control.available_construction_output_signal.name == knownsignals.C.name and
+                control.total_construction_output_signal.name ==  knownsignals.D.name) then return false end
+            
+            ghost.destroy()
+            return true
+        end
+    },
+    ["accumulator"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "accumulator"}, count = 1},
+            {signal = knownsignals.X, count = -4},
+            {signal = knownsignals.Y, count = -4},
+        },
+        cc2 = {
+            {signal = {type = "item", name = "accumulator"}, count = 1},
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-3,-3})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+
+            if irp then
+                return false
+            end
+
+            local control = ghost.get_or_create_control_behavior()
+            if not (control.output_signal.name == "accumulator") then return false end
+            
+            ghost.destroy()
+            return true
+        end
+    },
+    ["tile"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "concrete"}, count = 1},
+            {signal = knownsignals.X, count = -4},
+            {signal = knownsignals.Y, count = -4},
+        },
+        cc2 = {
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('tile-ghost', {-3,-3})
+            
+            if not (ghost) then return false end
+            
+            ghost.destroy()
+            return true
+        end
+    },
+    
+    ["cargo-wagon"] = {
+        prepare = function()
+            global.rails={
+                global.surface.create_entity{name="straight-rail",position={-3,-1}},
+                global.surface.create_entity{name="straight-rail",position={-3,-3}},
+                global.surface.create_entity{name="straight-rail",position={-3,-5}},
+                global.surface.create_entity{name="straight-rail",position={-3,-7}},
+            }
+        end,
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "cargo-wagon"}, count = 1},
+            {signal = knownsignals.X, count = -3},
+            {signal = knownsignals.Y, count = -4},
+
+            {signal = knownsignals.B, count = 3},
+            
+            {signal = knownsignals.red, count = 255},
+            {signal = knownsignals.green, count = 127},
+            {signal = knownsignals.blue, count = 63},
+            {signal = knownsignals.white, count = 255},
+
+        },
+        cc2 = {
+            {signal = knownsignals.redwire, count = 1},
+            {signal = knownsignals.greenwire, count = 2},
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-3,-3})
+            _,ghost = ghost.revive()
+            
+            if not(
+                math.floor(ghost.color.r*255) == 255 and 
+                math.floor(ghost.color.g*255) == 127 and
+                math.floor(ghost.color.b*255) ==  63 and
+                math.floor(ghost.color.a*255) == 255 ) then return false end
+
+            local inv = ghost.get_inventory(defines.inventory.chest)
+
+            if not (inv.getbar() == 4 and 
+                inv.get_filter(1) == knownsignals.redwire.name and
+                inv.get_filter(2) == knownsignals.greenwire.name and
+                inv.get_filter(3) == nil
+                ) then return false end
+            
+            
+            ghost.destroy()
+
+            for _,ent in pairs(global.rails) do ent.destroy() end
+            global.rails = nil
+            return true
+        end
+    },
+    ["locomotive"] = {
+        prepare = function()
+            global.rails={
+                global.surface.create_entity{name="straight-rail",position={-3,-1}},
+                global.surface.create_entity{name="straight-rail",position={-3,-3}},
+                global.surface.create_entity{name="straight-rail",position={-3,-5}},
+                global.surface.create_entity{name="straight-rail",position={-3,-7}},
+            }
+        end,
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "locomotive"}, count = 1},
+            {signal = knownsignals.X, count = -3},
+            {signal = knownsignals.Y, count = -4},
+            
+            {signal = knownsignals.red, count = 255},
+            {signal = knownsignals.green, count = 127},
+            {signal = knownsignals.blue, count = 63},
+            {signal = knownsignals.white, count = 255},
+
+        },
+        cc2 = {
+            {signal = knownsignals.redwire, count = 12},
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-3,-3})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+
+            if not(irp and irp.item_requests[knownsignals.redwire.name] == 12) then return false end
+            irp.destroy()
+            
+            if not(
+                math.floor(ghost.color.r*255) == 255 and 
+                math.floor(ghost.color.g*255) == 127 and
+                math.floor(ghost.color.b*255) ==  63 and
+                math.floor(ghost.color.a*255) == 255 ) then return false end
+            
+            ghost.destroy()
+
+            for _,ent in pairs(global.rails) do ent.destroy() end
+            global.rails = nil
+            return true
+        end
+    },
     -- ]]
 }
 
@@ -799,6 +1278,9 @@ script.on_init(function()
         surface = game.surfaces['nauvis']
     }
 
+    -- make sure things like high stacks on inserters are unlocked so setting them works
+    game.forces.player.research_all_technologies()
+    
     global.testid,global.test = next(tests)
     global.state = states.prepare
     

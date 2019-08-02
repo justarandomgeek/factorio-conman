@@ -393,10 +393,10 @@ local ConstructionOrderControlBehavior =
     local r = get_signal_from_set(knownsignals.R,signals1)
     if r == 1 then 
       control.circuit_read_resources = true
-      control.read_resource_mode = defines.control_behavior.mining_drill.resource_read_mode.this_miner
+      control.resource_read_mode = defines.control_behavior.mining_drill.resource_read_mode.this_miner
     elseif r == 2 then
       control.circuit_read_resources = true
-      control.read_resource_mode = defines.control_behavior.mining_drill.resource_read_mode.entire_patch
+      control.resource_read_mode = defines.control_behavior.mining_drill.resource_read_mode.entire_patch
     else 
       control.circuit_read_resources = false
     end
@@ -406,7 +406,7 @@ local ConstructionOrderControlBehavior =
 
     control.enable_disable = get_signal_from_set(knownsignals.E,signals1) ~= 0
     control.read_from_train = get_signal_from_set(knownsignals.R,signals1) ~= 0
-    control.send_to_train = get_signal_from_set(knownsignals.S,signals1) ~= 0
+    control.send_to_train = get_signal_from_set(knownsignals.T,signals1) ~= 0
 
     if siglist[3] then
       control.stopped_train_signal = siglist[3]
@@ -528,8 +528,6 @@ local ConstructionOrderControlBehavior =
     if signals2 then
       siglist = ReadSignalList(signals2)
     end
-
-    control.read_signal = get_signal_from_set(knownsignals.R,signals1) ~= 0
     
     control.red_signal = siglist[3]
     control.orange_signal = siglist[4]

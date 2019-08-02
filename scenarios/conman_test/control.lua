@@ -607,22 +607,189 @@ local tests = {
             return true
         end
     },
+    ["pump"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "pump"}, count = 1},
+            {signal = knownsignals.X, count = -3},
+            {signal = knownsignals.Y, count = -3},
+            {signal = knownsignals.K, count = 42},
+            {signal = knownsignals.O, count = 2},
+
+        },
+        cc2 = {
+            {signal = knownsignals.A, count = 1},
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+
+            if irp then
+                return false
+            end
+            
+            ghost.destroy()
+            return true
+        end
+    },
+    ["electric-mining-drill"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "electric-mining-drill"}, count = 1},
+            {signal = knownsignals.X, count = -3},
+            {signal = knownsignals.Y, count = -3},
+            {signal = knownsignals.R, count = 2},
+
+        },
+        cc2 = {
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+
+            if irp then
+                return false
+            end
+
+            local control = ghost.get_or_create_control_behavior()
+            if not (control.circuit_read_resources and
+                control.resource_read_mode == defines.control_behavior.mining_drill.resource_read_mode.entire_patch) then return false end
+            
+            ghost.destroy()
+            return true
+        end
+    },
+    ["train-stop"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "train-stop"}, count = 1},
+            {signal = knownsignals.X, count = -3},
+            {signal = knownsignals.Y, count = -3},
+
+            {signal = knownsignals.R, count = 1},
+            {signal = knownsignals.T, count = 1},
+
+            {signal = knownsignals.red, count = 255},
+            {signal = knownsignals.green, count = 127},
+            {signal = knownsignals.blue, count = 63},
+            {signal = knownsignals.white, count = 255},
+
+        },
+        cc2 = {
+            {signal = knownsignals.A, count = 4},
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+
+            if irp then
+                return false
+            end
+
+            local control = ghost.get_or_create_control_behavior()
+            if not (control.send_to_train and control.read_from_train and control.read_stopped_train and
+                control.stopped_train_signal.name == knownsignals.A.name) then return false end
+            
+            if not(
+                math.floor(ghost.color.r*255) == 255 and 
+                math.floor(ghost.color.g*255) == 127 and
+                math.floor(ghost.color.b*255) ==  63 and
+                math.floor(ghost.color.a*255) == 255 ) then return false end
+
+
+            ghost.destroy()
+            return true
+        end
+    },
+    ["rail-signal"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "rail-signal"}, count = 1},
+            {signal = knownsignals.X, count = -3},
+            {signal = knownsignals.Y, count = -3},
+
+            {signal = knownsignals.R, count = 1},
+
+
+        },
+        cc2 = {
+            {signal = knownsignals.A, count = 4},
+            {signal = knownsignals.B, count = 8},
+            {signal = knownsignals.C, count = 16},
+
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+
+            if irp then
+                return false
+            end
+
+            local control = ghost.get_or_create_control_behavior()
+            if not (control.read_signal and
+                control.red_signal.name == knownsignals.A.name and
+                control.orange_signal.name == knownsignals.B.name and
+                control.green_signal.name == knownsignals.C.name) then return false end
+            
+            
+            ghost.destroy()
+            return true
+        end
+    },
+    ["rail-chain-signal"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "rail-chain-signal"}, count = 1},
+            {signal = knownsignals.X, count = -3},
+            {signal = knownsignals.Y, count = -3},
+
+            {signal = knownsignals.R, count = 1},
+
+
+        },
+        cc2 = {
+            {signal = knownsignals.A, count = 4},
+            {signal = knownsignals.B, count = 8},
+            {signal = knownsignals.C, count = 16},
+            {signal = knownsignals.D, count = 32},
+
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+
+            if irp then
+                return false
+            end
+
+            local control = ghost.get_or_create_control_behavior()
+            if not (
+                control.red_signal.name == knownsignals.A.name and
+                control.orange_signal.name == knownsignals.B.name and
+                control.green_signal.name == knownsignals.C.name and
+                control.blue_signal.name == knownsignals.D.name) then return false end
+            
+            
+            ghost.destroy()
+            return true
+        end
+    },
     -- ]]
 }
 
-
--- for each test 1tick each:
---   run prepare()
---   feed CC1/CC2 data
---   clear input probes, capture CC2 output
---   run verify(CC2out)
-
 local states = {
-    prepare = 1,
-    feed = 2,
-    clear = 3,
-    verify = 4,
-    finished = -1,
+    prepare = 10,       -- run prepare()
+    feed = 20,          -- feed cc1/cc2
+    multifeed = 21,     -- additional feed for multi-frame commands
+    clear = 30,         -- clear commands, extra tick for them to execute
+    verify = 40,        -- run verify() to test result
+    finished = -1,      -- testing stopped
 }
 
 
@@ -642,6 +809,16 @@ script.on_init(function()
 
 end)
 
+local function writeInput(signals,entity)
+    local outframe = {}
+    if signals then
+        for i,signal in pairs(signals) do
+            outframe[#outframe+1] = {index=#outframe+1, count=signal.count, signal=signal.signal}
+        end
+    end
+    entity.get_or_create_control_behavior().parameters={parameters = outframe}
+end
+
 script.on_event(defines.events.on_tick, function()
     if global.state == states.prepare then
         game.print("prepare " .. global.testid)
@@ -652,24 +829,31 @@ script.on_event(defines.events.on_tick, function()
     elseif global.state == states.feed then
         game.print("feed " .. global.testid)
         -- feed cc1/cc2 data
-        local outframe1 = {}
-        for i,signal in pairs(global.test.cc1) do
-            outframe1[#outframe1+1] = {index=#outframe1+1, count=signal.count, signal=signal.signal}
-        end
-        global.testprobe1.get_or_create_control_behavior().parameters={parameters = outframe1}
+        writeInput(global.test.cc1, global.testprobe1)
+        writeInput(global.test.cc2, global.testprobe2)
 
-        local outframe2 = {}
-        for i,signal in pairs(global.test.cc2) do
-            outframe2[#outframe2+1] = {index=#outframe2+1, count=signal.count, signal=signal.signal}
+        if global.test.multifeed then
+            global.nextfeed = 1
+            global.state = states.multifeed
+        else
+            global.state = states.clear
         end
-        global.testprobe2.get_or_create_control_behavior().parameters={parameters = outframe2}
+    elseif global.state == states.multifeed then
+        game.print("multifeed " .. global.testid .. " " .. global.nextfeed)
+        -- feed cc1/cc2 data
+        writeInput(global.test.multifeed[global.nextfeed].cc1, global.testprobe1)
+        writeInput(global.test.multifeed[global.nextfeed].cc2, global.testprobe2)
 
-        global.state = states.clear
+        if global.test.multifeed[global.nextfeed+1] then
+            global.nextfeed = global.nextfeed + 1
+        else
+            global.state = states.clear
+        end
     elseif global.state == states.clear then
         game.print("clear " .. global.testid)
         -- clear cc1/cc2 data
-        global.testprobe1.get_or_create_control_behavior().parameters=nil
-        global.testprobe2.get_or_create_control_behavior().parameters=nil
+        writeInput(nil, global.testprobe1)
+        writeInput(nil, global.testprobe2)
 
         -- read cc2 output
         global.outsignals = global.testprobe2out.get_merged_signals()

@@ -442,6 +442,171 @@ local tests = {
             return true
         end
     },
+    ["decidcomb"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "decider-combinator"}, count = 1},
+            {signal = knownsignals.X, count = -3},
+            {signal = knownsignals.Y, count = -3},
+            {signal = knownsignals.O, count = 2},
+            
+        },
+        cc2 = {
+            {signal = knownsignals.A, count = 1},
+            {signal = knownsignals.B, count = 2},
+            {signal = knownsignals.C, count = 4},
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+
+            if irp then
+                return false
+            end
+            
+            local control = ghost.get_or_create_control_behavior()
+            if not control then return false end
+            if not (control.parameters.parameters.first_signal.name == "signal-A" and 
+                control.parameters.parameters.second_signal.name == "signal-B" and
+                control.parameters.parameters.output_signal.name == "signal-C" and
+                control.parameters.parameters.comparator == ">") then return false end
+
+            ghost.destroy()
+            return true
+        end
+    },
+    ["decidcombeach"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "decider-combinator"}, count = 1},
+            {signal = knownsignals.X, count = -3},
+            {signal = knownsignals.Y, count = -3},
+            {signal = knownsignals.O, count = 3},
+            {signal = knownsignals.S, count = 2},
+            
+        },
+        cc2 = {
+            {signal = knownsignals.B, count = 2},
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+
+            if irp then
+                return false
+            end
+            
+            local control = ghost.get_or_create_control_behavior()
+            if not control then return false end
+            if not (control.parameters.parameters.first_signal.name == "signal-each" and 
+                control.parameters.parameters.second_signal.name == "signal-B" and
+                control.parameters.parameters.output_signal.name == "signal-each" and
+                control.parameters.parameters.comparator == "=") then return false end
+                
+            ghost.destroy()
+            return true
+        end
+    },
+    ["decidcombevery"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "decider-combinator"}, count = 1},
+            {signal = knownsignals.X, count = -3},
+            {signal = knownsignals.Y, count = -3},
+            {signal = knownsignals.O, count = 4},
+            {signal = knownsignals.S, count = 6},
+            
+        },
+        cc2 = {
+            {signal = knownsignals.B, count = 2},
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+
+            if irp then
+                return false
+            end
+            
+            local control = ghost.get_or_create_control_behavior()
+            if not control then return false end
+            if not (control.parameters.parameters.first_signal.name == "signal-everything" and 
+                control.parameters.parameters.second_signal.name == "signal-B" and
+                control.parameters.parameters.output_signal.name == "signal-everything" and
+                control.parameters.parameters.comparator == "≥") then return false end
+                
+            ghost.destroy()
+            return true
+        end
+    },
+    ["decidcombanyconst"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "decider-combinator"}, count = 1},
+            {signal = knownsignals.X, count = -3},
+            {signal = knownsignals.Y, count = -3},
+            {signal = knownsignals.O, count = 5},
+            {signal = knownsignals.S, count = 3},
+            {signal = knownsignals.K, count = 34},
+            {signal = knownsignals.F, count = 1},
+            
+        },
+        cc2 = {
+            {signal = knownsignals.C, count = 4},
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+
+            if irp then
+                return false
+            end
+            
+            local control = ghost.get_or_create_control_behavior()
+            if not control then return false end
+            if not (control.parameters.parameters.first_signal.name == "signal-anything" and 
+                control.parameters.parameters.constant == 34 and
+                control.parameters.parameters.output_signal.name == "signal-C" and
+                control.parameters.parameters.comparator == "≤" and 
+                control.parameters.parameters.copy_count_from_input == false) then return false end
+
+            ghost.destroy()
+            return true
+        end
+    },
+    ["splitter"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "express-splitter"}, count = 1},
+            {signal = knownsignals.X, count = -3},
+            {signal = knownsignals.Y, count = -3},
+            {signal = knownsignals.I, count = 1},
+            {signal = knownsignals.O, count = 2},
+        },
+        cc2 = {
+            {signal = knownsignals.redwire, count = 1},
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+
+            if irp then
+                return false
+            end
+            
+            if not (ghost.splitter_input_priority == "left" and
+                ghost.splitter_output_priority == "right" and
+                ghost.splitter_filter and ghost.splitter_filter.name == knownsignals.redwire.name) then return false end
+
+            ghost.destroy()
+            return true
+        end
+    },
     -- ]]
 }
 

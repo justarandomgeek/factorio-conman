@@ -242,7 +242,7 @@ local ConstructionOrderEntitySpecific =
     createorder.input_priority = splitterside[get_signal_from_set(knownsignals.I,signals1)] or "none"
     createorder.output_priority = splitterside[get_signal_from_set(knownsignals.O,signals1)] or "none"
 
-    createorder.filter = ReadItems(signals2,1)[1]
+    createorder.filter = next(ReadItems(signals2,1))
     createorder.usecc2items=false
   end,
   ["underground-belt"] = function(createorder,entproto,signals1,signals2)

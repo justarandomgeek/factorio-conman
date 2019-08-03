@@ -63,11 +63,7 @@ local function ReadPosition(signals,secondary,offset)
 end
 
 local function ReadColor(signals)
-  local c = get_signals_filtered(signalsets.color,signals)
-  if not c.r then c.r = 0 end
-  if not c.g then c.g = 0 end
-  if not c.b then c.b = 0 end
-  return c
+  return get_signals_filtered(signalsets.color,signals)
 end
 
 local function ReadBoundingBox(signals)
@@ -517,8 +513,10 @@ local ConstructionOrderControlBehavior =
       show_alert = get_signal_from_set(knownsignals.A,signals1) ~= 0,
       show_on_map = get_signal_from_set(knownsignals.M,signals1) ~= 0,
       icon_signal_id = siglist[3],
-      alert_message = "",
+      alert_message = global.preloadstring,
     }
+    global.preloadstring = nil
+    global.preloadcolor = nil
     control.circuit_parameters = {
       signal_value_is_pitch = get_signal_from_set(knownsignals.V,signals1) ~= 0,
       instrument_id = get_signal_from_set(knownsignals.I,signals1) or 1,
@@ -877,6 +875,23 @@ local function onTickManager(manager)
         ConnectWire(manager,signals1,signals2,defines.wire_type.green,true)
       elseif get_signal_from_set(knownsignals.coppercable,signals1) == -1 then
         ConnectWire(manager,signals1,signals2,nil,true)
+      elseif get_signal_from_set(knownsignals.info,signals1) == 1 then
+        -- read string and color from signals2, store in global.preloadstring and global.preloadcolor
+        if remote.interfaces['signalstrings'] and signals2 then
+          global.preloadstring = remote.call('signalstrings','signals_to_string',signals2,true)
+    
+          local a = get_signal_from_set(knownsignals.white,signals2)
+          if a > 0 and a <= 256 then
+            local color = ReadColor(signals2)
+            color.a = a
+            global.preloadcolor = color
+          else
+            global.preloadcolor = nil
+          end
+        else
+          global.preloadstring = nil
+          global.preloadcolor = nil
+        end
       else
         if game.active_mods["stringy-train-stop"] then
           local sigsched = get_signal_from_set(knownsignals.schedule,signals1)
@@ -1008,4 +1023,10 @@ script.on_event(defines.events.on_robot_built_entity, onBuilt)
 
 remote.add_interface('conman',{
   --TODO: call to register signals for ghost proxies??
+
+  read_preload_string = function() return global.preloadstring end,
+  read_preload_color = function() return global.preloadstring end,
+
+  set_preload_string = function(str) global.preloadstring = str end,
+  set_preload_color = function(color) global.preloadstring = color end,
 })

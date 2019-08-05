@@ -192,7 +192,6 @@ local tests = {
             return true
         end
     },
-    
     ["rqchest"] = {
         cc1 = {
             {signal = knownsignals.conbot, count = 1},
@@ -246,8 +245,8 @@ local tests = {
             
             local control = ghost.get_or_create_control_behavior()
             if control and 
-                control.circuit_mode_of_operation == defines.control_behavior.logistic_container.circuit_mode_of_operation.set_requests	
-                --TODO: verify request_from_buffer
+                control.circuit_mode_of_operation == defines.control_behavior.logistic_container.circuit_mode_of_operation.set_requests	and
+                ghost.request_from_buffers
                 then 
                 ghost.destroy()
             else
@@ -355,7 +354,6 @@ local tests = {
             return true
         end
     },
-    
     ["arithcombconst"] = {
         cc1 = {
             {signal = knownsignals.conbot, count = 1},
@@ -1207,13 +1205,84 @@ local tests = {
             return true
         end
     },
+
+    ["schedule"] = {
+        prepare = function()
+            global.rails={
+                global.surface.create_entity{name="straight-rail",position={-3,-1}},
+                global.surface.create_entity{name="straight-rail",position={-3,-3}},
+                global.surface.create_entity{name="straight-rail",position={-3,-5}},
+                global.surface.create_entity{name="straight-rail",position={-3,-7}},
+            }
+            global.loco = global.surface.create_entity{name="locomotive",force="player",position={-3,-4}}
+        end,
+        multifeed = {
+            {
+                cc1string = "FOO",
+                cc1 = {
+                    {signal = knownsignals.schedule, count = 1},
+                    {signal = {name="signal-wait-time",type="virtual"}, count = 123},
+                },
+            },
+            {
+                cc1string = "BAR",
+                cc1 = {
+                    {signal = knownsignals.schedule, count = 2},
+                    {signal = {name="signal-wait-inactivity",type="virtual"}, count = 456},
+                },
+            },
+            {
+                cc1string = "[item=iron-ore]DROP",
+                cc1 = {
+                    {signal = knownsignals.schedule, count = 3},
+                    {signal = {name="signal-stopname-richtext",type="virtual"}, count = 1},
+                    {signal = {name="signal-wait-empty",type="virtual"}, count = 1},
+                },
+            },
+            {
+                cc1 = {
+                    {signal = knownsignals.schedule, count = 4},
+                    {signal = {name="signal-schedule-rail",type="virtual"}, count = 1},
+                    {signal = knownsignals.X, count = -3},
+                    {signal = knownsignals.Y, count = -1},
+                    {signal = {name="signal-wait-full",type="virtual"}, count = 1},
+                },
+            },
+            {
+                cc1 = {
+                    {signal = knownsignals.schedule, count = -1},
+                    {signal = knownsignals.X, count = -3},
+                    {signal = knownsignals.Y, count = -4},
+                },
+            },
+        },
+        verify = function()
+            local schedule = global.loco.train.schedule
+
+            if not (
+                schedule.records[1].station == "FOO" and
+                schedule.records[1].wait_conditions[1].type == "time" and schedule.records[1].wait_conditions[1].ticks == 123 and
+                schedule.records[2].station == "BAR" and
+                schedule.records[2].wait_conditions[1].type == "inactivity" and schedule.records[2].wait_conditions[1].ticks == 456 and
+                schedule.records[3].station == "[item=iron-ore]DROP" and
+                schedule.records[3].wait_conditions[1].type == "empty" and
+                schedule.records[4].rail == global.rails[1] and 
+                schedule.records[4].wait_conditions[1].type == "full"
+            ) then return false end
+            global.loco.destroy()
+            global.loco = nil
+            for _,ent in pairs(global.rails) do ent.destroy() end
+            global.rails = nil
+            return true
+        end
+    },
     -- ]]
 }
 
 local states = {
     prepare = 10,       -- run prepare()
     feed = 20,          -- feed cc1/cc2
-    multifeed = 21,     -- additional feed for multi-frame commands
+    multifeed = 21,     -- feed for multi-frame commands
     clear = 30,         -- clear commands, extra tick for them to execute
     verify = 40,        -- run verify() to test result
     finished = -1,      -- testing stopped
@@ -1239,8 +1308,12 @@ script.on_init(function()
 
 end)
 
-local function writeInput(signals,entity)
+local function writeInput(signals,string,entity)
     local outframe = {}
+    if string then 
+        signals = remote.call('signalstrings', 'string_to_signals', string, signals)
+    end
+
     if signals then
         for i,signal in pairs(signals) do
             outframe[#outframe+1] = {index=#outframe+1, count=signal.count, signal=signal.signal}
@@ -1255,24 +1328,25 @@ script.on_event(defines.events.on_tick, function()
         if global.test.prepare then
             global.test.prepare()
         end
-        global.state = states.feed
-    elseif global.state == states.feed then
-        game.print("feed " .. global.testid)
-        -- feed cc1/cc2 data
-        writeInput(global.test.cc1, global.testprobe1)
-        writeInput(global.test.cc2, global.testprobe2)
-
-        if global.test.multifeed then
+        if global.test.multifeed then 
             global.nextfeed = 1
             global.state = states.multifeed
         else
-            global.state = states.clear
+            global.state = states.feed
         end
+    elseif global.state == states.feed then
+        game.print("feed " .. global.testid)
+        -- feed cc1/cc2 data
+        writeInput(global.test.cc1, global.test.cc1string, global.testprobe1)
+        writeInput(global.test.cc2, global.test.cc2string, global.testprobe2)
+
+        global.state = states.clear
     elseif global.state == states.multifeed then
         game.print("multifeed " .. global.testid .. " " .. global.nextfeed)
         -- feed cc1/cc2 data
-        writeInput(global.test.multifeed[global.nextfeed].cc1, global.testprobe1)
-        writeInput(global.test.multifeed[global.nextfeed].cc2, global.testprobe2)
+        local nextdata = global.test.multifeed[global.nextfeed]
+        writeInput(nextdata.cc1, nextdata.cc1string, global.testprobe1)
+        writeInput(nextdata.cc2, nextdata.cc2string, global.testprobe2)
 
         if global.test.multifeed[global.nextfeed+1] then
             global.nextfeed = global.nextfeed + 1
@@ -1282,8 +1356,8 @@ script.on_event(defines.events.on_tick, function()
     elseif global.state == states.clear then
         game.print("clear " .. global.testid)
         -- clear cc1/cc2 data
-        writeInput(nil, global.testprobe1)
-        writeInput(nil, global.testprobe2)
+        writeInput(nil,nil, global.testprobe1)
+        writeInput(nil,nil, global.testprobe2)
 
         -- read cc2 output
         global.outsignals = global.testprobe2out.get_merged_signals()

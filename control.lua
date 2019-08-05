@@ -164,10 +164,10 @@ local ConstructionOrderEntitySpecific =
     end
   end,
   ["logistic-container"] = function(createorder,entproto,signals1,signals2)
-    if entproto.logistic_mode == "requester" or entproto.logistic_mode == "storage" then
+    if entproto.logistic_mode == "buffer" or entproto.logistic_mode == "storage" then
       createorder.request_filters = ReadFilters(signals2, entproto.filter_count)
       createorder.usecc2items=false
-    elseif entproto.logistic_mode == "buffer" then
+    elseif entproto.logistic_mode == "requester" then
       createorder.request_filters = ReadFilters(signals2, entproto.filter_count)
       createorder.usecc2items=false
       createorder.request_from_buffers = get_signal_from_set(knownsignals.R,signals1) ~= 0
@@ -246,7 +246,7 @@ local ConstructionOrderEntitySpecific =
   ["accumulator"] = nocc2,
 }
 
-local function ReadGenericOnOffControl(ghost,control,signals1,signals2)
+local function ReadGenericOnOffControl(ghost,control,manager,signals1,signals2)
   local siglist = {}
   if signals2 then
     siglist = ReadSignalList(signals2)
@@ -275,7 +275,7 @@ end
 
 local ConstructionOrderControlBehavior =
 {
-  [defines.control_behavior.type.constant_combinator] = function(ghost,control,signals1,signals2)
+  [defines.control_behavior.type.constant_combinator] = function(ghost,control,manager,signals1,signals2)
     local filters = {}
     if signals2 then
       for i,s in pairs(signals2) do
@@ -284,7 +284,7 @@ local ConstructionOrderControlBehavior =
     end
     control.parameters={parameters=filters}
   end,
-  [defines.control_behavior.type.arithmetic_combinator] = function(ghost,control,signals1,signals2)
+  [defines.control_behavior.type.arithmetic_combinator] = function(ghost,control,manager,signals1,signals2)
     local siglist = {}
     if signals2 then
       siglist = ReadSignalList(signals2)
@@ -306,7 +306,7 @@ local ConstructionOrderControlBehavior =
       output_signal = siglist[3],
       }}
   end,
-  [defines.control_behavior.type.decider_combinator] = function(ghost,control,signals1,signals2)
+  [defines.control_behavior.type.decider_combinator] = function(ghost,control,manager,signals1,signals2)
     local siglist = {}
     if signals2 then
       siglist = ReadSignalList(signals2)
@@ -341,8 +341,8 @@ local ConstructionOrderControlBehavior =
       }}
   end,
   [defines.control_behavior.type.generic_on_off] = ReadGenericOnOffControl,
-  [defines.control_behavior.type.mining_drill] = function(ghost,control,signals1,signals2)
-    ReadGenericOnOffControl(ghost,control,signals1,signals2)
+  [defines.control_behavior.type.mining_drill] = function(ghost,control,manager,signals1,signals2)
+    ReadGenericOnOffControl(ghost,control,manager,signals1,signals2)
 
     control.circuit_enable_disable = get_signal_from_set(knownsignals.E,signals1) ~= 0
     local r = get_signal_from_set(knownsignals.R,signals1)
@@ -356,8 +356,8 @@ local ConstructionOrderControlBehavior =
       control.circuit_read_resources = false
     end
   end,
-  [defines.control_behavior.type.train_stop] = function(ghost,control,signals1,signals2)
-    local siglist = ReadGenericOnOffControl(ghost,control,signals1,signals2)
+  [defines.control_behavior.type.train_stop] = function(ghost,control,manager,signals1,signals2)
+    local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2)
 
     control.enable_disable = get_signal_from_set(knownsignals.E,signals1) ~= 0
     control.read_from_train = get_signal_from_set(knownsignals.R,signals1) ~= 0
@@ -370,8 +370,8 @@ local ConstructionOrderControlBehavior =
       control.read_stopped_train = false
     end
   end,
-  [defines.control_behavior.type.inserter] = function(ghost,control,signals1,signals2)
-    local siglist = ReadGenericOnOffControl(ghost,control,signals1,signals2)
+  [defines.control_behavior.type.inserter] = function(ghost,control,manager,signals1,signals2)
+    local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2)
 
     if get_signal_from_set(knownsignals.B,signals1) ~= 0 then 
       ghost.inserter_filter_mode = "blacklist"
@@ -416,18 +416,18 @@ local ConstructionOrderControlBehavior =
       end
     end
   end,
-  [defines.control_behavior.type.lamp] = function(ghost,control,signals1,signals2)
-    local siglist = ReadGenericOnOffControl(ghost,control,signals1,signals2)
+  [defines.control_behavior.type.lamp] = function(ghost,control,manager,signals1,signals2)
+    local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2)
     control.use_colors = get_signal_from_set(knownsignals.C,signals1) ~= 0
   end,
-  [defines.control_behavior.type.logistic_container] = function(ghost,control,signals1,signals2)
+  [defines.control_behavior.type.logistic_container] = function(ghost,control,manager,signals1,signals2)
     if ghost.ghost_prototype.logistic_mode == "requester" or ghost.ghost_prototype.logistic_mode == "buffer" then
       if get_signal_from_set(knownsignals.R,signals1) ~= 0 then 
         control.circuit_mode_of_operation = defines.control_behavior.logistic_container.circuit_mode_of_operation.set_requests
       end
     end    
   end,
-  [defines.control_behavior.type.roboport] = function(ghost,control,signals1,signals2)
+  [defines.control_behavior.type.roboport] = function(ghost,control,manager,signals1,signals2)
     local siglist = {}
     if signals2 then
       siglist = ReadSignalList(signals2)
@@ -444,8 +444,8 @@ local ConstructionOrderControlBehavior =
     control.available_construction_output_signal = siglist[3]
     control.total_construction_output_signal = siglist[4]
   end,
-  [defines.control_behavior.type.transport_belt] = function(ghost,control,signals1,signals2)
-    local siglist = ReadGenericOnOffControl(ghost,control,signals1,signals2)
+  [defines.control_behavior.type.transport_belt] = function(ghost,control,manager,signals1,signals2)
+    local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2)
     control.enable_disable = get_signal_from_set(knownsignals.E,signals1) ~= 0
 
     local r = get_signal_from_set(knownsignals.R,signals1)
@@ -459,7 +459,7 @@ local ConstructionOrderControlBehavior =
       control.read_contents = false
     end
   end,
-  [defines.control_behavior.type.accumulator] = function(ghost,control,signals1,signals2)
+  [defines.control_behavior.type.accumulator] = function(ghost,control,manager,signals1,signals2)
     local siglist = {}
     if signals2 then
       siglist = ReadSignalList(signals2)
@@ -467,9 +467,9 @@ local ConstructionOrderControlBehavior =
     
     control.output_signal = siglist[1]
   end,
-  [defines.control_behavior.type.rail_signal] = function(ghost,control,signals1,signals2)
+  [defines.control_behavior.type.rail_signal] = function(ghost,control,manager,signals1,signals2)
     -- Rail doesn't actually inheret from Generic, but it's close enough to work
-    local siglist = ReadGenericOnOffControl(ghost,control,signals1,signals2)
+    local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2)
 
     control.close_signal = get_signal_from_set(knownsignals.E,signals1) ~= 0
     control.read_signal = get_signal_from_set(knownsignals.R,signals1) ~= 0
@@ -478,7 +478,7 @@ local ConstructionOrderControlBehavior =
     control.orange_signal = siglist[4]
     control.green_signal = siglist[5]
   end,
-  [defines.control_behavior.type.rail_chain_signal] = function(ghost,control,signals1,signals2)
+  [defines.control_behavior.type.rail_chain_signal] = function(ghost,control,manager,signals1,signals2)
     local siglist = {}
     if signals2 then
       siglist = ReadSignalList(signals2)
@@ -489,18 +489,18 @@ local ConstructionOrderControlBehavior =
     control.green_signal = siglist[5]
     control.blue_signal = siglist[6]
   end,
-  [defines.control_behavior.type.wall] = function(ghost,control,signals1,signals2)
+  [defines.control_behavior.type.wall] = function(ghost,control,manager,signals1,signals2)
     -- Wall doesn't actually inheret from Generic, but it's close enough to work
-    local siglist = ReadGenericOnOffControl(ghost,control,signals1,signals2)
+    local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2)
 
     control.open_gate = get_signal_from_set(knownsignals.E,signals1) ~= 0
     control.read_sensor = get_signal_from_set(knownsignals.R,signals1) ~= 0
     
     control.output_signal = siglist[3]
   end,
-  [defines.control_behavior.type.programmable_speaker] = function(ghost,control,signals1,signals2)
+  [defines.control_behavior.type.programmable_speaker] = function(ghost,control,manager,signals1,signals2)
     -- Speaker doesn't actually inheret from Generic, but it's close enough to work
-    local siglist = ReadGenericOnOffControl(ghost,control,signals1,signals2)
+    local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2)
 
     local volume = (get_signal_from_set(knownsignals.V,signals1) or 100)/100
     
@@ -513,10 +513,10 @@ local ConstructionOrderControlBehavior =
       show_alert = get_signal_from_set(knownsignals.A,signals1) ~= 0,
       show_on_map = get_signal_from_set(knownsignals.M,signals1) ~= 0,
       icon_signal_id = siglist[3],
-      alert_message = global.preloadstring,
+      alert_message = manager.preloadstring,
     }
-    global.preloadstring = nil
-    global.preloadcolor = nil
+    manager.preloadstring = nil
+    manager.preloadcolor = nil
     control.circuit_parameters = {
       signal_value_is_pitch = get_signal_from_set(knownsignals.V,signals1) ~= 0,
       instrument_id = get_signal_from_set(knownsignals.I,signals1) or 1,
@@ -571,7 +571,7 @@ local function ConstructionOrder(manager,signals1,signals2)
       if control and control.valid then
         local special = ConstructionOrderControlBehavior[control.type]
         if special then
-          special(ghost,control,signals1,signals2)
+          special(ghost,control,manager,signals1,signals2)
         end
       end
 
@@ -876,28 +876,28 @@ local function onTickManager(manager)
       elseif get_signal_from_set(knownsignals.coppercable,signals1) == -1 then
         ConnectWire(manager,signals1,signals2,nil,true)
       elseif get_signal_from_set(knownsignals.info,signals1) == 1 then
-        -- read string and color from signals2, store in global.preloadstring and global.preloadcolor
+        -- read string and color from signals2, store in manager.preloadstring and manager.preloadcolor
         if remote.interfaces['signalstrings'] and signals2 then
-          global.preloadstring = remote.call('signalstrings','signals_to_string',signals2,true)
+          manager.preloadstring = remote.call('signalstrings','signals_to_string',signals2,true)
     
           local a = get_signal_from_set(knownsignals.white,signals2)
           if a > 0 and a <= 256 then
             local color = ReadColor(signals2)
             color.a = a
-            global.preloadcolor = color
+            manager.preloadcolor = color
           else
-            global.preloadcolor = nil
+            manager.preloadcolor = nil
           end
         else
-          global.preloadstring = nil
-          global.preloadcolor = nil
+          manager.preloadstring = nil
+          manager.preloadcolor = nil
         end
       else
         if game.active_mods["stringy-train-stop"] then
           local sigsched = get_signal_from_set(knownsignals.schedule,signals1)
           if sigsched > 0 then
             if not manager.schedule then manager.schedule = {} end
-            local schedule = remote.call("stringy-train-stop", "parseScheduleEntry", signals1)
+            local schedule = remote.call("stringy-train-stop", "parseScheduleEntry", signals1, manager.ent.surface)
             if schedule.name == "" then
               manager.schedule[sigsched] = {}
             else
@@ -1024,9 +1024,21 @@ script.on_event(defines.events.on_robot_built_entity, onBuilt)
 remote.add_interface('conman',{
   --TODO: call to register signals for ghost proxies??
 
-  read_preload_string = function() return global.preloadstring end,
-  read_preload_color = function() return global.preloadstring end,
-
-  set_preload_string = function(str) global.preloadstring = str end,
-  set_preload_color = function(color) global.preloadstring = color end,
+  read_preload_string = function(manager_id)
+    return global.managers[manager_id] and global.managers[manager_id].preloadstring
+  end,
+  read_preload_color = function(manager_id)
+    return global.managers[manager_id] and global.managers[manager_id].preloadstring
+  end,
+  
+  set_preload_string = function(manager_id,str)
+    if global.managers[manager_id] then
+      global.managers[manager_id].preloadstring = str
+    end
+  end,
+  set_preload_color = function(manager_id,color)
+    if global.managers[manager_id] then
+      global.managers[manager_id].preloadstring = color
+    end
+  end,
 })

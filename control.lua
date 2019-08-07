@@ -34,7 +34,7 @@ local signalsets = {
     y = knownsignals.Y,
   },
   position2 = {
-    x = knownsignals.Y,
+    x = knownsignals.U,
     y = knownsignals.V,
   },
   color = {
@@ -657,7 +657,7 @@ local function ConnectWire(manager,signals1,signals2,color,disconnect)
   local ent2 = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(signals1,true)}[1]
 
   if not (ent1 and ent1.valid and ent2 and ent2.valid) then return end
-
+  
   if not color then
     if ent1.type == "electric-pole" and ent2.type == "electric-pole" then
       if disconnect then
@@ -673,7 +673,6 @@ local function ConnectWire(manager,signals1,signals2,color,disconnect)
       source_circuit_id = z,
       target_circuit_id = w,
     }
-
     if disconnect then
       ent1.disconnect_neighbour(target)
     else

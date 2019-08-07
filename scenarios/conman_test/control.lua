@@ -1276,6 +1276,135 @@ local tests = {
             return true
         end
     },
+
+    ["irp"] = {
+        prepare = function()
+            global.chest=global.surface.create_entity{name="wooden-chest",force="player",position={-3.5,-3.5}}
+        end,
+        cc1 = {
+            {signal = knownsignals.logbot, count = 1},
+            {signal = knownsignals.X, count = -4},
+            {signal = knownsignals.Y, count = -4},
+        },
+        cc2 = {
+            {signal = knownsignals.redwire, count = 12},
+        },
+        verify = function()
+            local irp = global.surface.find_entity('item-request-proxy', {-3.5,-3.5})
+            
+            if not(irp and irp.proxy_target == global.chest and irp.item_requests[knownsignals.redwire.name] == 12) then return false end
+            irp.destroy()
+            
+            global.chest.destroy()
+            global.chest = nil
+            return true
+        end
+    },
+
+    ["connectwires"] = {
+        prepare = function()
+            global.poles = {
+                global.surface.create_entity{name="medium-electric-pole",force="player",position={-3.5,-3.5}},
+                global.surface.create_entity{name="medium-electric-pole",force="player",position={-4.5,-3.5}},
+            }
+            global.poles[1].disconnect_neighbour()
+        end,
+        multifeed = {
+            {
+                cc1 = {
+                    {signal = knownsignals.redwire, count = 1},
+                    {signal = knownsignals.X, count = -4},
+                    {signal = knownsignals.Y, count = -4},
+                    {signal = knownsignals.U, count = -5},
+                    {signal = knownsignals.V, count = -4},
+                },
+            },
+            {
+                cc1 = {
+                    {signal = knownsignals.greenwire, count = 1},
+                    {signal = knownsignals.X, count = -4},
+                    {signal = knownsignals.Y, count = -4},
+                    {signal = knownsignals.U, count = -5},
+                    {signal = knownsignals.V, count = -4},
+                },
+            },
+            {
+                cc1 = {
+                    {signal = knownsignals.coppercable, count = 1},
+                    {signal = knownsignals.X, count = -4},
+                    {signal = knownsignals.Y, count = -4},
+                    {signal = knownsignals.U, count = -5},
+                    {signal = knownsignals.V, count = -4},
+                },
+            },
+        },
+        verify = function()
+            local neighbours = global.poles[1].neighbours
+            if not (
+                neighbours.copper[1] == global.poles[2] and
+                neighbours.red[1] == global.poles[2] and
+                neighbours.green[1] == global.poles[2]
+                ) then return false end
+
+            for _,ent in pairs(global.poles) do ent.destroy() end
+            global.poles = nil
+            return true
+        end
+    },
+    ["disconnectwires"] = {
+        prepare = function()
+            global.poles = {
+                global.surface.create_entity{name="medium-electric-pole",force="player",position={-3.5,-3.5}},
+                global.surface.create_entity{name="medium-electric-pole",force="player",position={-4.5,-3.5}},
+            }
+            global.poles[1].disconnect_neighbour()
+            global.poles[1].connect_neighbour(global.poles[2])
+            global.poles[1].connect_neighbour{target_entity = global.poles[2], wire = defines.wire_type.red,}
+            global.poles[1].connect_neighbour{target_entity = global.poles[2], wire = defines.wire_type.green,}
+        end,
+        multifeed = {
+            {
+                cc1 = {
+                    {signal = knownsignals.redwire, count = -1},
+                    {signal = knownsignals.X, count = -4},
+                    {signal = knownsignals.Y, count = -4},
+                    {signal = knownsignals.U, count = -5},
+                    {signal = knownsignals.V, count = -4},
+                },
+            },
+            {
+                cc1 = {
+                    {signal = knownsignals.greenwire, count = -1},
+                    {signal = knownsignals.X, count = -4},
+                    {signal = knownsignals.Y, count = -4},
+                    {signal = knownsignals.U, count = -5},
+                    {signal = knownsignals.V, count = -4},
+                },
+            },
+            {
+                cc1 = {
+                    {signal = knownsignals.coppercable, count = -1},
+                    {signal = knownsignals.X, count = -4},
+                    {signal = knownsignals.Y, count = -4},
+                    {signal = knownsignals.U, count = -5},
+                    {signal = knownsignals.V, count = -4},
+                },
+            },
+        },
+        verify = function()
+            local neighbours = global.poles[1].neighbours
+            if not (
+                #neighbours.copper == 0 and
+                #neighbours.red == 0 and
+                #neighbours.green == 0
+                ) then return false end
+
+            for _,ent in pairs(global.poles) do ent.destroy() end
+            global.poles = nil
+            return true
+        end
+    },
+
     -- ]]
 }
 

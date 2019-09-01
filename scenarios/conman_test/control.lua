@@ -1,9 +1,11 @@
 local knownsignals = require("__conman__/knownsignals.lua")
 
 local tests = {
-    ["testname"] ={
+    ["profilestart"] ={
         prepare = function()
-
+            if not global.profilecount then
+                remote.call("conman","startProfile")
+            end
         end,
         cc1 = {
 
@@ -956,6 +958,62 @@ local tests = {
             return true
         end
     },
+    ["speaker"] = {
+        multifeed = {
+            {
+                cc1 = {
+                    {signal = knownsignals.info, count = 1}, 
+                },
+                cc2string = "ALERT",
+            },
+            {
+                cc1 = {
+                    {signal = knownsignals.conbot, count = 1},
+                    {signal = {type = "item", name = "programmable-speaker"}, count = 1},
+                    {signal = knownsignals.X, count = -3},
+                    {signal = knownsignals.Y, count = -3},
+                    {signal = knownsignals.A, count = 1},
+                    {signal = knownsignals.G, count = 1},
+                    {signal = knownsignals.I, count = 3},
+                    {signal = knownsignals.M, count = 1},
+                    {signal = knownsignals.P, count = 1},
+                    {signal = knownsignals.U, count = 42},
+                    {signal = knownsignals.V, count = 1},
+                },
+                cc2 = {
+                    {signal = knownsignals.A, count = 1},
+                    {signal = knownsignals.B, count = 4},
+                },
+            },
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+
+            if irp then
+                return false
+            end
+
+            
+            local control = ghost.get_or_create_control_behavior()
+            if not ( control.circuit_parameters.signal_value_is_pitch and
+                control.circuit_parameters.instrument_id == 3 and
+                control.circuit_condition.condition.first_signal.name == knownsignals.A.name and 
+                ghost.alert_parameters.show_alert and
+                ghost.alert_parameters.show_on_map and
+                ghost.alert_parameters.icon_signal_id.name == knownsignals.B.name and
+                ghost.alert_parameters.alert_message == "ALERT" and 
+                ghost.parameters.playback_volume == 0.42 and 
+                ghost.parameters.playback_globally and
+                ghost.parameters.allow_polyphony
+                ) then return false end
+            
+            
+            ghost.destroy()
+            return true
+        end
+    },
     ["powerswitch"] = {
         cc1 = {
             {signal = knownsignals.conbot, count = 1},
@@ -1405,6 +1463,79 @@ local tests = {
         end
     },
 
+    ["artillery"] = {
+        cc1 = {
+            {signal = {type = "item", name = "artillery-targeting-remote"}, count = 1},
+            {signal = knownsignals.X, count = -3},
+            {signal = knownsignals.Y, count = -3},
+        },
+        verify = function()
+            local flare = global.surface.find_entity('artillery-flare', {-2.5,-2.5})
+            if not flare then return false end
+            
+            flare.destroy()
+            
+            return true
+        end
+    },
+
+    ["eject"] = {
+        prepare = function()
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].set_stack("blueprint")
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = -1},
+        },
+        verify = function()
+            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_output)[1]
+            if not (stack.valid_for_read and stack.name == "blueprint") then return false end
+            
+            stack.clear()
+            
+            return true
+        end
+    },
+    ["deploy"] = {
+        prepare = function()
+            --bp string of a single wooden chest
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = 1},
+            {signal = knownsignals.X, count = -3},
+            {signal = knownsignals.Y, count = -3},
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
+            if not ghost then return false end
+            ghost.destroy()
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].clear()
+            return true
+        end
+    },
+    
+
+    ["profileend"] ={
+        prepare = function()
+            
+        end,
+        cc1 = {
+
+        },
+        cc2 = {
+
+        },
+        verify = function()
+            global.profilecount = (global.profilecount or 0) + 1
+            if global.profilecount == 50 then
+                remote.call("conman","stopProfile")
+            else
+                global.testid = nil
+            end
+            return true
+        end
+    },
+    
     -- ]]
 }
 
@@ -1420,6 +1551,8 @@ local states = {
 
 script.on_init(function()
     game.print("init")
+    game.autosave_enabled = false
+    game.speed = 1000
     global = {
         surface = game.surfaces['nauvis']
     }
@@ -1498,7 +1631,9 @@ script.on_event(defines.events.on_tick, function()
             if not global.test.verify(outsignals) then
                 --game.set_game_state{ game_finished=true, player_won=false, can_continue=true }    
                 global.state = states.finished
+                game.speed = 1
                 game.print("test failed")
+                remote.call("conman","stopProfile")
                 return
             end
         end
@@ -1509,6 +1644,7 @@ script.on_event(defines.events.on_tick, function()
             global.state = states.prepare
         else
             global.state = states.finished
+            game.speed = 1
             --game.set_game_state{ game_finished=true, player_won=true, can_continue=false }
         end
     end

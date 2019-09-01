@@ -502,7 +502,7 @@ local ConstructionOrderControlBehavior =
     -- Speaker doesn't actually inheret from Generic, but it's close enough to work
     local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2)
 
-    local volume = (get_signal_from_set(knownsignals.V,signals1) or 100)/100
+    local volume = (get_signal_from_set(knownsignals.U,signals1) or 100)/100
     
     ghost.parameters = {
       playback_volume = volume,
@@ -917,9 +917,9 @@ local function onTickManager(manager)
             return
           end
         end
-        for _,remote in pairs(global.remotes) do
-          if get_signal_from_set(remote.signal,signals1) == 1 then
-            ArtilleryOrder(manager,signals1,signals2,remote.flare)
+        for _,r in pairs(global.artyremotes) do
+          if get_signal_from_set(r.signal,signals1) == 1 then
+            ArtilleryOrder(manager,signals1,signals2,r.flare)
           end
         end
       end
@@ -985,15 +985,15 @@ local function onBuilt(event)
 end
 
 function reindex_remotes()
- local remotes={}
+ local artyremotes={}
 
  for name,itemproto in pairs(game.item_prototypes) do
    if itemproto.type == "capsule" and itemproto.capsule_action.type == "artillery-remote" then
-     remotes[name] = { signal = {name=name,type="item"}, flare = itemproto.capsule_action.flare }
+    artyremotes[name] = { signal = {name=name,type="item"}, flare = itemproto.capsule_action.flare }
    end
  end
 
- global.remotes = remotes
+ global.artyremotes = artyremotes
 end
 
 script.on_init(function()
@@ -1020,8 +1020,10 @@ script.on_event(defines.events.on_tick, onTick)
 script.on_event(defines.events.on_built_entity, onBuilt)
 script.on_event(defines.events.on_robot_built_entity, onBuilt)
 
+Profiler = require('__profiler__/profiler.lua')
+
 remote.add_interface('conman',{
-  --TODO: call to register signals for ghost proxies??
+  --TODO: call to register items for custom decoding into ghost tags?
 
   read_preload_string = function(manager_id)
     return global.managers[manager_id] and global.managers[manager_id].preloadstring
@@ -1039,5 +1041,12 @@ remote.add_interface('conman',{
     if global.managers[manager_id] then
       global.managers[manager_id].preloadstring = color
     end
+  end,
+  
+  startProfile = function()
+    if Profiler then Profiler.Start(true) end
+  end,
+  stopProfile = function()
+    if Profiler then Profiler.Stop() end
   end,
 })

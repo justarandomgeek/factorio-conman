@@ -637,6 +637,8 @@ local function CaptureBlueprint(manager,signals1,signals2)
         local color = ReadColor(signals2)
         color.a = a
         bp.label_color = color
+      else
+        bp.label_color = { r=1, g=1, b=1, a=1 }
       end
 
     else
@@ -703,6 +705,31 @@ local function ReportBlueprintLabel(manager,signals1,signals2)
   end
   manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
   manager.clearcc2 = true
+end
+
+local function UpdateBlueprintLabel(manager,signals1,signals2)
+  if not bp.is_blueprint_setup() then
+   return
+  end
+
+  -- set or clear label and color from cc2
+  if remote.interfaces['signalstrings'] and signals2 then
+    bp.label = remote.call('signalstrings','signals_to_string',signals2,true)
+
+    local a = get_signal_from_set(knownsignals.white,signals2)
+    if a > 0 and a <= 256 then
+      local color = ReadColor(signals2)
+      color.a = a
+      bp.label_color = color
+    else
+      bp.label_color = { r=1, g=1, b=1, a=1 }
+    end
+
+
+  else
+    bp.label = ''
+    bp.label_color = { r=1, g=1, b=1, a=1 }
+  end
 end
 
 local function ReportBlueprintBoM(manager,signals1,signals2)
@@ -817,6 +844,20 @@ local function ArtilleryOrder(manager,signals1,signals2,flare)
   }
 end
 
+
+local bp_signal_funtions = {
+  [-1] = EjectBlueprint,
+  [1] = DeployBlueprint,
+  [2] = CatureBlueprint,
+  [3] = ReportBlueprintBoM,
+  [4] = function(manager,signals1,signals2)
+    local write = get_signal_from_set(knownsignals.W,signals1)
+    if write == 1 then 
+      return UpdateBlueprintLabel(manager,signals1,signals2)
+    else
+      return ReportBlueprintLabel(manager,signals1,signals2)
+    end,
+}
 
 local function onTickManager(manager)
   if manager.clearcc2 then

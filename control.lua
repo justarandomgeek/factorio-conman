@@ -1020,7 +1020,9 @@ script.on_event(defines.events.on_tick, onTick)
 script.on_event(defines.events.on_built_entity, onBuilt)
 script.on_event(defines.events.on_robot_built_entity, onBuilt)
 
-Profiler = require('__profiler__/profiler.lua')
+No_Profiler_Commands = true
+local ProfilerLoaded,Profiler = pcall(require,'__profiler__/profiler.lua')
+if not ProfilerLoaded then Profiler=nil end
 
 remote.add_interface('conman',{
   --TODO: call to register items for custom decoding into ghost tags?
@@ -1044,7 +1046,7 @@ remote.add_interface('conman',{
   end,
   
   startProfile = function()
-    if Profiler then Profiler.Start(true) end
+    if Profiler then Profiler.Start() end
   end,
   stopProfile = function()
     if Profiler then Profiler.Stop() end

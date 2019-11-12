@@ -1578,6 +1578,38 @@ local tests = {
         end
     },
 
+    ["writelabel"] = {
+        prepare = function()
+            --bp string of a single wooden chest
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            global.bp = bp
+            bp.import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = 4},
+            {signal = knownsignals.W, count = 1},
+        },
+        cc2string = "TEST",
+        cc2 = {
+            {signal = knownsignals.red, count = 12},
+            {signal = knownsignals.green, count = 34},
+            {signal = knownsignals.blue, count = 56},
+            {signal = knownsignals.white, count = 78},
+        },
+        verify = function(outsignals)
+            log(global.bp.label)
+            if global.bp.label ~= "TEST" then return false end
+            local color = global.bp.label_color
+            log(serpent.dump(color))
+            global.bp = nil
+            return --factorio returns colors as float values 0-1, but they're not exactly n/255 or n/256, so just make sure the difference is small...
+                (color.r - 12/255 < 0.0001) and 
+                (color.g - 34/255 < 0.0001) and 
+                (color.b - 56/255 < 0.0001) and 
+                (color.a - 78/255 < 0.0001)
+        end
+    },
+
     ["profileend"] ={
         prepare = function()
             

@@ -712,7 +712,11 @@ local function ReportBlueprintLabel(manager,signals1,signals2)
 end
 
 local function UpdateBlueprintLabel(manager,signals1,signals2)
-  if not bp.is_blueprint_setup() then
+  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
+  -- confirm it's a blueprint and is setup and such...
+  local bp = inInv[1]
+  local outsignals = {}
+  if not (bp.valid and bp.valid_for_read and bp.is_blueprint_setup()) then
    return
   end
 

@@ -1514,6 +1514,20 @@ local tests = {
         end
     },
     
+    ["bom"] = {
+        prepare = function()
+            --bp string of a single wooden chest
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = 3},
+        },
+        verify = function(outsignals)
+            if not outsignals or #outsignals ~= 1 or #outsignals[1] ~= 1 then return false end
+            local sig = outsignals[1][1]
+            return sig.count == 1 and sig.signal.name == "wooden-chest"
+        end
+    },
 
     ["profileend"] ={
         prepare = function()
@@ -1526,11 +1540,13 @@ local tests = {
 
         },
         verify = function()
-            global.profilecount = (global.profilecount or 0) + 1
-            if global.profilecount == 50 then
-                remote.call("conman","stopProfile")
-            else
-                global.testid = nil
+            if remote.call("conman","hasProfiler") then
+                global.profilecount = (global.profilecount or 0) + 1
+                if global.profilecount == 50 then
+                    remote.call("conman","stopProfile")
+                else
+                    global.testid = nil
+                end
             end
             return true
         end
@@ -1587,6 +1603,7 @@ end
 script.on_event(defines.events.on_tick, function()
     if global.state == states.prepare then
         game.print("prepare " .. global.testid)
+        global.outsignals = {}
         if global.test.prepare then
             global.test.prepare()
         end
@@ -1601,7 +1618,7 @@ script.on_event(defines.events.on_tick, function()
         -- feed cc1/cc2 data
         writeInput(global.test.cc1, global.test.cc1string, global.testprobe1)
         writeInput(global.test.cc2, global.test.cc2string, global.testprobe2)
-
+        global.outsignals[1] = global.testprobe2out.get_merged_signals()
         global.state = states.clear
     elseif global.state == states.multifeed then
         game.print("multifeed " .. global.testid .. " " .. global.nextfeed)
@@ -1609,7 +1626,9 @@ script.on_event(defines.events.on_tick, function()
         local nextdata = global.test.multifeed[global.nextfeed]
         writeInput(nextdata.cc1, nextdata.cc1string, global.testprobe1)
         writeInput(nextdata.cc2, nextdata.cc2string, global.testprobe2)
-
+        
+        global.outsignals[global.nextfeed] = global.testprobe2out.get_merged_signals()
+        
         if global.test.multifeed[global.nextfeed+1] then
             global.nextfeed = global.nextfeed + 1
         else
@@ -1622,13 +1641,14 @@ script.on_event(defines.events.on_tick, function()
         writeInput(nil,nil, global.testprobe2)
 
         -- read cc2 output
-        global.outsignals = global.testprobe2out.get_merged_signals()
+        global.outsignals[#global.outsignals+1] = global.testprobe2out.get_merged_signals()
         global.state = states.verify
     elseif global.state == states.verify then
         game.print("verify " .. global.testid)
     
         if global.test.verify then
-            if not global.test.verify(outsignals) then
+            global.outsignals[#global.outsignals+1] = global.testprobe2out.get_merged_signals()
+            if not global.test.verify(global.outsignals) then
                 --game.set_game_state{ game_finished=true, player_won=false, can_continue=true }    
                 global.state = states.finished
                 game.speed = 1

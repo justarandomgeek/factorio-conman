@@ -856,7 +856,9 @@ local bp_signal_funtions = {
       return UpdateBlueprintLabel(manager,signals1,signals2)
     else
       return ReportBlueprintLabel(manager,signals1,signals2)
-    end,
+    end
+  end,
+  --TODO: read/write blueprint tiles/entities
 }
 
 local function onTickManager(manager)
@@ -870,24 +872,9 @@ local function onTickManager(manager)
     local signals2 = manager.cc2.get_merged_signals()
 
     local bpsig = get_signal_from_set(knownsignals.blueprint,signals1)
-    if bpsig ~= 0 then
-      if bpsig == -1 then
-        -- transfer blueprint to output
-        EjectBlueprint(manager)
-
-      elseif bpsig == 1 then
-        -- deploy blueprint at XY
-        DeployBlueprint(manager,signals1,signals2)
-
-      elseif bpsig == 2 then
-        -- capture blueprint from XYWH
-        CaptureBlueprint(manager,signals1,signals2)
-
-      elseif bpsig == 3 then
-        ReportBlueprintBoM(manager,signals1,signals2)
-      elseif bpsig == 4 then
-        ReportBlueprintLabel(manager,signals1,signals2)
-      end
+    local bpfunc = bp_signal_funtions[bpsig] -- commands using blueprint item, indexed by command number
+    if bpfunc then      
+      bpfunc(manager,signals1,signals2)
     else
 
       if get_signal_from_set(knownsignals.conbot,signals1) == 1 then
@@ -1086,6 +1073,9 @@ remote.add_interface('conman',{
     end
   end,
   
+  hasProfiler = function() 
+    return Profiler ~= nil 
+  end,
   startProfile = function()
     if Profiler then Profiler.Start() end
   end,

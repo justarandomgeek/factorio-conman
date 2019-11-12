@@ -245,6 +245,9 @@ local ConstructionOrderEntitySpecific =
   ["roboport"] = nocc2,
   ["accumulator"] = nocc2,
   ["constant-combinator"] = nocc2,
+  ["constant-combinator"] = nocc2,
+  ["arithmetic-combinator"] = nocc2,
+  ["decider-combinator"] = nocc2,
 }
 
 local function ReadGenericOnOffControl(ghost,control,manager,signals1,signals2)

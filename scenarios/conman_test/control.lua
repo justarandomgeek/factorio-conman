@@ -321,7 +321,7 @@ local tests = {
         },
         cc2 = {
             {signal = knownsignals.A, count = 1},
-            {signal = knownsignals.B, count = 2},
+            {signal = knownsignals.blueprint, count = 2},
             {signal = knownsignals.C, count = 4},
         },
         verify = function()
@@ -336,7 +336,7 @@ local tests = {
             local control = ghost.get_or_create_control_behavior()
             if not control then return false end
             if not (control.parameters.parameters.first_signal.name == "signal-A" and 
-                control.parameters.parameters.second_signal.name == "signal-B" and
+                control.parameters.parameters.second_signal.name == "blueprint" and
                 control.parameters.parameters.output_signal.name == "signal-C" and
                 control.parameters.parameters.operation == "/") then return false end
 
@@ -422,7 +422,7 @@ local tests = {
         },
         cc2 = {
             {signal = knownsignals.A, count = 1},
-            {signal = knownsignals.B, count = 2},
+            {signal = knownsignals.blueprint, count = 2},
             {signal = knownsignals.C, count = 4},
         },
         verify = function()
@@ -437,7 +437,7 @@ local tests = {
             local control = ghost.get_or_create_control_behavior()
             if not control then return false end
             if not (control.parameters.parameters.first_signal.name == "signal-A" and 
-                control.parameters.parameters.second_signal.name == "signal-B" and
+                control.parameters.parameters.second_signal.name == "blueprint" and
                 control.parameters.parameters.output_signal.name == "signal-C" and
                 control.parameters.parameters.comparator == ">") then return false end
 

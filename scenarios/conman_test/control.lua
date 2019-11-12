@@ -1573,7 +1573,6 @@ local tests = {
                 b = knownsignals.blue,
                 a = knownsignals.white,
             }, signals)
-            log(serpent.dump(color))
             return color.r == 12 and color.g == 34 and color.b == 56 and color.a == 78
         end
     },
@@ -1597,10 +1596,8 @@ local tests = {
             {signal = knownsignals.white, count = 78},
         },
         verify = function(outsignals)
-            log(global.bp.label)
             if global.bp.label ~= "TEST" then return false end
             local color = global.bp.label_color
-            log(serpent.dump(color))
             global.bp = nil
             return --factorio returns colors as float values 0-1, but they're not exactly n/255 or n/256, so just make sure the difference is small...
                 (color.r - 12/255 < 0.0001) and 

@@ -1,5 +1,23 @@
 local knownsignals = require("__conman__/knownsignals.lua")
 
+function get_signals_filtered(filters,signals)
+    --   filters = {
+    --  SignalID,
+    --  }
+    local results = {}
+    local count = 0
+    for _,sig in pairs(signals) do
+      for i,f in pairs(filters) do
+        if f.name and sig.signal.type == f.type and sig.signal.name == f.name then
+          results[i] = sig.count
+          count = count + 1
+          if count == #filters then return results end
+        end
+      end
+    end
+    return results
+end
+
 local tests = {
     ["profilestart"] ={
         prepare = function()
@@ -1526,6 +1544,34 @@ local tests = {
             if not outsignals or #outsignals ~= 1 or #outsignals[1] ~= 1 then return false end
             local sig = outsignals[1][1]
             return sig.count == 1 and sig.signal.name == "wooden-chest"
+        end
+    },
+
+    ["readlabel"] = {
+        prepare = function()
+            --bp string of a single wooden chest
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            bp.import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
+            bp.label = "TEST"
+            bp.label_color = {r=12,g=34,b=56,a=78}
+
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = 4},
+        },
+        verify = function(outsignals)
+            if not outsignals or #outsignals ~= 1 then return false end
+            local signals = outsignals[1]
+            local string = remote.call('signalstrings', 'signals_to_string', signals)
+            if string ~= "TEST" then return false end
+            local color = get_signals_filtered({
+                r = knownsignals.red,
+                g = knownsignals.green,
+                b = knownsignals.blue,
+                a = knownsignals.white,
+            }, signals)
+            log(serpent.dump(color))
+            return color.r == 12 and color.g == 34 and color.b == 56 and color.a == 78
         end
     },
 

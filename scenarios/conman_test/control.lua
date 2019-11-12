@@ -286,6 +286,7 @@ local tests = {
         cc2 = {
             {signal = knownsignals.A, count = 2},
             {signal = knownsignals.B, count = 3},
+            {signal = knownsignals.blueprint, count = 4},
         },
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
@@ -302,6 +303,8 @@ local tests = {
             if not (sig and sig.signal.name == "signal-A" and sig.count == 2) then return false end
             local sig = control.get_signal(2)
             if not (sig and sig.signal.name == "signal-B" and sig.count == 3) then return false end
+            local sig = control.get_signal(3)
+            if not (sig and sig.signal.name == "blueprint" and sig.count == 4) then return false end
 
             ghost.destroy()
             return true

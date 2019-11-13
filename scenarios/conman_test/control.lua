@@ -1686,9 +1686,9 @@ local tests = {
         prepare = function()
             global.entities={
                 global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-3,-3}},
-                global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-3,-5}},
-                global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-5,-3}},
-                
+                global.surface.create_entity{name="tree-01",position={-3,-5}},
+                global.surface.create_entity{name="rock-big",position={-5,-3}},
+                global.surface.create_entity{name="cliff",position={-4,-4}},
             }
             global.wooden= global.surface.create_entity{name="wooden-chest",force=game.forces.player,position={-5,-5}}
         end,
@@ -1715,7 +1715,8 @@ local tests = {
             global.entities={
                 global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-3,-3}},
                 global.surface.create_entity{name="tree-01",position={-3,-5}},
-                global.surface.create_entity{name="rock-big",position={-4,-3}},
+                global.surface.create_entity{name="rock-big",position={-5,-3}},
+                global.surface.create_entity{name="cliff",position={-4,-4}},
                 
             }
             global.wooden= global.surface.create_entity{name="wooden-chest",force=game.forces.player,position={-5,-5}}
@@ -1729,6 +1730,7 @@ local tests = {
         },
         cc2 = {
             {signal = {type="item",name="steel-chest"}, count = 1},
+            {signal = knownsignals.C, count = 1},
             {signal = knownsignals.T, count = 1},
             {signal = knownsignals.R, count = 1},
         },

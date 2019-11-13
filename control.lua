@@ -813,6 +813,16 @@ local function DeconstructionOrder(manager,signals1,signals2,cancel)
               d.order_deconstruction(manager.ent.force)
             end
           end
+        elseif signal.signal.name== "signal-C" then
+          for _,d in pairs(manager.ent.surface.find_entities_filtered{
+            type = "cliff", area = area}) do
+
+            if cancel then
+              d.cancel_deconstruction(manager.ent.force)
+            else
+              d.order_deconstruction(manager.ent.force)
+            end
+          end
         end
       end
     end

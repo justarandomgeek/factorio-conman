@@ -1534,7 +1534,82 @@ local tests = {
             return true
         end
     },
-    
+    ["captureentities"] = {
+        prepare = function()
+            -- build some entities and tiles
+            global.entities={
+                global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-3,-3}},
+                global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-3,-5}},
+                global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-5,-3}},
+                global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-5,-5}},
+            }
+
+            local tiles = {}
+            for x=-5,-3 do
+                for y=-5,-3 do
+                    tiles[#tiles+1] = {name="concrete",position={x,y}}
+                end
+            end
+            global.surface.set_tiles(tiles)
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].set_stack("blueprint")            
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = 2},
+            {signal = knownsignals.X, count = -5},
+            {signal = knownsignals.Y, count = -5},
+            {signal = knownsignals.U, count = -3},
+            {signal = knownsignals.V, count = -3},
+            {signal = knownsignals.E, count = 1},
+        },
+        verify = function()
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            local ents = bp.get_blueprint_entities()
+            if ents and #ents ~= 4 then return false end
+            local tiles = bp.get_blueprint_tiles()
+            if tiles then return false end
+            for _,ent in pairs(global.entities) do ent.destroy() end
+            bp.clear()
+            return true
+        end
+    },
+    ["capturetiles"] = {
+        prepare = function()
+            -- build some entities and tiles
+            global.entities={
+                global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-3,-3}},
+                global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-3,-5}},
+                global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-5,-3}},
+                global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-5,-5}},
+            }
+
+            local tiles = {}
+            for x=-3,-5 do
+                for y=-3,-5 do
+                    tiles[#tiles+1] = {name="concrete",position={x,y}}
+                end
+            end
+            global.surface.set_tiles(tiles)
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].set_stack("blueprint")
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = 2},
+            {signal = knownsignals.X, count = -5},
+            {signal = knownsignals.Y, count = -5},
+            {signal = knownsignals.U, count = -3},
+            {signal = knownsignals.V, count = -3},
+            {signal = knownsignals.T, count = 1},
+        },
+        verify = function()
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            local ents = bp.get_blueprint_entities()
+            if ents then return false end
+            local tiles = bp.get_blueprint_tiles()
+            if tiles and #tiles ~= 9 then return false end
+            for _,ent in pairs(global.entities) do ent.destroy() end
+            bp.clear()
+            return true
+        end
+    },
     ["bom"] = {
         prepare = function()
             --bp string of a single wooden chest

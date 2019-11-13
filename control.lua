@@ -619,12 +619,13 @@ local function CaptureBlueprint(manager,signals1,signals2)
   -- confirm it's a blueprint and is setup and such...
   local bp = inInv[1]
   if bp.valid and bp.valid_for_read then
-
+    local capture_tiles = get_signal_from_set(knownsignals.T,signals1)==1
+    local capture_entities = get_signal_from_set(knownsignals.E,signals1)==1
     bp.create_blueprint{
       surface = manager.ent.surface,
       force = manager.ent.force,
       area = ReadBoundingBox(signals1),
-      always_include_tiles = get_signal_from_set(knownsignals.T,signals1)==1,
+      always_include_tiles = capture_tiles,
     }
 
     if bp.is_blueprint_setup() then
@@ -632,6 +633,12 @@ local function CaptureBlueprint(manager,signals1,signals2)
       bp.blueprint_icons = bp.default_icons
     end
 
+    if not capture_tiles and bp.get_blueprint_tiles() then 
+      bp.set_blueprint_tiles(nil)
+    end
+    if not capture_entities and bp.get_blueprint_entities() then 
+      bp.set_blueprint_entities(nil)
+    end
     -- set or clear label and color from cc2
     if remote.interfaces['signalstrings'] and signals2 then
       bp.label = remote.call('signalstrings','signals_to_string',signals2,true)
@@ -856,7 +863,7 @@ end
 local bp_signal_funtions = {
   [-1] = EjectBlueprint,
   [1] = DeployBlueprint,
-  [2] = CatureBlueprint,
+  [2] = CaptureBlueprint,
   [3] = ReportBlueprintBoM,
   [4] = function(manager,signals1,signals2)
     local write = get_signal_from_set(knownsignals.W,signals1)
@@ -870,6 +877,7 @@ local bp_signal_funtions = {
 }
 
 local function onTickManager(manager)
+  
   if manager.clearcc2 then
     manager.clearcc2 = nil
     manager.cc2.get_or_create_control_behavior().parameters=nil

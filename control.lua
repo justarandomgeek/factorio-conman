@@ -605,7 +605,7 @@ end
 local function GetBlueprint(manager, signals1)
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
   local bp = inInv[1]
-  local page = get_signal_form_set(knownsignals.blueprint-book,signals1)
+  local page = get_signal_form_set(knownsignals.blueprint_book,signals1)
   if page > 0 then bp = inInv[2].get_inventory(defines.inventory.item_main)[page] end
   return bp
 end
@@ -910,7 +910,7 @@ local function onTickManager(manager)
       bpfunc(manager,signals1,signals2)
     else
 
-      if get_signal_from_set(knownsignals.blueprint-book,signals1) == -1 then
+      if get_signal_from_set(knownsignals.blueprint_book,signals1) == -1 then
         EjectBlueprintBook(manager)
       elseif get_signal_from_set(knownsignals.conbot,signals1) == 1 then
         -- check for conbot=1, build a thing

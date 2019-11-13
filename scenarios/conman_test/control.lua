@@ -1682,6 +1682,68 @@ local tests = {
         end
     },
 
+    ["decon"] = {
+        prepare = function()
+            global.entities={
+                global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-3,-3}},
+                global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-3,-5}},
+                global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-5,-3}},
+                
+            }
+            global.wooden= global.surface.create_entity{name="wooden-chest",force=game.forces.player,position={-5,-5}}
+        end,
+        cc1 = {
+            {signal = knownsignals.redprint, count = 1},
+            {signal = knownsignals.X, count = -5},
+            {signal = knownsignals.Y, count = -5},
+            {signal = knownsignals.U, count = -3},
+            {signal = knownsignals.V, count = -3},
+        },
+        verify = function()
+            for _,ent in pairs(global.entities) do
+                if not ent.to_be_deconstructed(game.forces.player) then return false end
+                ent.destroy() 
+            end
+            if not global.wooden.to_be_deconstructed(game.forces.player) then return false end
+            global.wooden.destroy()
+            return true
+        end
+    },
+
+    ["filterdecon"] = {
+        prepare = function()
+            global.entities={
+                global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-3,-3}},
+                global.surface.create_entity{name="tree-01",position={-3,-5}},
+                global.surface.create_entity{name="rock-big",position={-4,-3}},
+                
+            }
+            global.wooden= global.surface.create_entity{name="wooden-chest",force=game.forces.player,position={-5,-5}}
+        end,
+        cc1 = {
+            {signal = knownsignals.redprint, count = 1},
+            {signal = knownsignals.X, count = -5},
+            {signal = knownsignals.Y, count = -5},
+            {signal = knownsignals.U, count = -3},
+            {signal = knownsignals.V, count = -3},
+        },
+        cc2 = {
+            {signal = {type="item",name="steel-chest"}, count = 1},
+            {signal = knownsignals.T, count = 1},
+            {signal = knownsignals.R, count = 1},
+        },
+        verify = function()
+            for _,ent in pairs(global.entities) do
+                if not ent.to_be_deconstructed(game.forces.player) then return false end
+                ent.destroy() 
+            end
+            if global.wooden.to_be_deconstructed(game.forces.player) then return false end
+            global.wooden.destroy()
+            return true
+        end
+    },
+
+    
     ["profileend"] ={
         prepare = function()
             

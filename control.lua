@@ -805,7 +805,7 @@ local function DeconstructionOrder(manager,signals1,signals2,cancel)
           end
         elseif signal.signal.name== "signal-R" then
           for _,d in pairs(manager.ent.surface.find_entities_filtered{
-            name = 'stone-rock', area = area}) do
+            name = global.deconrocks, area = area}) do
 
             if cancel then
               d.cancel_deconstruction(manager.ent.force)
@@ -1028,6 +1028,18 @@ local function onBuilt(event)
   end
 end
 
+function reindex_rocks()
+  local rocks={}
+  
+  for name,entproto in pairs(game.entity_prototypes) do
+    if entproto.count_as_rock_for_filtered_deconstruction  then
+      rocks[#rocks+1] = name
+    end
+  end
+ 
+  global.deconrocks = rocks
+end
+
 function reindex_remotes()
  local artyremotes={}
 
@@ -1041,7 +1053,8 @@ function reindex_remotes()
 end
 
 script.on_init(function()
-  -- Index recipes for new install
+  -- Index for new install
+  reindex_rocks()
   reindex_remotes()
 
   -- Scan for pre-built ConMan in the world already...
@@ -1054,8 +1067,10 @@ end
 )
 
 script.on_configuration_changed(function(data)
-  -- when any mods change, reindex recipes
+  -- when any mods change, reindex
   reindex_remotes()
+  reindex_rocks()
+  
 end
 )
 

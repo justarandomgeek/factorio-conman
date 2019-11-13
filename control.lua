@@ -612,7 +612,7 @@ end
 
 
 local function DeployBlueprint(manager,signals1,signals2)
-  local bp = Getblueprint(manager,signals1)
+  local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read and bp.is_blueprint_setup() then
 
     local force_build = get_signal_from_set(knownsignals.F,signals1)==1
@@ -628,7 +628,7 @@ local function DeployBlueprint(manager,signals1,signals2)
 end
 
 local function CaptureBlueprint(manager,signals1,signals2)
-  local bp = Getblueprint(manager,signals1)
+  local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read then
     local capture_tiles = get_signal_from_set(knownsignals.T,signals1)==1
     local capture_entities = get_signal_from_set(knownsignals.E,signals1)==1
@@ -707,7 +707,7 @@ local function ConnectWire(manager,signals1,signals2,color,disconnect)
 end
 
 local function ReportBlueprintLabel(manager,signals1,signals2)
-  local bp = Getblueprint(manager,signals1)
+  local bp = GetBlueprint(manager,signals1)
   local outsignals = {}
   if bp.valid and bp.valid_for_read then
     if bp.label and remote.interfaces['signalstrings'] then
@@ -728,7 +728,7 @@ local function ReportBlueprintLabel(manager,signals1,signals2)
 end
 
 local function UpdateBlueprintLabel(manager,signals1,signals2)
-  local bp = Getblueprint(manager,signals1)
+  local bp = GetBlueprint(manager,signals1)
   local outsignals = {}
   if not (bp.valid and bp.valid_for_read and bp.is_blueprint_setup()) then
    return
@@ -755,7 +755,7 @@ local function UpdateBlueprintLabel(manager,signals1,signals2)
 end
 
 local function ReportBlueprintBoM(manager,signals1,signals2)
-  local bp = Getblueprint(manager,signals1)
+  local bp = GetBlueprint(manager,signals1)
   local outsignals = {}
   if bp.valid and bp.valid_for_read then
     -- BoM signals

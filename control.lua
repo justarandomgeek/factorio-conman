@@ -878,7 +878,7 @@ local function ArtilleryOrder(manager,signals1,signals2,flare)
 end
 
 
-local bp_signal_funtions = {
+local bp_signal_functions = {
   [-1] = EjectBlueprint,
   [1] = DeployBlueprint,
   [2] = CaptureBlueprint,
@@ -892,6 +892,11 @@ local bp_signal_funtions = {
     end
   end,
   --TODO: read/write blueprint tiles/entities
+}
+
+local book_signal_functions = {
+  [-1] = EjectBlueprintBook,
+
 }
 
 local function onTickManager(manager)
@@ -908,13 +913,14 @@ local function onTickManager(manager)
     
 
     local bpsig = get_signal_from_set(knownsignals.blueprint,signals1)
-    local bpfunc = bp_signal_funtions[bpsig] -- commands using blueprint item, indexed by command number
+    local bpfunc = bp_signal_functions[bpsig] -- commands using blueprint item, indexed by command number
     if bpfunc then      
       bpfunc(manager,signals1,signals2)
     else
-
-      if get_signal_from_set(knownsignals.blueprint_book,signals1) == -1 then
-        EjectBlueprintBook(manager)
+      local booksig = get_signal_from_set(knownsignals.blueprint_book,signals1)
+      local bookfunc = book_signal_functions[booksig] -- commands using blueprint book item, indexed by command number
+      if bookfunc then      
+        bpfunc(manager,signals1,signals2)
       elseif get_signal_from_set(knownsignals.conbot,signals1) == 1 then
         -- check for conbot=1, build a thing
         ConstructionOrder(manager,signals1,signals2)

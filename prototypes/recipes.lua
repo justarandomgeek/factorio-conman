@@ -24,10 +24,14 @@ data:extend{
     category = "conman",
     ingredients =
     {
-      {"blueprint", 1}
+      {"blueprint", 1},
+      {"blueprint-book", 1}
     },
-    result = "blueprint",
-    result_count = 1,
+    results = 
+    {
+      {type="item", name="blueprint",amount =  1}, {type="item", name= "blueprint-book", amount = 1}
+    },
+	  main_product= "blueprint",
     icon = "__base__/graphics/icons/roboport.png",
     icon_size = 32,
   },

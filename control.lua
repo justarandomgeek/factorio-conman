@@ -595,11 +595,25 @@ local function EjectBlueprint(manager)
   inInv[1].clear()
 end
 
-local function DeployBlueprint(manager,signals1,signals2)
+local function EjectBlueprintBook(manager)
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
+  local outInv = manager.ent.get_inventory(defines.inventory.assembling_machine_output)
+  outInv[2].set_stack(inInv[2])
+  inInv[2].clear()
+end
 
-  -- confirm it's a blueprint and is setup and such...
+local function GetBlueprint(manager, signals1)
+  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
   local bp = inInv[1]
+  local page = get_signal_from_set(knownsignals.blueprint_book,signals1)
+  --check if there actually is a blueprint book.
+  if page > 0 and inInv[2].is_blueprint_book then bp = inInv[2].get_inventory(defines.inventory.item_main)[page] end
+  return bp
+end
+
+
+local function DeployBlueprint(manager,signals1,signals2)
+  local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read and bp.is_blueprint_setup() then
 
     local force_build = get_signal_from_set(knownsignals.F,signals1)==1
@@ -615,9 +629,7 @@ local function DeployBlueprint(manager,signals1,signals2)
 end
 
 local function CaptureBlueprint(manager,signals1,signals2)
-  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
-  -- confirm it's a blueprint and is setup and such...
-  local bp = inInv[1]
+  local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read then
     local capture_tiles = get_signal_from_set(knownsignals.T,signals1)==1
     local capture_entities = get_signal_from_set(knownsignals.E,signals1)==1
@@ -696,9 +708,7 @@ local function ConnectWire(manager,signals1,signals2,color,disconnect)
 end
 
 local function ReportBlueprintLabel(manager,signals1,signals2)
-  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
-  -- confirm it's a blueprint and is setup and such...
-  local bp = inInv[1]
+  local bp = GetBlueprint(manager,signals1)
   local outsignals = {}
   if bp.valid and bp.valid_for_read then
     if bp.label and remote.interfaces['signalstrings'] then
@@ -719,9 +729,7 @@ local function ReportBlueprintLabel(manager,signals1,signals2)
 end
 
 local function UpdateBlueprintLabel(manager,signals1,signals2)
-  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
-  -- confirm it's a blueprint and is setup and such...
-  local bp = inInv[1]
+  local bp = GetBlueprint(manager,signals1)
   local outsignals = {}
   if not (bp.valid and bp.valid_for_read and bp.is_blueprint_setup()) then
    return
@@ -748,9 +756,7 @@ local function UpdateBlueprintLabel(manager,signals1,signals2)
 end
 
 local function ReportBlueprintBoM(manager,signals1,signals2)
-  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
-  -- confirm it's a blueprint and is setup and such...
-  local bp = inInv[1]
+  local bp = GetBlueprint(manager,signals1)
   local outsignals = {}
   if bp.valid and bp.valid_for_read then
     -- BoM signals
@@ -892,10 +898,12 @@ local function onTickManager(manager)
     manager.clearcc2 = nil
     manager.cc2.get_or_create_control_behavior().parameters=nil
   end
+  
 
   local signals1 = manager.cc1.get_merged_signals()
   if signals1 then
     local signals2 = manager.cc2.get_merged_signals()
+    
 
     local bpsig = get_signal_from_set(knownsignals.blueprint,signals1)
     local bpfunc = bp_signal_funtions[bpsig] -- commands using blueprint item, indexed by command number
@@ -903,7 +911,9 @@ local function onTickManager(manager)
       bpfunc(manager,signals1,signals2)
     else
 
-      if get_signal_from_set(knownsignals.conbot,signals1) == 1 then
+      if get_signal_from_set(knownsignals.blueprint_book,signals1) == -1 then
+        EjectBlueprintBook(manager)
+      elseif get_signal_from_set(knownsignals.conbot,signals1) == 1 then
         -- check for conbot=1, build a thing
         ConstructionOrder(manager,signals1,signals2)
       elseif get_signal_from_set(knownsignals.logbot,signals1) == 1 then

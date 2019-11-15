@@ -606,8 +606,10 @@ local function GetBlueprint(manager, signals1)
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
   local bp = inInv[1]
   local page = get_signal_from_set(knownsignals.blueprint_book,signals1)
+  if not (page > 0) then return bp end
+  local book = inInv[2]
   --check if there actually is a blueprint book.
-  if page > 0 and inInv[2].is_blueprint_book then bp = inInv[2].get_inventory(defines.inventory.item_main)[page] end
+  if book.valid and book.valid_for_read and book.is_blueprint_book then bp = book.get_inventory(defines.inventory.item_main)[page] end
   return bp
 end
 

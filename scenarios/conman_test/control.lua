@@ -1682,6 +1682,48 @@ local tests = {
         end
     },
 
+    ["readicons"] = {
+        prepare = function()
+            --bp string of a single wooden chest
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            bp.import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = 5},
+        },
+        verify = function(outsignals)
+            if not outsignals or #outsignals ~= 1 or #outsignals[1] ~= 1 then return false end
+            local signal = outsignals[1][1]
+            return signal.count == 1 and signal.signal.name == "wooden-chest"
+        end
+    },
+    ["writeicons"] = {
+        prepare = function()
+            --bp string of a single wooden chest
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            global.bp = bp
+            bp.import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = 5},
+            {signal = knownsignals.W, count = 1},
+        },
+        cc2 = {
+            {signal = knownsignals.red, count = 1},
+            {signal = knownsignals.green, count = 2},
+            {signal = knownsignals.blue, count = 4},
+            {signal = knownsignals.white, count = 8},
+        },
+        verify = function(outsignals)
+            local icons = global.bp.blueprint_icons
+            if not ( icons[1].index == 1 and icons[1].signal.name=="signal-red" ) then return false end
+            if not ( icons[2].index == 2 and icons[2].signal.name=="signal-green" ) then return false end
+            if not ( icons[3].index == 3 and icons[3].signal.name=="signal-blue" ) then return false end
+            if not ( icons[4].index == 4 and icons[4].signal.name=="signal-white" ) then return false end
+            return true
+        end
+    },
+
     ["decon"] = {
         prepare = function()
             global.entities={

@@ -770,6 +770,35 @@ local function ReportBlueprintBoM(manager,signals1,signals2)
   manager.clearcc2 = true
 end
 
+local function ReportBlueprintIcons(manager,signals1,signals2)
+  local bp = GetBlueprint(manager,signals1)
+  local outsignals = {}
+  if bp.valid and bp.valid_for_read then
+    for _,icon in pairs(bp.blueprint_icons) do
+      outsignals[#outsignals+1]={index=#outsignals+1,count=bit32.lshift(1,icon.index - 1),signal=icon.signal}
+    end
+  end
+  manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
+  manager.clearcc2 = true
+end
+
+local function UpdateBlueprintIcons(manager,signals1,signals2)
+  local bp = GetBlueprint(manager,signals1)
+  if bp.valid and bp.valid_for_read then
+    siglist = ReadSignalList(signals2)
+    local icons = {}
+    for i=1,4 do
+      local sig = siglist[i]
+      if sig then
+        icons[#icons+1] = {index = i, signal = sig }
+      end
+    end
+    bp.blueprint_icons = icons
+  end
+end
+
+
+
 local function DeconstructionOrder(manager,signals1,signals2,cancel)
   local area = ReadBoundingBox(signals1)
 
@@ -889,6 +918,14 @@ local bp_signal_functions = {
       return UpdateBlueprintLabel(manager,signals1,signals2)
     else
       return ReportBlueprintLabel(manager,signals1,signals2)
+    end
+  end,
+  [5] = function(manager,signals1,signals2)
+    local write = get_signal_from_set(knownsignals.W,signals1)
+    if write == 1 then 
+      return UpdateBlueprintIcons(manager,signals1,signals2)
+    else
+      return ReportBlueprintIcons(manager,signals1,signals2)
     end
   end,
   --TODO: read/write blueprint tiles/entities

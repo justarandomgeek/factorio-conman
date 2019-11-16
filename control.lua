@@ -235,6 +235,8 @@ local ConstructionOrderEntitySpecific =
   ["pump"] = nocc2,
   ["miner"] = nocc2,
   ["inserter"] = nocc2,
+  ["curved-rail"] = nocc2,
+  ["straight-rail"] = nocc2,
   ["rail-signal"] = nocc2,
   ["rail-chain-signal"] = nocc2,
   ["wall"] = nocc2,
@@ -548,6 +550,14 @@ local function ConstructionOrder(manager,signals1,signals2)
       local itemproto = game.item_prototypes[signal.signal.name]
       local entproto = itemproto.place_result
       local tileresult = itemproto.place_as_tile_result
+
+      if itemproto.type == "rail-planner" then
+        if signal.count == 1 then
+          entproto = itemproto.straight_rail
+        elseif signal.count == 2 then
+          entproto = itemproto.curved_rail
+        end
+      end
 
       if entproto then
         createorder.inner_name = entproto.name

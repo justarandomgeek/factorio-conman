@@ -673,6 +673,45 @@ local tests = {
             return true
         end
     },
+    
+    ["straight-rail"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "rail"}, count = 1},
+            {signal = knownsignals.X, count = -3},
+            {signal = knownsignals.Y, count = -3},
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+            if irp then
+                return false
+            end
+            if not ghost.name=="straight-rail" then return false end
+            ghost.destroy()
+            return true
+        end
+    },
+    ["curved-rail"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "rail"}, count = 1},
+            {signal = knownsignals.X, count = -3},
+            {signal = knownsignals.Y, count = -3},
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+            if irp then
+                return false
+            end
+            if not ghost.name=="curved-rail" then return false end
+            ghost.destroy()
+            return true
+        end
+    },
     ["rail-signal"] = {
         cc1 = {
             {signal = knownsignals.conbot, count = 1},

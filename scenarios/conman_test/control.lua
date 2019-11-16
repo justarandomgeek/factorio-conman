@@ -1763,6 +1763,52 @@ local tests = {
         end
     },
 
+    ["readtile"] = {
+        prepare = function()
+            --bp string of a single wooden chest
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            bp.import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
+            bp.set_blueprint_tiles({{name="concrete",position={1,1}}})
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = 6},
+            {signal = knownsignals.T, count = 1},
+        },
+        verify = function(outsignals)
+            if not outsignals or #outsignals ~= 1 or #outsignals[1] ~= 3 then return false end
+            local expect = {
+                x = knownsignals.X,
+                y = knownsignals.Y,
+                concrete = {type="item",name="concrete"},
+            }
+            local signals = get_signals_filtered(expect, outsignals[1])
+            return signals.x == 1 and signals.y == 1 and signals.concrete == 1
+        end
+    },
+    ["writetile"] = {
+        prepare = function()
+            --bp string of a single wooden chest
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            global.bp = bp
+            bp.import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = 6},
+            {signal = knownsignals.T, count = 1},
+            {signal = knownsignals.W, count = 1},
+            {signal = knownsignals.X, count = 1},
+            {signal = knownsignals.Y, count = 1},
+            {signal = {type="item",name="concrete"}, count = 1},
+        },
+        verify = function(outsignals)
+            local tiles = global.bp.get_blueprint_tiles()
+            if not tiles or #tiles ~= 1 then return false end
+            local tile = tiles[1]
+            if not ( tile.name == "concrete" and tile.position.x == 1 and tile.position.y == 1 ) then return false end
+            return true
+        end
+    },
+
     ["decon"] = {
         prepare = function()
             global.entities={

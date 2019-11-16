@@ -794,7 +794,7 @@ end
 
 local function UpdateBlueprintIcons(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
-  if bp.valid and bp.valid_for_read then
+  if bp.valid and bp.valid_for_read and signals2 then
     siglist = ReadSignalList(signals2)
     local icons = {}
     for i=1,4 do
@@ -807,7 +807,53 @@ local function UpdateBlueprintIcons(manager,signals1,signals2)
   end
 end
 
+local function ReportBlueprintTile(manager,signals1,signals2)
+  local bp = GetBlueprint(manager,signals1)
+  local outsignals = {}
+  if bp.valid and bp.valid_for_read then
+    local tiles = bp.get_blueprint_tiles()
+    local t = get_signal_from_set(knownsignals.T,signals1)
+    
+    if t > 0 and t <= #tiles then
+      local tile = tiles[t]
+      local item = game.tile_prototypes[tile.name].items_to_place_this[1]
+      outsignals[1]={index=1,count=1,signal={type="item",name=item.name}}
+      outsignals[2]={index=2,count=tile.position.x,signal=knownsignals.X}
+      outsignals[3]={index=3,count=tile.position.y,signal=knownsignals.Y}
+    end
+  end
+  manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
+  manager.clearcc2 = true
+end
 
+local function UpdateBlueprintTile(manager,signals1,signals2)
+  local bp = GetBlueprint(manager,signals1)
+  if bp.valid and bp.valid_for_read then
+    local tiles = bp.get_blueprint_tiles() or {}
+    local t = get_signal_from_set(knownsignals.T,signals1)
+    if t > 0 and t <= #tiles+1 then
+      local newtile
+      for _,signal in pairs(signals1) do
+        if signal.signal.type == "item" and signal.signal.name ~= "blueprint" and signal.signal.name ~= "blueprint-book" then
+          local itemproto = game.item_prototypes[signal.signal.name]
+          local tileresult = itemproto.place_as_tile_result
+          if tileresult then
+            newtile = {
+              name = tileresult.result.name,
+              position = ReadPosition(signals1)
+            }
+            break -- once we're found one, get out of the loop, so we don't build multiple things.
+          end
+        end
+      end
+      if newtile then
+        log(serpent.dump(newtile))
+        tiles[t] = newtile
+        bp.set_blueprint_tiles(tiles)
+      end
+    end
+  end
+end
 
 local function DeconstructionOrder(manager,signals1,signals2,cancel)
   local area = ReadBoundingBox(signals1)
@@ -917,27 +963,25 @@ local function ArtilleryOrder(manager,signals1,signals2,flare)
 end
 
 
+local function ReadWrite(Report,Update)
+  return function(manager,signals1,signals2)
+    local write = get_signal_from_set(knownsignals.W,signals1)
+    if write == 1 then 
+      return Update(manager,signals1,signals2)
+    else
+      return Report(manager,signals1,signals2)
+    end
+  end
+end
+
 local bp_signal_functions = {
   [-1] = EjectBlueprint,
   [1] = DeployBlueprint,
   [2] = CaptureBlueprint,
   [3] = ReportBlueprintBoM,
-  [4] = function(manager,signals1,signals2)
-    local write = get_signal_from_set(knownsignals.W,signals1)
-    if write == 1 then 
-      return UpdateBlueprintLabel(manager,signals1,signals2)
-    else
-      return ReportBlueprintLabel(manager,signals1,signals2)
-    end
-  end,
-  [5] = function(manager,signals1,signals2)
-    local write = get_signal_from_set(knownsignals.W,signals1)
-    if write == 1 then 
-      return UpdateBlueprintIcons(manager,signals1,signals2)
-    else
-      return ReportBlueprintIcons(manager,signals1,signals2)
-    end
-  end,
+  [4] = ReadWrite(ReportBlueprintLabel,UpdateBlueprintLabel),
+  [5] = ReadWrite(ReportBlueprintIcons,UpdateBlueprintIcons),
+  [6] = ReadWrite(ReportBlueprintTile,UpdateBlueprintTile),
   --TODO: read/write blueprint tiles/entities
 }
 

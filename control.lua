@@ -847,7 +847,6 @@ local function UpdateBlueprintTile(manager,signals1,signals2)
         end
       end
       if newtile then
-        log(serpent.dump(newtile))
         tiles[t] = newtile
         bp.set_blueprint_tiles(tiles)
       end

@@ -376,13 +376,21 @@ local ConstructionOrderControlBehavior =
       control.read_stopped_train = false
     end
   end,
-  [defines.control_behavior.type.inserter] = function(ghost,control,manager,signals1,signals2)
+  [defines.control_behavior.type.inserter] = function(ghost,control,manager,signals1,signals2,forblueprint)
     local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2)
 
     if get_signal_from_set(knownsignals.B,signals1) ~= 0 then 
-      ghost.inserter_filter_mode = "blacklist"
+      if forblueprint then 
+        ghost.filter_mode = "blacklist"
+      else
+        ghost.inserter_filter_mode = "blacklist"
+      end
     else
-      ghost.inserter_filter_mode = "whitelist"
+      if forblueprint then 
+        ghost.filter_mode = "whitelist"
+      else
+        ghost.inserter_filter_mode = "whitelist"
+      end
     end
 
     if get_signal_from_set(knownsignals.E,signals1) ~= 0 then 
@@ -395,7 +403,12 @@ local ConstructionOrderControlBehavior =
     
     local sig_i = get_signal_from_set(knownsignals.I,signals1)
     if sig_i then
-      ghost.inserter_stack_size_override = sig_i
+      if forblueprint then 
+        ghost.override_stack_size = sig_i
+      else
+        ghost.inserter_stack_size_override = sig_i
+      end
+      
     end
 
     local r = get_signal_from_set(knownsignals.R,signals1)
@@ -531,7 +544,32 @@ local ConstructionOrderControlBehavior =
   end,
 }
 
-local function ConstructionOrder(manager,signals1,signals2)
+local EntityTypeToControlBehavior = 
+{
+  ["accumulator"] = defines.control_behavior.type.accumulator,
+  ["arithmetic-combinator"] = defines.control_behavior.type.arithmetic_combinator,
+  ["constant-combinator"] = defines.control_behavior.type.constant_combinator,
+  ["container"] = defines.control_behavior.type.container,
+  ["decider-combinator"] = defines.control_behavior.type.decider_combinator,
+  ["inserter"] = defines.control_behavior.type.inserter,
+  ["lamp"] = defines.control_behavior.type.lamp,
+  ["logistic-container"] = defines.control_behavior.type.logistic_container,
+  ["mining-drill"] = defines.control_behavior.type.mining_drill,
+  ["programmable-speaker"] = defines.control_behavior.type.programmable_speaker,
+  ["rail-chain-signal"] = defines.control_behavior.type.rail_chain_signal,
+  ["rail-signal"] = defines.control_behavior.type.rail_signal,
+  ["roboport"] = defines.control_behavior.type.roboport,
+  ["storage-tank"] = defines.control_behavior.type.storage_tank,
+  ["train-stop"] = defines.control_behavior.type.train_stop,
+  ["transport-belt"] = defines.control_behavior.type.transport_belt,
+  ["wall"] = defines.control_behavior.type.wall,
+
+  ["offshore-pump"] = defines.control_behavior.type.generic_on_off,
+  ["power-switch"] = defines.control_behavior.type.generic_on_off,
+  ["pump"] = defines.control_behavior.type.generic_on_off,
+}
+
+local function ConstructionOrder(manager,signals1,signals2,forblueprint)
   local createorder = {
     name='entity-ghost',
     position = ReadPosition(signals1),
@@ -561,12 +599,16 @@ local function ConstructionOrder(manager,signals1,signals2)
 
       if entproto then
         createorder.inner_name = entproto.name
-
+        
         local special = ConstructionOrderEntitySpecific[entproto.type]
         if special then
           special(createorder,entproto,signals1,signals2)
         end
         
+        if forblueprint then
+          createorder.ghost_prototype = entproto
+        end
+
         break -- once we're found one, get out of the loop, so we don't build multiple things.
       elseif tileresult then
         createorder.name = "tile-ghost"
@@ -577,23 +619,44 @@ local function ConstructionOrder(manager,signals1,signals2)
   end
 
   if createorder.inner_name then
-    --game.print(serpent.block(createorder))
-    local ghost =  manager.ent.surface.create_entity(createorder)
-
-    if ghost and ghost.name == "entity-ghost" then
-      local control = ghost.get_or_create_control_behavior()
-      if control and control.valid then
-        local special = ConstructionOrderControlBehavior[control.type]
+    if not forblueprint then
+      local ghost =  manager.ent.surface.create_entity(createorder)
+      if ghost and ghost.name == "entity-ghost" then
+        local control = ghost.get_or_create_control_behavior()
+        if control and control.valid then
+          local special = ConstructionOrderControlBehavior[control.type]
+          if special then
+            special(ghost,control,manager,signals1,signals2)
+          end
+        end
+        if createorder.usecc2items then
+          if signals2 then
+            ghost.item_requests = ReadItems(signals2)
+          end
+        end
+      end
+    elseif ghost.name == "entity-ghost" then --forblueprint
+      game.print(serpent.block(createorder))
+      local controltype = EntityTypeToControlBehavior[createorder.ghost_prototype.type]
+      if controltype then
+        -- enough fake objects for the various control specific stuff...
+        local control = { parameters = {} }
+        createorder.control_behavior = control
+        createorder.filters = {}
+        createorder.set_filter = function(i,name)
+          filters[i] = name
+        end
+        local special = ConstructionOrderControlBehavior[controltype]
         if special then
-          special(ghost,control,manager,signals1,signals2)
+          special(createorder,control,manager,signals1,signals2,true)
         end
+        --clean up a bit, ready for a bp...
+        createorder.name = createorder.inner_name
+        createorder.inner_name = nil
+        createorder.set_filter = nil
+        createorder.ghost_prototype = nil
       end
-
-      if createorder.usecc2items then
-        if signals2 then
-          ghost.item_requests = ReadItems(signals2)
-        end
-      end
+      return createorder
     end
   end
 end
@@ -932,6 +995,30 @@ local function UpdateBlueprintTile(manager,signals1,signals2)
   end
 end
 
+local function UpdateBlueprintEntity(manager,signals1,signals2)
+  local bp = GetBlueprint(manager,signals1)
+  if bp.valid and bp.valid_for_read then
+    local entities = bp.get_blueprint_entities() or {}
+    local i = get_signal_from_set(knownsignals.grey,signals1)
+    if i > 0 and i <= #entities+1 then
+      local newent = ConstructionOrder(manager,signals1,signals2,true)
+      if newent then
+        newent.entity_number = i
+        if entities[i] then 
+          if entities[i].connections then 
+            newent.connections = entities[i].connections
+          end
+          if entities[i].items then 
+            newent.items = entities[i].items
+          end
+        end
+        entities[i] = newent
+        bp.set_blueprint_entities(entities)
+      end
+    end
+  end
+end
+
 local function DeconstructionOrder(manager,signals1,signals2,cancel)
   local area = ReadBoundingBox(signals1)
 
@@ -1063,6 +1150,7 @@ local bp_signal_functions = {
   [4] = ReadWrite(ReportBlueprintLabel,UpdateBlueprintLabel),
   [5] = ReadWrite(ReportBlueprintIcons,UpdateBlueprintIcons),
   [6] = ReadWrite(ReportBlueprintTile,UpdateBlueprintTile),
+  [7] = UpdateBlueprintEntity,
   --TODO: read/write blueprint tiles/entities
 }
 

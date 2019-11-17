@@ -623,6 +623,25 @@ local function GetBlueprint(manager, signals1)
   return bp
 end
 
+local function ClearOrCreateBlueprint(manager,signals1)
+  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
+  inInv[1].set_stack("blueprint")
+end
+
+local function DestroyBlueprint(manager,signals1)
+  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
+  inInv[1].clear()
+end
+
+local function ClearOrCreateBlueprintBook(manager,signals1)
+  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
+  inInv[2].set_stack("blueprint-book")
+end
+
+local function DestroyBlueprintBook(manager,signals1)
+  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
+  inInv[2].clear()
+end
 
 local function DeployBlueprint(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
@@ -719,53 +738,73 @@ local function ConnectWire(manager,signals1,signals2,color,disconnect)
   end
 end
 
-local function ReportBlueprintLabel(manager,signals1,signals2)
-  local bp = GetBlueprint(manager,signals1)
+local function ReportLabel(manager,item)
   local outsignals = {}
-  if bp.valid and bp.valid_for_read then
-    if bp.label and remote.interfaces['signalstrings'] then
-      -- create label signals
-      outsignals = remote.call('signalstrings','string_to_signals', bp.label)
-    end
+  if item.label and remote.interfaces['signalstrings'] then
+    -- create label signals
+    outsignals = remote.call('signalstrings','string_to_signals', item.label)
+  end
 
-    -- add color signals
-    if bp.label_color then
-      outsignals[#outsignals+1]={index=#outsignals+1,count=bp.label_color.r*256,signal=knownsignals.red}
-      outsignals[#outsignals+1]={index=#outsignals+1,count=bp.label_color.g*256,signal=knownsignals.green}
-      outsignals[#outsignals+1]={index=#outsignals+1,count=bp.label_color.b*256,signal=knownsignals.blue}
-      outsignals[#outsignals+1]={index=#outsignals+1,count=bp.label_color.a*256,signal=knownsignals.white}
-    end
+  -- add color signals
+  if item.label_color then
+    outsignals[#outsignals+1]={index=#outsignals+1,count=item.label_color.r*256,signal=knownsignals.red}
+    outsignals[#outsignals+1]={index=#outsignals+1,count=item.label_color.g*256,signal=knownsignals.green}
+    outsignals[#outsignals+1]={index=#outsignals+1,count=item.label_color.b*256,signal=knownsignals.blue}
+    outsignals[#outsignals+1]={index=#outsignals+1,count=item.label_color.a*256,signal=knownsignals.white}
   end
   manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
   manager.clearcc2 = true
 end
 
-local function UpdateBlueprintLabel(manager,signals1,signals2)
+local function ReportBlueprintLabel(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
-  local outsignals = {}
-  if not (bp.valid and bp.valid_for_read and bp.is_blueprint_setup()) then
-   return
+  if bp.valid and bp.valid_for_read then
+    ReportLabel(manager,bp)
   end
+end
 
+local function ReportBlueprintBookLabel(manager,signals1,signals2)
+  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
+  local book = inInv[2]
+  if book.valid and book.valid_for_read and book.is_blueprint_book then 
+    ReportLabel(manager,book)
+  end
+end
+
+local function UpdateItemLabel(item,signals2)
   -- set or clear label and color from cc2
   if remote.interfaces['signalstrings'] and signals2 then
-    bp.label = remote.call('signalstrings','signals_to_string',signals2,true)
-
+    item.label = remote.call('signalstrings','signals_to_string',signals2,true)
     local a = get_signal_from_set(knownsignals.white,signals2)
     if a > 0 and a <= 256 then
       local color = ReadColor(signals2)
       color.a = a
-      bp.label_color = color
+      item.label_color = color
     else
-      bp.label_color = { r=1, g=1, b=1, a=1 }
+      item.label_color = { r=1, g=1, b=1, a=1 }
     end
-
-
   else
-    bp.label = ''
-    bp.label_color = { r=1, g=1, b=1, a=1 }
+    item.label = ''
+    item.label_color = { r=1, g=1, b=1, a=1 }
   end
 end
+
+local function UpdateBlueprintLabel(manager,signals1,signals2)
+  local bp = GetBlueprint(manager,signals1)
+  local outsignals = {}
+  if bp.valid and bp.valid_for_read and bp.is_blueprint_setup() then
+    UpdateItemLabel(bp,signals2)
+  end
+end
+
+local function UpdateBlueprintBookLabel(manager,signals1,signals2)
+  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
+  local book = inInv[2]
+  if book.valid and book.valid_for_read and book.is_blueprint_book then 
+    UpdateItemLabel(book,signals2)
+  end
+end
+
 
 local function ReportBlueprintBoM(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
@@ -974,6 +1013,8 @@ local function ReadWrite(Report,Update)
 end
 
 local bp_signal_functions = {
+  [-3] = DestroyBlueprint,
+  [-2] = ClearOrCreateBlueprint,
   [-1] = EjectBlueprint,
   [1] = DeployBlueprint,
   [2] = CaptureBlueprint,
@@ -985,6 +1026,9 @@ local bp_signal_functions = {
 }
 
 local book_signal_functions = {
+  [-4] = ReadWrite(ReportBlueprintBookLabel,UpdateBlueprintBookLabel),
+  [-3] = DestroyBlueprintBook,
+  [-2] = ClearOrCreateBlueprintBook,
   [-1] = EjectBlueprintBook,
 
 }

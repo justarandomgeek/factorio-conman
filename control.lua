@@ -810,10 +810,38 @@ local function ReportBlueprintBookCount(manager,signals1,signals2)
   local book = inInv[2]
   if book.valid and book.valid_for_read and book.is_blueprint_book then 
     local outsignals = {
-      {index=1,count=#book.get_inventory(defines.inventory.item_main), signal=knownsignals.info }
+      {index=1,count=book.get_inventory(defines.inventory.item_main).get_item_count(), signal=knownsignals.info }
     }
     manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
     manager.clearcc2 = true
+  end
+end
+
+local function InsertBlueprintToBook(manager,signals1,signals2)
+  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
+  local bp = inInv[1]
+  local page = get_signal_from_set(knownsignals.blueprint_book,signals1)
+  if not (page > 0) then return end
+  local book = inInv[2]
+  --check if there actually is a blueprint book.
+  if bp.valid and bp.valid_for_read and book.valid and book.valid_for_read and book.is_blueprint_book then 
+    book.get_inventory(defines.inventory.item_main)[page].set_stack(bp)
+    bp.clear()
+  end
+end
+
+local function TakeBlueprintFromBook(manager,signals1,signals2)
+  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
+  local bp = inInv[1]
+  local page = get_signal_from_set(knownsignals.blueprint_book,signals1)
+  if not (page > 0) then return end
+  local book = inInv[2]
+  --check if there actually is a blueprint book.
+  if bp.valid and bp.valid_for_read and book.valid and book.valid_for_read and book.is_blueprint_book then 
+    local bookinv = book.get_inventory(defines.inventory.item_main)
+    if page <= bookinv.get_item_count() then
+    bp.set_stack(bookinv[page])
+    bookinv[page].clear()
   end
 end
 
@@ -1024,6 +1052,8 @@ local function ReadWrite(Report,Update)
 end
 
 local bp_signal_functions = {
+  [-5] = InsertBlueprintToBook,
+  [-4] = TakeBlueprintFromBook,
   [-3] = DestroyBlueprint,
   [-2] = ClearOrCreateBlueprint,
   [-1] = EjectBlueprint,

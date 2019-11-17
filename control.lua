@@ -1000,6 +1000,7 @@ local function UpdateBlueprintTile(manager,signals1,signals2)
   end
 end
 
+--TODO: ReportBlueprintEnitity
 local function UpdateBlueprintEntity(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read then
@@ -1020,6 +1021,33 @@ local function UpdateBlueprintEntity(manager,signals1,signals2)
         entities[i] = newent
         bp.set_blueprint_entities(entities)
       end
+    end
+  end
+end
+
+local function ReportBlueprintItemRequests(manager,signals1,signals2)
+  local bp = GetBlueprint(manager,signals1)
+  if bp.valid and bp.valid_for_read then
+    local entities = bp.get_blueprint_entities() or {}
+    local i = get_signal_from_set(knownsignals.grey,signals1)
+    if i > 0 and i <= #entities then
+      local outsignals = {}
+      for item,count in pairs(entities[i].items) do
+        outsignals[#outsignals+1]={index=#outsignals+1,count=count,signal={name=item,type="item"}}
+      end
+      manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
+      manager.clearcc2 = true
+    end
+  end
+end
+local function UpdateBlueprintItemRequests(manager,signals1,signals2)
+  local bp = GetBlueprint(manager,signals1)
+  if bp.valid and bp.valid_for_read then
+    local entities = bp.get_blueprint_entities() or {}
+    local i = get_signal_from_set(knownsignals.grey,signals1)
+    if i > 0 and i <= #entities then
+      entities[i].items = ReadItems(signals2)
+      bp.set_blueprint_entities(entities)
     end
   end
 end
@@ -1156,6 +1184,7 @@ local bp_signal_functions = {
   [5] = ReadWrite(ReportBlueprintIcons,UpdateBlueprintIcons),
   [6] = ReadWrite(ReportBlueprintTile,UpdateBlueprintTile),
   [7] = UpdateBlueprintEntity,
+  [8] = ReadWrite(ReportBlueprintItemRequests,UpdateBlueprintItemRequests),
   --TODO: read/write blueprint tiles/entities
 }
 

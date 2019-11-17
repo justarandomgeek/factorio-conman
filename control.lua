@@ -805,6 +805,17 @@ local function UpdateBlueprintBookLabel(manager,signals1,signals2)
   end
 end
 
+local function ReportBlueprintBookCount(manager,signals1,signals2)
+  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
+  local book = inInv[2]
+  if book.valid and book.valid_for_read and book.is_blueprint_book then 
+    local outsignals = {
+      {index=1,count=#book.get_inventory(defines.inventory.item_main), signal=knownsignals.info }
+    }
+    manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
+    manager.clearcc2 = true
+  end
+end
 
 local function ReportBlueprintBoM(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
@@ -1026,6 +1037,7 @@ local bp_signal_functions = {
 }
 
 local book_signal_functions = {
+  [-5] = ReportBlueprintBookCount,
   [-4] = ReadWrite(ReportBlueprintBookLabel,UpdateBlueprintBookLabel),
   [-3] = DestroyBlueprintBook,
   [-2] = ClearOrCreateBlueprintBook,

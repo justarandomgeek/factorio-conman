@@ -203,6 +203,11 @@ local ConstructionOrderEntitySpecific =
       createorder.color = ReadColor(signals1)
       createorder.color.a = a
     end
+    if manager.preloadstring then 
+      createorder.station = manager.preloadstring
+      manager.preloadstring = nil
+      manager.preloadcolor = nil
+    end
   end,
   ["locomotive"] = function(createorder,entproto,signals1,signals2)
     local a = get_signal_from_set(knownsignals.white,signals1)

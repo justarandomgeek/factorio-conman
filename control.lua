@@ -1229,6 +1229,7 @@ local bp_signal_functions = {
   [6] = ReadWrite(ReportBlueprintTile,UpdateBlueprintTile),
   [7] = UpdateBlueprintEntity,
   [8] = ReadWrite(ReportBlueprintItemRequests,UpdateBlueprintItemRequests),
+  [10] = ReadWrite(ReportBlueprintSchedule,UpdateBlueprintSchedule),
   --TODO: read/write blueprint tiles/entities
 }
 

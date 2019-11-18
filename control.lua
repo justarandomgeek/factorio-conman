@@ -778,10 +778,10 @@ end
 
 local function ConnectWire(manager,signals1,signals2,color,disconnect)
   local z = get_signal_from_set(knownsignals.Z,signals1)
-  if not (z>0) then z=1 end
+  if z~=2 then z=1 end
 
   local w = get_signal_from_set(knownsignals.W,signals1)
-  if not (w>0) then w=1 end
+  if w~=2 then w=1 end
 
   local ent1 = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(signals1)}[1]
   local ent2 = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(signals1,true)}[1]
@@ -1055,6 +1055,107 @@ local function UpdateBlueprintItemRequests(manager,signals1,signals2)
     if i > 0 and i <= #entities then
       entities[i].items = ReadItems(signals2)
       bp.set_blueprint_entities(entities)
+    end
+  end
+end
+
+local function ReportBlueprintWire(manager,signals1,signals2)
+  local bp = GetBlueprint(manager,signals1)
+  if bp.valid and bp.valid_for_read then
+    local entities = bp.get_blueprint_entities() or {}
+    local i = get_signal_from_set(knownsignals.grey,signals1)
+    if i > 0 and i <= #entities then
+      local entity = entities[i]
+      local connection_index = get_signal_from_set(knownsignals.X,signals1)
+      local connector_index = get_signal_from_set(knownsignals.Z,signals1)
+      local redwire = get_signal_from_set(knownsignals.redwire,signals1)
+      local greenwire = get_signal_from_set(knownsignals.greenwire,signals1)
+      local connector
+      if connector_index == 2 then
+        connector = "2"
+      else
+        connector_index = 1
+        connector = "1"
+      end
+      connector = entity.connections[connector]
+      if not connector then return end
+
+      local color
+      if redwire == 1 then
+        color = "red"
+      elseif greenwire == 1 then
+        color = "green"
+      end
+      if color then
+        connector = connector[color]
+        if not connector then return end
+      end
+    
+      if connector and connection_index > 0 and connection_index <= #connector then 
+        local outsignals = {}
+        local connection = connector[connection_index]
+        
+        outsignals[1]={index=1,count=1,signal=knownsignals[color .. "wire"]}
+
+        outsignals[2]={index=2,count=i,signal=knownsignals.grey}
+        outsignals[3]={index=3,count=connector_index,signal=knownsignals.Z}
+        outsignals[4]={index=4,count=connection_index,signal=knownsignals.X}
+        
+        outsignals[5]={index=5,count=connection.entity_id,signal=knownsignals.white}
+        outsignals[6]={index=6,count=connection.circuit_id or 1,signal=knownsignals.Y}
+
+        manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
+        manager.clearcc2 = true
+      end
+    end
+  end
+end
+local function UpdateBlueprintWire(manager,signals1,signals2)
+  local bp = GetBlueprint(manager,signals1)
+  if bp.valid and bp.valid_for_read then
+    local entities = bp.get_blueprint_entities() or {}
+    local i = get_signal_from_set(knownsignals.grey,signals1)
+    if i > 0 and i <= #entities then
+      local entity = entities[i]
+      local connection_index = get_signal_from_set(knownsignals.X,signals1)
+      local connector_index = get_signal_from_set(knownsignals.Z,signals1)
+      local redwire = get_signal_from_set(knownsignals.redwire,signals1)
+      local greenwire = get_signal_from_set(knownsignals.greenwire,signals1)
+      local connector
+      if connector_index == 2 then
+        connector = "2"
+      else
+        connector_index = 1
+        connector = "1"
+      end
+      connector = entity.connections[connector]
+      if not connector then return end
+
+      local color
+      if redwire == 1 then
+        color = "red"
+      elseif greenwire == 1 then
+        color = "green"
+      end
+      if color then
+        connector = connector[color]
+        if not connector then return end
+      end
+      
+      local far_entity_index = get_signal_from_set(knownsignals.white,signals1)
+      if not (far_entity_index > 0 and far_connector_index < #entities) then return end
+      local far_connector_index = get_signal_from_set(knownsignals.y,signals1)
+      if far_connector_index ~= 2 then 
+        far_connector_index = 1
+      end
+
+      if connector and connection_index > 0 and connection_index <= #connector+1 then 
+        connector[connection_index] = {
+          entity_id = far_entity_index,
+          circuit_id = far_connector_index,
+        }
+        bp.set_blueprint_entities(entities)
+      end
     end
   end
 end

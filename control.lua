@@ -1364,7 +1364,7 @@ local function onTickManager(manager)
       local booksig = get_signal_from_set(knownsignals.blueprint_book,signals1)
       local bookfunc = book_signal_functions[booksig] -- commands using blueprint book item, indexed by command number
       if bookfunc then      
-        bpfunc(manager,signals1,signals2)
+        bookfunc(manager,signals1,signals2)
       elseif get_signal_from_set(knownsignals.conbot,signals1) == 1 then
         -- check for conbot=1, build a thing
         ConstructionOrder(manager,signals1,signals2)

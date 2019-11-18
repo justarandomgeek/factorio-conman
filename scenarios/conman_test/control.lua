@@ -18,6 +18,19 @@ function get_signals_filtered(filters,signals)
     return results
 end
 
+function expect_signals(expectedsignals,expectedvalues,gotsignals,allowextra)
+    local gotvalues = get_signals_filtered(expectedsignals,gotsignals)
+    local gotsize = table_size(gotvalues)
+    local expectedsize = table_size(expectedvalues)
+    if (gotsize < expectedsize) or (not allowextra and gotsize > expectedsize) then
+        return false 
+    end
+    for k,v in pairs(expectedvalues) do
+        if gotvalues[k] ~= v then return false end
+    end
+    return true
+end
+
 local tests = {
     ["profilestart"] ={
         prepare = function()
@@ -1546,6 +1559,66 @@ local tests = {
         end
     },
 
+    ["create"] = {
+        prepare = function()
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].clear()
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = -2},
+        },
+        verify = function()
+            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            if not (stack.valid_for_read and stack.name == "blueprint") then return false end
+            
+            stack.clear()
+            
+            return true
+        end
+    },
+    ["createbook"] = {
+        prepare = function()
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[2].clear()
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint_book, count = -2},
+        },
+        verify = function()
+            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            if not (stack.valid_for_read and stack.name == "blueprint-book") then return false end
+            
+            stack.clear()
+            
+            return true
+        end
+    },
+
+    ["destroy"] = {
+        prepare = function()
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].set_stack("blueprint")
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = -3},
+        },
+        verify = function()
+            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            if stack.valid_for_read then return false end
+            return true
+        end
+    },
+    ["destroybook"] = {
+        prepare = function()
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[2].set_stack("blueprint-book")
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint_book, count = -3},
+        },
+        verify = function()
+            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            if stack.valid_for_read then return false end
+            return true
+        end
+    },
+
     ["eject"] = {
         prepare = function()
             global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].set_stack("blueprint")
@@ -1562,6 +1635,23 @@ local tests = {
             return true
         end
     },
+    ["ejectbook"] = {
+        prepare = function()
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[2].set_stack("blueprint-book")
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint_book, count = -1},
+        },
+        verify = function()
+            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_output)[2]
+            if not (stack.valid_for_read and stack.name == "blueprint-book") then return false end
+            
+            stack.clear()
+            
+            return true
+        end
+    },
+
     ["deploy"] = {
         prepare = function()
             --bp string of a single wooden chest
@@ -1688,13 +1778,13 @@ local tests = {
             local signals = outsignals[1]
             local string = remote.call('signalstrings', 'signals_to_string', signals)
             if string ~= "TEST" then return false end
-            local color = get_signals_filtered({
+            return expect_signals({
                 r = knownsignals.red,
                 g = knownsignals.green,
                 b = knownsignals.blue,
                 a = knownsignals.white,
-            }, signals)
-            return color.r == 12 and color.g == 34 and color.b == 56 and color.a == 78
+            }, {r=12,g=34,b=56,a=78} , signals, true)
+            
         end
     },
 
@@ -1783,13 +1873,11 @@ local tests = {
         },
         verify = function(outsignals)
             if not outsignals or #outsignals ~= 1 or #outsignals[1] ~= 3 then return false end
-            local expect = {
+            return expect_signals({
                 x = knownsignals.X,
                 y = knownsignals.Y,
                 concrete = {type="item",name="concrete"},
-            }
-            local signals = get_signals_filtered(expect, outsignals[1])
-            return signals.x == 1 and signals.y == 1 and signals.concrete == 1
+            }, {x=1, y=1, concrete=1}, outsignals[1])
         end
     },
     ["writetile"] = {
@@ -1813,6 +1901,88 @@ local tests = {
             local tile = tiles[1]
             if not ( tile.name == "concrete" and tile.position.x == 1 and tile.position.y == 1 ) then return false end
             return true
+        end
+    },
+
+
+    
+    ["readbooklabel"] = {
+        prepare = function()
+            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            book.set_stack("blueprint-book")
+            book.label = "TEST"
+            book.label_color = {r=12,g=34,b=56,a=78}
+            global.book = book
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint_book, count = -4},
+        },
+        verify = function(outsignals)
+            if not outsignals or #outsignals ~= 1 then return false end
+            local signals = outsignals[1]
+            local string = remote.call('signalstrings', 'signals_to_string', signals)
+            if string ~= "TEST" then return false end
+            global.book.clear()
+            global.book = nil
+            return expect_signals({
+                r = knownsignals.red,
+                g = knownsignals.green,
+                b = knownsignals.blue,
+                a = knownsignals.white,
+            }, {r=12,g=34,b=56,a=78} , signals, true)
+            
+        end
+    },
+
+    ["writebooklabel"] = {
+        prepare = function()
+            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            book.set_stack("blueprint-book")
+            global.book = book
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint_book, count = -4},
+            {signal = knownsignals.W, count = 1},
+        },
+        cc2string = "TEST",
+        cc2 = {
+            {signal = knownsignals.red, count = 12},
+            {signal = knownsignals.green, count = 34},
+            {signal = knownsignals.blue, count = 56},
+            {signal = knownsignals.white, count = 78},
+        },
+        verify = function(outsignals)
+            if global.book.label ~= "TEST" then return false end
+            local color = global.book.label_color
+            global.book.clear()
+            global.book = nil
+            return --factorio returns colors as float values 0-1, but they're not exactly n/255 or n/256, so just make sure the difference is small...
+                (color.r - 12/255 < 0.0001) and 
+                (color.g - 34/255 < 0.0001) and 
+                (color.b - 56/255 < 0.0001) and 
+                (color.a - 78/255 < 0.0001)
+        end
+    },
+
+    ["readbookcount"] = {
+        prepare = function()
+            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            book.set_stack("blueprint-book")
+            book.get_inventory(defines.inventory.item_main).insert{name="blueprint",count=3}
+            global.book = book
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint_book, count = -5},
+        },
+        verify = function(outsignals)
+            if not outsignals or #outsignals ~= 1 then return false end
+            local signals = outsignals[1]
+            global.book.clear()
+            global.book = nil
+            return expect_signals({
+                count = knownsignals.info,
+            }, {count = 3} , signals)
+            
         end
     },
 

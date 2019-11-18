@@ -362,7 +362,7 @@ local ConstructionOrderControlBehavior =
       control.circuit_read_resources = false
     end
   end,
-  [defines.control_behavior.type.train_stop] = function(ghost,control,manager,signals1,signals2)
+  [defines.control_behavior.type.train_stop] = function(ghost,control,manager,signals1,signals2,forblueprint)
     local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2)
 
     control.enable_disable = get_signal_from_set(knownsignals.E,signals1) ~= 0
@@ -378,7 +378,11 @@ local ConstructionOrderControlBehavior =
 
     -- this really should be in entity-type handling, but it's easier here
     if manager.preloadstring then 
-      createorder.station = manager.preloadstring
+      if forblueprint then
+        ghost.station = manager.preloadstring
+      else
+        ghost.backer_name = manager.preloadstring
+      end
       manager.preloadstring = nil
       manager.preloadcolor = nil
     end

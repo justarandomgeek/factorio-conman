@@ -631,6 +631,9 @@ local tests = {
         end
     },
     ["train-stop"] = {
+        prepare = function()
+            remote.call("conman","set_preload_string",global.conman.unit_number,"TEST")
+        end,
         cc1 = {
             {signal = knownsignals.conbot, count = 1},
             {signal = {type = "item", name = "train-stop"}, count = 1},
@@ -657,6 +660,8 @@ local tests = {
             if irp then
                 return false
             end
+
+            if ghost.backer_name ~= "TEST" then return false end
 
             local control = ghost.get_or_create_control_behavior()
             if not (control.send_to_train and control.read_from_train and control.read_stopped_train and
@@ -696,13 +701,14 @@ local tests = {
     ["curved-rail"] = {
         cc1 = {
             {signal = knownsignals.conbot, count = 1},
-            {signal = {type = "item", name = "rail"}, count = 1},
-            {signal = knownsignals.X, count = -3},
-            {signal = knownsignals.Y, count = -3},
+            {signal = {type = "item", name = "rail"}, count = 2},
+            {signal = knownsignals.X, count = -4},
+            {signal = knownsignals.Y, count = -4},
         },
         verify = function()
-            local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
+            local ghost = global.surface.find_entity('entity-ghost', {-4,-4})
             local irp 
+            if not ghost then return false end
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
             if irp then
                 return false
@@ -1355,6 +1361,7 @@ local tests = {
                     {signal = knownsignals.schedule, count = 3},
                     {signal = {name="signal-stopname-richtext",type="virtual"}, count = 1},
                     {signal = {name="signal-wait-empty",type="virtual"}, count = 1},
+                    {signal = {name="signal-wait-robots",type="virtual"}, count = 1},
                 },
             },
             {
@@ -1383,7 +1390,7 @@ local tests = {
                 schedule.records[2].station == "BAR" and
                 schedule.records[2].wait_conditions[1].type == "inactivity" and schedule.records[2].wait_conditions[1].ticks == 456 and
                 schedule.records[3].station == "[item=iron-ore]DROP" and
-                schedule.records[3].wait_conditions[1].type == "empty" and
+                schedule.records[3].wait_conditions[1].type == "empty" and schedule.records[3].wait_conditions[2].type == "robots_inactive" and
                 schedule.records[4].rail == global.rails[1] and 
                 schedule.records[4].wait_conditions[1].type == "full"
             ) then return false end

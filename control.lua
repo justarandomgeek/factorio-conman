@@ -1059,6 +1059,43 @@ local function UpdateBlueprintItemRequests(manager,signals1,signals2)
   end
 end
 
+local function ReportBlueprintSchedule(manager,signals1,signals2)
+  local bp = GetBlueprint(manager,signals1)
+  if bp.valid and bp.valid_for_read then
+    local entities = bp.get_blueprint_entities() or {}
+    local i = get_signal_from_set(knownsignals.grey,signals1)
+    if i > 0 and i <= #entities then
+      local entity = entities[i]
+      local schedule_index = get_signal_from_set(knownsignals.schedule,signals1)
+      if entity.schedule and schedule_index > 0 and schedule_index <= #entity.schedule then 
+        local outsignals = remote.call("stringy-train-stop", "reportScheduleEntry", entity.schedule[schedule_index])
+        manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
+        manager.clearcc2 = true
+      end
+    end
+  end
+end
+local function UpdateBlueprintSchedule(manager,signals1,signals2)
+  local bp = GetBlueprint(manager,signals1)
+  if bp.valid and bp.valid_for_read then
+    local entities = bp.get_blueprint_entities() or {}
+    local i = get_signal_from_set(knownsignals.grey,signals1)
+    if i > 0 and i <= #entities then
+      local entity = entities[i]
+      local schedule_index = get_signal_from_set(knownsignals.schedule,signals1)
+      if entity.schedule and schedule_index > 0 and schedule_index <= #entity.schedule + 1 then 
+        local newschedule = remote.call("stringy-train-stop", "parseScheduleEntry", signals1, manager.ent.surface)
+        if newschedule.rail then
+          newschedule.rail = nil
+          newschedule.station = ""
+        end
+        entity.schedule[schedule_index] = newschedule
+        bp.set_blueprint_entities(entities)
+      end
+    end
+  end
+end
+
 local function DeconstructionOrder(manager,signals1,signals2,cancel)
   local area = ReadBoundingBox(signals1)
 
@@ -1274,11 +1311,7 @@ local function onTickManager(manager)
           if sigsched > 0 then
             if not manager.schedule then manager.schedule = {} end
             local schedule = remote.call("stringy-train-stop", "parseScheduleEntry", signals1, manager.ent.surface)
-            if schedule.name == "" then
-              manager.schedule[sigsched] = {}
-            else
-              manager.schedule[sigsched] = schedule
-            end
+            manager.schedule[sigsched] = schedule
             return
           elseif sigsched == -1 and manager.schedule then
             local ent = manager.ent.surface.find_entities_filtered{

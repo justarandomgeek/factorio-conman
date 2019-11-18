@@ -203,11 +203,6 @@ local ConstructionOrderEntitySpecific =
       createorder.color = ReadColor(signals1)
       createorder.color.a = a
     end
-    if manager.preloadstring then 
-      createorder.station = manager.preloadstring
-      manager.preloadstring = nil
-      manager.preloadcolor = nil
-    end
   end,
   ["locomotive"] = function(createorder,entproto,signals1,signals2)
     local a = get_signal_from_set(knownsignals.white,signals1)
@@ -379,6 +374,13 @@ local ConstructionOrderControlBehavior =
       control.read_stopped_train = true
     else
       control.read_stopped_train = false
+    end
+
+    -- this really should be in entity-type handling, but it's easier here
+    if manager.preloadstring then 
+      createorder.station = manager.preloadstring
+      manager.preloadstring = nil
+      manager.preloadcolor = nil
     end
   end,
   [defines.control_behavior.type.inserter] = function(ghost,control,manager,signals1,signals2,forblueprint)
@@ -908,8 +910,9 @@ local function TakeBlueprintFromBook(manager,signals1,signals2)
   if bp.valid and bp.valid_for_read and book.valid and book.valid_for_read and book.is_blueprint_book then 
     local bookinv = book.get_inventory(defines.inventory.item_main)
     if page <= bookinv.get_item_count() then
-    bp.set_stack(bookinv[page])
-    bookinv[page].clear()
+      bp.set_stack(bookinv[page])
+      bookinv[page].clear()
+    end
   end
 end
 

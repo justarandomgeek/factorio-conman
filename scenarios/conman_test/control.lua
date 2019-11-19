@@ -1619,6 +1619,47 @@ local tests = {
         end
     },
 
+    ["takefrombook"] = {
+        prepare = function()
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].clear()
+            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            book.set_stack("blueprint-book")
+            book.get_inventory(defines.inventory.item_main).insert{name="blueprint",count=1}
+            
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = -4},
+            {signal = knownsignals.blueprint_book, count = 1},
+        },
+        verify = function()
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            if not bp.valid_for_read then return false end
+            bp.clear()
+            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            if book.get_inventory(defines.inventory.item_main).get_item_count() ~= 0 then return false end
+            book.clear()
+            return true
+        end
+    },
+    ["inserttobook"] = {
+        prepare = function()
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].set_stack("blueprint")
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[2].set_stack("blueprint-book")            
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = -5},
+            {signal = knownsignals.blueprint_book, count = 1},
+        },
+        verify = function()
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            if bp.valid_for_read then return false end            
+            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            if book.get_inventory(defines.inventory.item_main).get_item_count() ~= 1 then return false end
+            book.clear()
+            return true
+        end
+    },
+
     ["eject"] = {
         prepare = function()
             global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].set_stack("blueprint")

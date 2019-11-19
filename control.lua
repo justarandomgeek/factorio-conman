@@ -673,17 +673,19 @@ local function ConstructionOrder(manager,signals1,signals2,forblueprint)
 end
 
 local function EjectBlueprint(manager)
-  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
-  local outInv = manager.ent.get_inventory(defines.inventory.assembling_machine_output)
-  outInv[1].set_stack(inInv[1])
-  inInv[1].clear()
+  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)[1]
+  local outInv = manager.ent.get_inventory(defines.inventory.assembling_machine_output)[1]
+  if inInv.valid and inInv.valid_for_read and outInv.valid and not outInv.valid_for_read then
+    outInv.transfer_stack(inInv)
+  end
 end
 
 local function EjectBlueprintBook(manager)
-  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
-  local outInv = manager.ent.get_inventory(defines.inventory.assembling_machine_output)
-  outInv[2].set_stack(inInv[2])
-  inInv[2].clear()
+  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)[2]
+  local outInv = manager.ent.get_inventory(defines.inventory.assembling_machine_output)[2]
+  if inInv.valid and inInv.valid_for_read and outInv.valid and not outInv.valid_for_read then
+    outInv.transfer_stack(inInv)
+  end
 end
 
 local function GetBlueprint(manager, signals1)
@@ -693,7 +695,7 @@ local function GetBlueprint(manager, signals1)
   if not (page > 0) then return bp end
   local book = inInv[2]
   --check if there actually is a blueprint book.
-  if book.valid and book.valid_for_read and book.is_blueprint_book then bp = book.get_inventory(defines.inventory.item_main)[page] end
+  if book.valid and book.valid_for_read then bp = book.get_inventory(defines.inventory.item_main)[page] end
   return bp
 end
 
@@ -840,7 +842,7 @@ end
 local function ReportBlueprintBookLabel(manager,signals1,signals2)
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
   local book = inInv[2]
-  if book.valid and book.valid_for_read and book.is_blueprint_book then 
+  if book.valid and book.valid_for_read then 
     ReportLabel(manager,book)
   end
 end
@@ -874,7 +876,7 @@ end
 local function UpdateBlueprintBookLabel(manager,signals1,signals2)
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
   local book = inInv[2]
-  if book.valid and book.valid_for_read and book.is_blueprint_book then 
+  if book.valid and book.valid_for_read then 
     UpdateItemLabel(book,signals2)
   end
 end
@@ -882,7 +884,7 @@ end
 local function ReportBlueprintBookCount(manager,signals1,signals2)
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
   local book = inInv[2]
-  if book.valid and book.valid_for_read and book.is_blueprint_book then 
+  if book.valid and book.valid_for_read then 
     local outsignals = {
       {index=1,count=book.get_inventory(defines.inventory.item_main).get_item_count(), signal=knownsignals.info }
     }
@@ -897,8 +899,8 @@ local function InsertBlueprintToBook(manager,signals1,signals2)
   local page = get_signal_from_set(knownsignals.blueprint_book,signals1)
   if not (page > 0) then return end
   local book = inInv[2]
-  --check if there actually is a blueprint book.
-  if bp.valid and bp.valid_for_read and book.valid and book.valid_for_read and book.is_blueprint_book then 
+  --check if there actually is a blueprint book and a print to insert
+  if bp.valid and bp.valid_for_read and book.valid and book.valid_for_read then 
     book.get_inventory(defines.inventory.item_main)[page].set_stack(bp)
     bp.clear()
   end
@@ -910,12 +912,11 @@ local function TakeBlueprintFromBook(manager,signals1,signals2)
   local page = get_signal_from_set(knownsignals.blueprint_book,signals1)
   if not (page > 0) then return end
   local book = inInv[2]
-  --check if there actually is a blueprint book.
-  if bp.valid and bp.valid_for_read and book.valid and book.valid_for_read and book.is_blueprint_book then 
+  --check if there actually is a blueprint book, and the print slot is free
+  if bp.valid and not bp.valid_for_read and book.valid and book.valid_for_read then 
     local bookinv = book.get_inventory(defines.inventory.item_main)
     if page <= bookinv.get_item_count() then
-      bp.set_stack(bookinv[page])
-      bookinv[page].clear()
+      bp.transfer_stack(bookinv[page])
     end
   end
 end

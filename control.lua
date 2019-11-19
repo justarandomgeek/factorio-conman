@@ -700,13 +700,11 @@ local function GetBlueprint(manager, signals1)
 end
 
 local function ClearOrCreateBlueprint(manager,signals1)
-  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
-  inInv[1].set_stack("blueprint")
+  GetBlueprint(manager, signals1).set_stack("blueprint")
 end
 
 local function DestroyBlueprint(manager,signals1)
-  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
-  inInv[1].clear()
+  GetBlueprint(manager, signals1).clear()
 end
 
 local function ClearOrCreateBlueprintBook(manager,signals1)

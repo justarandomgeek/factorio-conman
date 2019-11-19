@@ -1568,7 +1568,7 @@ local tests = {
         },
         verify = function()
             local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
-            if not (stack.valid_for_read and stack.name == "blueprint") then return false end
+            if not stack.valid_for_read then return false end
             
             stack.clear()
             
@@ -1584,10 +1584,27 @@ local tests = {
         },
         verify = function()
             local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
-            if not (stack.valid_for_read and stack.name == "blueprint-book") then return false end
+            if not stack.valid_for_read then return false end
             
             stack.clear()
             
+            return true
+        end
+    },
+    ["createinbook"] = {
+        prepare = function()
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[2].set_stack("blueprint-book")
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = -2},
+            {signal = knownsignals.blueprint_book, count = 1},
+        },
+        verify = function()
+            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            if not stack.valid_for_read then return false end
+            local bp = stack.get_inventory(defines.inventory.item_main)[1]
+            if not bp.valid_for_read then return false end
+            stack.clear()
             return true
         end
     },
@@ -1618,6 +1635,26 @@ local tests = {
             return true
         end
     },
+    ["destroyinbook"] = {
+        prepare = function()
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].clear()
+            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            book.set_stack("blueprint-book")
+            book.get_inventory(defines.inventory.item_main).insert{name="blueprint",count=1}
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = -3},
+            {signal = knownsignals.blueprint_book, count = 1},
+        },
+        verify = function()
+            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            if not stack.valid_for_read then return false end
+            local bp = stack.get_inventory(defines.inventory.item_main)[1]
+            if bp.valid_for_read then return false end
+            return true
+        end
+    },
+
 
     ["takefrombook"] = {
         prepare = function()

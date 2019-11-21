@@ -163,6 +163,9 @@ local ConstructionOrderEntitySpecific =
       createorder.recipe = remote.call('recipeid','map_recipe', get_signal_from_set(knownsignals.R,signals1))
     end
   end,
+  ["rocket-silo"] = function(createorder,entproto,signals1,signals2)
+    createorder.auto_launch = get_signal_from_set(knownsignals.A,signals1) == 1
+  end,
   ["logistic-container"] = function(createorder,entproto,signals1,signals2)
     if entproto.logistic_mode == "buffer" or entproto.logistic_mode == "storage" then
       createorder.request_filters = ReadFilters(signals2, entproto.filter_count)
@@ -587,7 +590,7 @@ local function ConstructionOrder(manager,signals1,signals2,forblueprint)
     force = manager.ent.force,
     expires = false,
     direction = get_signal_from_set(knownsignals.D,signals1),
-    usecc2items = true
+    usecc2items = not forblueprint,
   }
 
   -- only set bar if it's non-zero, else chests are disabled by default.
@@ -1006,7 +1009,215 @@ local function UpdateBlueprintTile(manager,signals1,signals2)
   end
 end
 
---TODO: ReportBlueprintEnitity
+local ReportGenericOnOffControl(control,cc1,cc2)
+  local condition = control.condtion
+  if condition then
+    if condition.first_signal then 
+      if condition.first_signal.name == "signal-anything" then
+        cc1[#cc1+1]={index=#cc1+1,count=3,signal=knownsignals.S}
+      elseif condition.first_signal.name == "signal-everything" then
+        cc1[#cc1+1]={index=#cc1+1,count=5,signal=knownsignals.S}
+      else
+        cc2[#cc2+1]={index=#cc2+1,count=1,signal=condition.first_signal}
+      end
+    end
+    if condition.second_signal then 
+      cc2[#cc2+1]={index=#cc2+1,count=2,signal=condition.second_signal}
+    end
+    if condition.constant then
+      cc1[#cc1+1]={index=#cc1+1,count=condition.constant,signal=knownsignals.K}
+    end
+  end
+end
+local ReportControlBehavior = {
+  [defines.control_behavior.type.accumulator] = function(control,cc1,cc2)
+  end,
+  [defines.control_behavior.type.arithmetic_combinator] = function(control,cc1,cc2)
+  end,
+  [defines.control_behavior.type.constant_combinator] = function(control,cc1,cc2)
+  end,
+  [defines.control_behavior.type.container] = function(control,cc1,cc2)
+  end,
+  [defines.control_behavior.type.decider_combinator] = function(control,cc1,cc2)
+  end,
+  [defines.control_behavior.type.inserter] = function(control,cc1,cc2)
+  end,
+  [defines.control_behavior.type.lamp] = function(control,cc1,cc2)
+  end,
+  [defines.control_behavior.type.logistic_container] = function(control,cc1,cc2)
+  end,
+  [defines.control_behavior.type.mining_drill] = function(control,cc1,cc2)
+  end,
+  [defines.control_behavior.type.programmable_speaker] = function(control,cc1,cc2)
+  end,
+  [defines.control_behavior.type.rail_chain_signal] = function(control,cc1,cc2)
+  end,
+  [defines.control_behavior.type.rail_signal] = function(control,cc1,cc2)
+  end,
+  [defines.control_behavior.type.roboport] = function(control,cc1,cc2)
+  end,
+  [defines.control_behavior.type.storage_tank] = function(control,cc1,cc2)
+  end,
+  [defines.control_behavior.type.train_stop] = function(control,cc1,cc2)
+  end,
+  [defines.control_behavior.type.transport_belt] = function(control,cc1,cc2)
+  end,
+  [defines.control_behavior.type.wall] = function(control,cc1,cc2)
+  end,
+  [defines.control_behavior.type.generic_on_off] = ReportGenericOnOffControl,
+}
+
+local function ReportItemFilters(filters,outsignals)
+  for _,filter in pairs(filters) do 
+    outsignals[#outsignals+1]={index=#outsignals+1,count=filter.count or 1,signal={type="item",name=filter.item}}
+  end
+end
+
+local function
+
+local function ReportBlueprintEntity(manager,signals1,signals2)
+  local bp = GetBlueprint(manager,signals1)
+  if bp.valid and bp.valid_for_read then
+    local entities = bp.get_blueprint_entities() or {}
+    local i = get_signal_from_set(knownsignals.grey,signals1)
+    if i > 0 and i <= #entities then
+      local entity = entities[i]
+      local entproto = game.entity_prototypes[entity.name]
+
+      local preload = nil
+      local cc1 = {}
+      local cc2 = {}
+      
+      cc1[#cc1+1]={index=#cc1+1,count=7,signal=knownsignals.blueprint}
+      cc1[#cc1+1]={index=#cc1+1,count=i,signal=knownsignals.grey}
+
+      local item = entproto.items_to_place_this[1].name
+      local itemproto = game.item_prototypes[item]
+      local itemcount = 1
+      if itemproto.type == "rail-planner" and itemproto.curved_rail == entproto then
+        itemcount = 2
+      end
+      cc1[#cc1+1]={index=#cc1+1,count=itemcount,signal={type="item",name=item}}
+
+      cc1[#cc1+1]={index=#cc1+1,count=entity.position.x,signal=knownsignals.X}
+      cc1[#cc1+1]={index=#cc1+1,count=entity.position.y,signal=knownsignals.Y}
+
+      if entity.direction then
+        cc1[#cc1+1]={index=#cc1+1,count=entity.direction,signal=knownsignals.D}
+      elseif entity.orientation then
+        log("orientation " .. entity.orientation .. " on " .. entity.name)
+      end
+
+      if entity.recipe and remote.interfaces['recipeid'] then
+        local recipeid = remote.call('recipeid','map_recipe',entity.recipe)
+        if recipeid then
+          cc1[#cc1+1]={index=#cc1+1,count=recipeid,signal=knownsignals.R}
+        end
+      end
+
+      if entity.inventory then
+        local inv = entity.inventory
+        if inv.bar then 
+          cc1[#cc1+1]={index=#cc1+1,count=inv.bar,signal=knownsignals.B}
+        end
+        if inventory.filters then
+          ReportItemFilters(inventory.filters,cc2)
+        end
+      elseif entity.bar then
+        cc1[#cc1+1]={index=#cc1+1,count=entity.bar,signal=knownsignals.B}
+      end
+
+      if entity.filters then
+        ReportItemFilters(entity.filters,cc2)
+      end
+
+      if entity.type == "output" then 
+        cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.U}
+      end
+
+      local splitterside = {left = 1, right = 2 }
+      local inputside = splitterside[entity.input_priority]
+      if inputside then 
+        cc1[#cc1+1]={index=#cc1+1,count=inputside,signal=knownsignals.I}
+      end
+      local outputside = splitterside[entity.output_priority]
+      if outputside then 
+        cc1[#cc1+1]={index=#cc1+1,count=outputside,signal=knownsignals.O}
+      end
+
+      if entity.filter then
+        cc2[#cc2+1]={index=#cc2+1,count=1,signal={type="item",name=entity.filter}}
+      end
+
+      if entity.filter_mode == "blacklist" then
+        cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.B}
+      end
+
+      if entity.override_stack_size then
+        cc1[#cc1+1]={index=#cc1+1,count=entity.override_stack_size,signal=knownsignals.I}
+      end
+
+      if entity.request_filters then
+        ReportItemFilters(entity.request_filters,cc2)
+      end
+
+      if entity.request_from_buffer then
+        cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.R}
+      end
+
+      if entity.parameters then
+        local parameters = entity.parameters
+        if parameters.playback_volume then
+          cc1[#cc1+1]={index=#cc1+1,count=parameters.playback_volume * 100,signal=knownsignals.U}
+        end
+        if parameters.playback_globally then
+          cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.G}
+        end
+        if parameters.allow_polyphony then
+          cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.P}
+        end
+      end
+      if entity.alert_parameters then
+        local parameters = entity.alert_parameters
+        if parameters.show_alert then
+          cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.A}
+        end
+        if parameters.show_on_map then
+          cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.M}
+        end
+        if parameters.icon_signal_id then
+          cc1[#cc1+1]={index=#cc1+1,count=4,signal=parameters.icon_signal_id}
+        end
+        if parameters.alert_message then
+          preload = parameters.alert_message
+        end
+      end
+
+      if entity.color then
+        local color = entity.color
+        cc1[#cc1+1]={index=#cc1+1,count=color.r*256,signal=knownsignals.red}
+        cc1[#cc1+1]={index=#cc1+1,count=color.g*256,signal=knownsignals.green}
+        cc1[#cc1+1]={index=#cc1+1,count=color.b*256,signal=knownsignals.blue}
+        cc1[#cc1+1]={index=#cc1+1,count=color.a*256,signal=knownsignals.white}
+      end
+      if entity.station then
+        preload = entity.station
+      end
+
+      if entity.control_behavior then
+        local controltype = EntityTypeToControlBehavior[createorder.ghost_prototype.type]
+        if controltype then
+        local special = ReportControlBehavior[controltype]
+        if special then
+          special(entity.control_behavior,cc1,cc2)
+        end
+      end
+
+      manager.cc2.get_or_create_control_behavior().parameters={parameters=outframes[1]}
+      manager.clearcc2 = true
+    end
+  end
+end
 local function UpdateBlueprintEntity(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read then
@@ -1327,10 +1538,9 @@ local bp_signal_functions = {
   [4] = ReadWrite(ReportBlueprintLabel,UpdateBlueprintLabel),
   [5] = ReadWrite(ReportBlueprintIcons,UpdateBlueprintIcons),
   [6] = ReadWrite(ReportBlueprintTile,UpdateBlueprintTile),
-  [7] = UpdateBlueprintEntity,
+  [7] = ReadWrite(ReportBlueprintEntity,UpdateBlueprintEntity),
   [8] = ReadWrite(ReportBlueprintItemRequests,UpdateBlueprintItemRequests),
   [10] = ReadWrite(ReportBlueprintSchedule,UpdateBlueprintSchedule),
-  --TODO: read/write blueprint tiles/entities
 }
 
 local book_signal_functions = {

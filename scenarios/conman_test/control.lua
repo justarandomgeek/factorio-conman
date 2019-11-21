@@ -1272,8 +1272,9 @@ local tests = {
 
         },
         cc2 = {
-            {signal = knownsignals.redwire, count = 1},
+            {signal = knownsignals.redwire, count = 0x40000001},
             {signal = knownsignals.greenwire, count = 2},
+            {signal = knownsignals.coppercable, count = -0x80000000},
         },
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-3,-3})
@@ -1290,10 +1291,17 @@ local tests = {
             if not (inv.getbar() == 4 and 
                 inv.get_filter(1) == knownsignals.redwire.name and
                 inv.get_filter(2) == knownsignals.greenwire.name and
-                inv.get_filter(3) == nil
+                inv.get_filter(3) == nil and 
+                inv.get_filter(31) == knownsignals.redwire.name and
+                inv.get_filter(32) == knownsignals.coppercable.name and
+                inv.get_filter(33) == knownsignals.coppercable.name and
+                inv.get_filter(34) == knownsignals.coppercable.name and
+                inv.get_filter(35) == knownsignals.coppercable.name and
+                inv.get_filter(36) == knownsignals.coppercable.name and
+                inv.get_filter(37) == knownsignals.coppercable.name and
+                inv.get_filter(38) == knownsignals.coppercable.name and
+                inv.get_filter(39) == knownsignals.coppercable.name
                 ) then return false end
-            
-            
             ghost.destroy()
 
             for _,ent in pairs(global.rails) do ent.destroy() end

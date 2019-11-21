@@ -284,14 +284,20 @@ end
 
 local ConstructionOrderControlBehavior =
 {
-  [defines.control_behavior.type.constant_combinator] = function(ghost,control,manager,signals1,signals2)
+  [defines.control_behavior.type.constant_combinator] = function(ghost,control,manager,signals1,signals2,forblueprint)
     local filters = {}
     if signals2 then
       for i,s in pairs(signals2) do
         filters[#filters+1]={index = #filters+1, count = s.count, signal = s.signal}
       end
     end
-    control.parameters={parameters=filters}
+    if forblueprint then 
+      control.filters=filters 
+      control.is_on = get_signal_from_set(knownsignals.O,signals1) == 0
+    else
+      control.parameters={parameters=filters}
+      control.enabled = get_signal_from_set(knownsignals.O,signals1) == 0
+    end
   end,
   [defines.control_behavior.type.arithmetic_combinator] = function(ghost,control,manager,signals1,signals2)
     local siglist = {}
@@ -1010,7 +1016,7 @@ local function UpdateBlueprintTile(manager,signals1,signals2)
 end
 
 local ReportGenericOnOffControl(control,cc1,cc2)
-  local condition = control.condtion
+  local condition = control.condition or control.circuit_condition
   if condition then
     if condition.first_signal then 
       if condition.first_signal.name == "signal-anything" then
@@ -1027,44 +1033,286 @@ local ReportGenericOnOffControl(control,cc1,cc2)
     if condition.constant then
       cc1[#cc1+1]={index=#cc1+1,count=condition.constant,signal=knownsignals.K}
     end
+    if condition.comparator then
+      for i,op in pairs(deciderop) do
+        if condition.comparator == op then
+          cc1[#cc1+1]={index=#cc1+1,count=i,signal=knownsignals.O}
+          break
+        end
+      end
+    end
   end
 end
 local ReportControlBehavior = {
-  [defines.control_behavior.type.accumulator] = function(control,cc1,cc2)
+  [defines.control_behavior.type.constant_combinator] = function(control,cc1,cc2)
+    if control.filters then 
+      for _,filter in pairs(control.filters) do
+        filter.index = #cc2+1
+        cc2[#cc2+1]=filter
+      end
+    end
+    if control.is_on == false then
+      cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.O}
+    end
   end,
   [defines.control_behavior.type.arithmetic_combinator] = function(control,cc1,cc2)
-  end,
-  [defines.control_behavior.type.constant_combinator] = function(control,cc1,cc2)
-  end,
-  [defines.control_behavior.type.container] = function(control,cc1,cc2)
+    local condition = control.arithmetic_conditions
+    if condition then
+      if condition.first_signal then 
+        if condition.first_signal.name == "signal-each" then
+          if condition.output_signal and condition.output_signal.name == "signal-each" then
+            cc1[#cc1+1]={index=#cc1+1,count=2,signal=knownsignals.S}
+          else
+            cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.S}
+            if condition.output_signal then
+              cc2[#cc2+1]={index=#cc2+1,count=4,signal=condition.output_signal}
+            end
+          end
+        else
+          cc2[#cc2+1]={index=#cc2+1,count=1,signal=condition.first_signal}
+          if condition.output_signal then
+            cc2[#cc2+1]={index=#cc2+1,count=4,signal=condition.output_signal}
+          end
+        end
+      end
+      if condition.second_signal then 
+        cc2[#cc2+1]={index=#cc2+1,count=2,signal=condition.second_signal}
+      end
+      if condition.first_constant then
+        cc1[#cc1+1]={index=#cc1+1,count=condition.first_constant,signal=knownsignals.J}
+      end
+      if condition.second_constant then
+        cc1[#cc1+1]={index=#cc1+1,count=condition.second_constant,signal=knownsignals.K}
+      end
+      if condition.operation  then
+        for i,op in pairs(arithop) do
+          if condition.operation == op then
+            cc1[#cc1+1]={index=#cc1+1,count=i,signal=knownsignals.O}
+            break
+          end
+        end
+      end
+    end
   end,
   [defines.control_behavior.type.decider_combinator] = function(control,cc1,cc2)
-  end,
-  [defines.control_behavior.type.inserter] = function(control,cc1,cc2)
-  end,
-  [defines.control_behavior.type.lamp] = function(control,cc1,cc2)
-  end,
-  [defines.control_behavior.type.logistic_container] = function(control,cc1,cc2)
-  end,
-  [defines.control_behavior.type.mining_drill] = function(control,cc1,cc2)
-  end,
-  [defines.control_behavior.type.programmable_speaker] = function(control,cc1,cc2)
-  end,
-  [defines.control_behavior.type.rail_chain_signal] = function(control,cc1,cc2)
-  end,
-  [defines.control_behavior.type.rail_signal] = function(control,cc1,cc2)
-  end,
-  [defines.control_behavior.type.roboport] = function(control,cc1,cc2)
-  end,
-  [defines.control_behavior.type.storage_tank] = function(control,cc1,cc2)
-  end,
-  [defines.control_behavior.type.train_stop] = function(control,cc1,cc2)
-  end,
-  [defines.control_behavior.type.transport_belt] = function(control,cc1,cc2)
-  end,
-  [defines.control_behavior.type.wall] = function(control,cc1,cc2)
+    local condition = control.decider_conditions
+    if condition then
+      if condition.first_signal then 
+        if condition.first_signal.name == "signal-each" then
+          if condition.output_signal and condition.output_signal.name == "signal-each" then
+            cc1[#cc1+1]={index=#cc1+1,count=2,signal=knownsignals.S}
+          else
+            cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.S}
+            if condition.output_signal then
+              cc2[#cc2+1]={index=#cc2+1,count=4,signal=condition.output_signal}
+            end
+          end
+        elseif condition.first_signal.name == "signal-anything" then
+          if condition.output_signal and condition.output_signal.name == "signal-everything" then
+            cc1[#cc1+1]={index=#cc1+1,count=4,signal=knownsignals.S}
+          else
+            cc1[#cc1+1]={index=#cc1+1,count=3,signal=knownsignals.S}
+            if condition.output_signal then
+              cc2[#cc2+1]={index=#cc2+1,count=4,signal=condition.output_signal}
+            end
+          end
+        elseif condition.first_signal.name == "signal-everything" then
+          if condition.output_signal and condition.output_signal.name == "signal-everything" then
+            cc1[#cc1+1]={index=#cc1+1,count=6,signal=knownsignals.S}
+          else
+            cc1[#cc1+1]={index=#cc1+1,count=5,signal=knownsignals.S}
+            if condition.output_signal then
+              cc2[#cc2+1]={index=#cc2+1,count=4,signal=condition.output_signal}
+            end
+          end
+        else
+          cc2[#cc2+1]={index=#cc2+1,count=1,signal=condition.first_signal}
+          if condition.output_signal then
+            if condition.output_signal.name == "signal-everything" then
+              cc1[#cc1+1]={index=#cc1+1,count=7,signal=knownsignals.S}
+            else
+              cc2[#cc2+1]={index=#cc2+1,count=4,signal=condition.output_signal}
+            end
+          end
+        end
+      end
+      if condition.second_signal then 
+        cc2[#cc2+1]={index=#cc2+1,count=2,signal=condition.second_signal}
+      end
+      if condition.first_constant then
+        cc1[#cc1+1]={index=#cc1+1,count=condition.first_constant,signal=knownsignals.J}
+      end
+      if condition.second_constant then
+        cc1[#cc1+1]={index=#cc1+1,count=condition.second_constant,signal=knownsignals.K}
+      end
+      if condition.comparator then
+        for i,op in pairs(deciderop) do
+          if condition.comparator == op then
+            cc1[#cc1+1]={index=#cc1+1,count=i,signal=knownsignals.O}
+            break
+          end
+        end
+      end
+      if control.copy_count_from_input == false then
+        cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.F}
+      end
+    end
   end,
   [defines.control_behavior.type.generic_on_off] = ReportGenericOnOffControl,
+  [defines.control_behavior.type.mining_drill] = function(control,cc1,cc2)
+    ReportGenericOnOffControl(control,cc1,cc2)
+    if control.circuit_enable_disable then
+      cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.E}
+    end
+    if control.circuit_read_resources then
+      if control.resource_read_mode == defines.control_behavior.mining_drill.resource_read_mode.this_miner then
+        cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.R}
+      elseif control.resource_read_mode == defines.control_behavior.mining_drill.resource_read_mode.entire_patch then
+        cc1[#cc1+1]={index=#cc1+1,count=2,signal=knownsignals.R}
+      end
+    end
+  end,
+  [defines.control_behavior.type.train_stop] = function(control,cc1,cc2)
+    ReportGenericOnOffControl(control,cc1,cc2)
+    if control.circuit_enable_disable then
+      cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.E}
+    end
+    if control.read_stopped_train and control.stopped_train_signal then
+      cc2[#cc2+1]={index=#cc2+1,count=4,signal=control.stopped_train_signal}
+    end
+    if control.read_from_train then
+      cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.R}
+    end
+    if control.send_to_train then
+      cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.T}
+    end
+  end,
+  [defines.control_behavior.type.inserter] = function(control,cc1,cc2)
+    ReportGenericOnOffControl(control,cc1,cc2)
+    if control.circuit_mode_of_operation == defines.control_behavior.inserter.circuit_mode_of_operation.enable_disable then
+      cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.E}
+    elseif control.circuit_mode_of_operation == defines.control_behavior.inserter.circuit_mode_of_operation.set_filters then
+      cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.F}
+    end
+    if control.circuit_read_hand_contents and control.circuit_hand_read_mode then
+      if control.circuit_hand_read_mode == defines.control_behavior.inserter.hand_read_mode.pulse then
+        cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.R}
+      elseif control.circuit_hand_read_mode == defines.control_behavior.inserter.hand_read_mode.hold then
+        cc1[#cc1+1]={index=#cc1+1,count=2,signal=knownsignals.R}
+      end
+    end
+    if control.circuit_set_stack_size and control.circuit_stack_control_signal then
+      cc2[#cc2+1]={index=#cc2+1,count=4,signal=control.circuit_stack_control_signal}
+    end
+  end,
+  [defines.control_behavior.type.lamp] = function(control,cc1,cc2)
+    ReportGenericOnOffControl(control,cc1,cc2)
+    if control.use_colors then
+      cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.C}
+    end
+  end,
+  [defines.control_behavior.type.logistic_container] = function(control,cc1,cc2)
+    if control.circuit_mode_of_operation == defines.control_behavior.logistic_container.circuit_mode_of_operation.set_requests then
+      cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.R}
+    end
+  end,
+  [defines.control_behavior.type.roboport] = function(control,cc1,cc2)
+    if ccontrol.mode_of_operations == defines.control_behavior.roboport.circuit_mode_of_operation.read_robot_stats then
+      cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.R}
+    end
+
+    if control.available_logistic_output_signal then
+      cc2[#cc2+1]={index=#cc2+1,count=1,signal=control.available_logistic_output_signal}
+    end
+    if control.total_logistic_output_signal then
+      cc2[#cc2+1]={index=#cc2+1,count=2,signal=control.total_logistic_output_signal}
+    end
+    if control.available_construction_output_signal then
+      cc2[#cc2+1]={index=#cc2+1,count=4,signal=control.available_construction_output_signal}
+    end
+    if control.total_construction_output_signal then
+      cc2[#cc2+1]={index=#cc2+1,count=8,signal=control.total_construction_output_signal}
+    end
+
+  end,
+  [defines.control_behavior.type.transport_belt] = function(control,cc1,cc2)
+    ReportGenericOnOffControl(control,cc1,cc2)
+    if control.enable_disable then
+      cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.E}
+    end
+    if control.read_contents and control.read_contents_mode then
+      if control.read_contents_mode == defines.control_behavior.transport_belt.content_read_mode.pulse then
+        cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.R}
+      elseif control.read_contents_mode == defines.control_behavior.transport_belt.content_read_mode.hold then
+        cc1[#cc1+1]={index=#cc1+1,count=2,signal=knownsignals.R}
+      end
+    end
+    
+  end,
+  [defines.control_behavior.type.accumulator] = function(control,cc1,cc2)
+    if control.output_signal then
+      cc2[#cc2+1]={index=#cc2+1,count=1,signal=control.output_signal}
+    end
+  end,
+  [defines.control_behavior.type.rail_signal] = function(control,cc1,cc2)
+    ReportGenericOnOffControl(control,cc1,cc2)
+    if control.close_signal then
+      cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.E}
+    end
+    if control.read_signal then
+      cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.R}
+    end
+    if control.red_signal then
+      cc2[#cc2+1]={index=#cc2+1,count=4,signal=control.red_signal}
+    end
+    if control.orange_signal then
+      cc2[#cc2+1]={index=#cc2+1,count=8,signal=control.orange_signal}
+    end
+    if control.green_signal then
+      cc2[#cc2+1]={index=#cc2+1,count=16,signal=control.green_signal}
+    end
+  end,
+  [defines.control_behavior.type.rail_chain_signal] = function(control,cc1,cc2)
+    if control.red_signal then
+      cc2[#cc2+1]={index=#cc2+1,count=4,signal=control.red_signal}
+    end
+    if control.orange_signal then
+      cc2[#cc2+1]={index=#cc2+1,count=8,signal=control.orange_signal}
+    end
+    if control.green_signal then
+      cc2[#cc2+1]={index=#cc2+1,count=16,signal=control.green_signal}
+    end
+    if control.blue_signal then
+      cc2[#cc2+1]={index=#cc2+1,count=32,signal=control.blue_signal}
+    end
+  end,
+  [defines.control_behavior.type.wall] = function(control,cc1,cc2)
+    ReportGenericOnOffControl(control,cc1,cc2)
+    if control.open_gate then
+      cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.E}
+    end
+    if control.read_sensor then
+      cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.R}
+    end
+    if control.output_signal then
+      cc2[#cc2+1]={index=#cc2+1,count=4,signal=control.output_signal}
+    end
+  end,
+  [defines.control_behavior.type.programmable_speaker] = function(control,cc1,cc2)
+    ReportGenericOnOffControl(control,cc1,cc2)
+    local parameters = control.circuit_parameters
+    if parameters then
+      if parameters.signal_value_is_pitch then
+        cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.V}
+      end
+      if parameters.instrument_id then
+        cc1[#cc1+1]={index=#cc1+1,count=parameters.instrument_id,signal=knownsignals.I}
+      end
+      if parameters.note_id then
+        cc1[#cc1+1]={index=#cc1+1,count=parameters.note_id,signal=knownsignals.J}
+      end
+    end
+  end,
 }
 
 local function ReportItemFilters(filters,outsignals)
@@ -1128,7 +1376,14 @@ local function ReportBlueprintEntity(manager,signals1,signals2)
       end
 
       if entity.filters then
-        ReportItemFilters(entity.filters,cc2)
+        if entproto.type == "inserter" then
+          --need to do inserter filters differently, to free bits for condition...
+          for _,filter in pairs(entity.filters) do 
+            cc2[#cc2+1]={index=#cc2+1,count=bit32.lshift(1,filter.index + 2) ,signal={type="item",name=filter.item}}
+          end
+        else 
+          ReportItemFilters(entity.filters,cc2)
+        end
       end
 
       if entity.type == "output" then 
@@ -1205,7 +1460,7 @@ local function ReportBlueprintEntity(manager,signals1,signals2)
       end
 
       if entity.control_behavior then
-        local controltype = EntityTypeToControlBehavior[createorder.ghost_prototype.type]
+        local controltype = EntityTypeToControlBehavior[entproto.type]
         if controltype then
         local special = ReportControlBehavior[controltype]
         if special then

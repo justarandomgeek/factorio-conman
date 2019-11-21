@@ -34,8 +34,12 @@ end
 local tests = {
     ["profilestart"] ={
         prepare = function()
-            if not global.profilecount then
-                remote.call("conman","startProfile")
+            if remote.call("conman","hasProfiler") then
+                if not global.profilecount then
+                    remote.call("conman","startProfile")
+                end
+            else
+                remote.call("conman","startCoverage")
             end
         end,
         cc1 = {
@@ -2215,6 +2219,8 @@ local tests = {
                 else
                     global.testid = nil
                 end
+            else
+                remote.call("conman","stopCoverage")
             end
             return true
         end

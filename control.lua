@@ -2044,4 +2044,26 @@ remote.add_interface('conman',{
   stopProfile = function()
     if Profiler then Profiler.Stop() end
   end,
+  startCoverage = function()
+    coverage = {}
+    debug.sethook(function(event,line)
+      local s = debug.getinfo(2).short_src
+      if not coverage[s] then coverage[s] = {} end
+      coverage[s][line] = (coverage[s][line] or 0) + 1
+    end,"l")
+  end,
+  stopCoverage = function()
+    debug.sethook(nil,"l")
+    local lines = {}
+    lines[#lines+1] = "TN:conman\n"
+    for file,line_numbers in pairs(coverage) do
+      lines[#lines+1] = "SF:"..file.."\n"
+      for line,count in pairs(line_numbers) do
+        lines[#lines+1] = "DA:"..line..","..count.."\n"
+      end
+    end
+    lines[#lines+1] = "end_of_record\n"
+    game.write_file("lcov.info",table.concat(lines))
+    coverage = nil
+  end,
 })

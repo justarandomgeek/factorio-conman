@@ -2035,6 +2035,7 @@ remote.add_interface('conman',{
     end
   end,
   
+  -- These functions are intended for use by the test scenario to activate various instrumentation
   hasProfiler = function() 
     return Profiler ~= nil 
   end,
@@ -2057,7 +2058,9 @@ remote.add_interface('conman',{
     local lines = {}
     lines[#lines+1] = "TN:conman\n"
     for file,line_numbers in pairs(coverage) do
-      lines[#lines+1] = "SF:"..file.."\n"
+      local modname,filename = file:match("__(%a+)__/(.+)")
+      local modver = game.active_mods[modname]
+      lines[#lines+1] = string.format("SF:./%s_%s/%s\n",modname,modver,filename)
       for line,count in pairs(line_numbers) do
         lines[#lines+1] = "DA:"..line..","..count.."\n"
       end

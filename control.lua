@@ -1015,7 +1015,7 @@ local function UpdateBlueprintTile(manager,signals1,signals2)
   end
 end
 
-local ReportGenericOnOffControl(control,cc1,cc2)
+local function ReportGenericOnOffControl(control,cc1,cc2)
   local condition = control.condition or control.circuit_condition
   if condition then
     if condition.first_signal then 
@@ -1321,8 +1321,6 @@ local function ReportItemFilters(filters,outsignals)
   end
 end
 
-local function
-
 local function ReportBlueprintEntity(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read then
@@ -1462,9 +1460,10 @@ local function ReportBlueprintEntity(manager,signals1,signals2)
       if entity.control_behavior then
         local controltype = EntityTypeToControlBehavior[entproto.type]
         if controltype then
-        local special = ReportControlBehavior[controltype]
-        if special then
-          special(entity.control_behavior,cc1,cc2)
+          local special = ReportControlBehavior[controltype]
+          if special then
+            special(entity.control_behavior,cc1,cc2)
+          end
         end
       end
 

@@ -1247,6 +1247,29 @@ local tests = {
             return true
         end
     },
+    ["rocket-silo"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "rocket-silo"}, count = 1},
+            {signal = knownsignals.X, count = -6},
+            {signal = knownsignals.Y, count = -6},
+            {signal = knownsignals.A, count = 1},
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-5,-5})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+
+            if irp or not ghost then
+                return false
+            end
+
+            if not ghost.auto_launch then return false end
+            
+            ghost.destroy()
+            return true
+        end
+    },
     
     ["cargo-wagon"] = {
         prepare = function()
@@ -1410,6 +1433,7 @@ local tests = {
             local schedule = global.loco.train.schedule
 
             if not (
+                schedule and
                 schedule.records[1].station == "FOO" and
                 schedule.records[1].wait_conditions[1].type == "time" and schedule.records[1].wait_conditions[1].ticks == 123 and
                 schedule.records[2].station == "BAR" and
@@ -1787,6 +1811,7 @@ local tests = {
             {signal = knownsignals.V, count = -3},
             {signal = knownsignals.E, count = 1},
         },
+        cc2string ="CAPTURE",
         verify = function()
             local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
             local ents = bp.get_blueprint_entities()
@@ -1794,6 +1819,7 @@ local tests = {
             local tiles = bp.get_blueprint_tiles()
             if tiles then return false end
             for _,ent in pairs(global.entities) do ent.destroy() end
+            if bp.label ~= "CAPTURE" then return false end
             bp.clear()
             return true
         end
@@ -1825,6 +1851,13 @@ local tests = {
             {signal = knownsignals.V, count = -3},
             {signal = knownsignals.T, count = 1},
         },
+        cc2string ="CAPTURE",
+        cc2 = {
+            {signal = knownsignals.red, count = 255},
+            {signal = knownsignals.green, count = 255},
+            {signal = knownsignals.blue, count = 255},
+            {signal = knownsignals.white, count = 255},
+        },
         verify = function()
             local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
             local ents = bp.get_blueprint_entities()
@@ -1832,6 +1865,9 @@ local tests = {
             local tiles = bp.get_blueprint_tiles()
             if tiles and #tiles ~= 9 then return false end
             for _,ent in pairs(global.entities) do ent.destroy() end
+            if bp.label ~= "CAPTURE" then return false end
+            local color = bp.label_color
+            for _,v in pairs(color) do if v~=1 then return false end end
             bp.clear()
             return true
         end
@@ -2336,6 +2372,7 @@ script.on_event(defines.events.on_tick, function()
                 game.speed = 1
                 game.print("test failed")
                 remote.call("conman","stopProfile")
+                remote.call("conman","stopCoverage")
                 return
             end
         end

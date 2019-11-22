@@ -1873,7 +1873,7 @@ local function onTickManager(manager)
       else
         if game.active_mods["stringy-train-stop"] then
           local sigsched = get_signal_from_set(knownsignals.schedule,signals1)
-          if sigsched > 0 then
+          if sigsched == 1 or (sigsched > 0 and manager.schedule and sigsched <= #manager.schedule+1) then
             if not manager.schedule then manager.schedule = {} end
             local schedule = remote.call("stringy-train-stop", "parseScheduleEntry", signals1, manager.ent.surface)
             manager.schedule[sigsched] = schedule
@@ -2048,25 +2048,26 @@ remote.add_interface('conman',{
   startCoverage = function()
     coverage = {}
     debug.sethook(function(event,line)
-      local s = debug.getinfo(2).short_src
+      local s = debug.getinfo(2,"S").short_src
       if not coverage[s] then coverage[s] = {} end
       coverage[s][line] = (coverage[s][line] or 0) + 1
     end,"l")
   end,
   stopCoverage = function()
-    debug.sethook(nil,"l")
-    local lines = {}
-    lines[#lines+1] = "TN:conman\n"
-    for file,line_numbers in pairs(coverage) do
+    if not coverage then return end
+    debug.sethook()
+    local outlines = {}
+    outlines[#outlines+1] = "TN:conman\n"
+    for file,lines in pairs(coverage) do
       local modname,filename = file:match("__(%a+)__/(.+)")
       local modver = game.active_mods[modname]
-      lines[#lines+1] = string.format("SF:./%s_%s/%s\n",modname,modver,filename)
-      for line,count in pairs(line_numbers) do
-        lines[#lines+1] = "DA:"..line..","..count.."\n"
+      outlines[#outlines+1] = string.format("SF:./%s_%s/%s\n",modname,modver,filename)
+      for line,count in pairs(lines) do
+        outlines[#outlines+1] = "DA:"..line..","..count.."\n"
       end
     end
-    lines[#lines+1] = "end_of_record\n"
-    game.write_file("lcov.info",table.concat(lines))
+    outlines[#outlines+1] = "end_of_record\n"
+    game.write_file("lcov.info",table.concat(outlines))
     coverage = nil
   end,
 })

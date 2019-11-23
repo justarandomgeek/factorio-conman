@@ -821,7 +821,7 @@ local function ConnectWire(manager,signals1,signals2,color,disconnect)
   end
 end
 
-local function ReportLabel(manager,item)
+local function ReportLabel(manager,item,dumping)
   local outsignals = {}
   if item.label and remote.interfaces['signalstrings'] then
     -- create label signals
@@ -835,6 +835,7 @@ local function ReportLabel(manager,item)
     outsignals[#outsignals+1]={index=#outsignals+1,count=item.label_color.b*256,signal=knownsignals.blue}
     outsignals[#outsignals+1]={index=#outsignals+1,count=item.label_color.a*256,signal=knownsignals.white}
   end
+  if dumping then return outsignals end
   manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
   manager.clearcc2 = true
 end
@@ -936,21 +937,27 @@ local function ReportBlueprintBoM(manager,signals1,signals2)
     for k,v in pairs(bp.cost_to_build) do
       outsignals[#outsignals+1]={index=#outsignals+1,count=v,signal={name=k,type="item"}}
     end
+    manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
+    manager.clearcc2 = true
   end
-  manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
-  manager.clearcc2 = true
+end
+
+local function ReportBlueprintIconsInternal(bp)
+  local outsignals = {}
+  for _,icon in pairs(bp.blueprint_icons) do
+    outsignals[#outsignals+1]={index=#outsignals+1,count=bit32.lshift(1,icon.index - 1),signal=icon.signal}
+  end
+  return outsignals
 end
 
 local function ReportBlueprintIcons(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
-  local outsignals = {}
+  
   if bp.valid and bp.valid_for_read then
-    for _,icon in pairs(bp.blueprint_icons) do
-      outsignals[#outsignals+1]={index=#outsignals+1,count=bit32.lshift(1,icon.index - 1),signal=icon.signal}
-    end
+    manager.cc2.get_or_create_control_behavior().parameters={parameters=ReportBlueprintIconsInternal(bp)}
+    manager.clearcc2 = true
   end
-  manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
-  manager.clearcc2 = true
+  
 end
 
 local function UpdateBlueprintIcons(manager,signals1,signals2)
@@ -968,23 +975,26 @@ local function UpdateBlueprintIcons(manager,signals1,signals2)
   end
 end
 
+local function ReportBlueprintTileInternal(tile)
+  local outsignals = {}
+  local item = game.tile_prototypes[tile.name].items_to_place_this[1]
+  outsignals[1]={index=1,count=1,signal={type="item",name=item.name}}
+  outsignals[2]={index=2,count=tile.position.x,signal=knownsignals.X}
+  outsignals[3]={index=3,count=tile.position.y,signal=knownsignals.Y}
+  return outsignals
+end
 local function ReportBlueprintTile(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
-  local outsignals = {}
   if bp.valid and bp.valid_for_read then
     local tiles = bp.get_blueprint_tiles()
     local t = get_signal_from_set(knownsignals.T,signals1)
     
     if t > 0 and t <= #tiles then
       local tile = tiles[t]
-      local item = game.tile_prototypes[tile.name].items_to_place_this[1]
-      outsignals[1]={index=1,count=1,signal={type="item",name=item.name}}
-      outsignals[2]={index=2,count=tile.position.x,signal=knownsignals.X}
-      outsignals[3]={index=3,count=tile.position.y,signal=knownsignals.Y}
+      manager.cc2.get_or_create_control_behavior().parameters={parameters=ReportBlueprintTileInternal(tile)}
+      manager.clearcc2 = true
     end
   end
-  manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
-  manager.clearcc2 = true
 end
 
 local function UpdateBlueprintTile(manager,signals1,signals2)
@@ -1321,6 +1331,154 @@ local function ReportItemFilters(filters,outsignals)
   end
 end
 
+local function ReportBlueprintEntityInternal(entity,i)
+  local entproto = game.entity_prototypes[entity.name]
+  local preload = nil
+  local cc1 = {}
+  local cc2 = {}
+  
+  cc1[#cc1+1]={index=#cc1+1,count=7,signal=knownsignals.blueprint}
+  cc1[#cc1+1]={index=#cc1+1,count=i,signal=knownsignals.grey}
+
+  local item = entproto.items_to_place_this[1].name
+  local itemproto = game.item_prototypes[item]
+  local itemcount = 1
+  if itemproto.type == "rail-planner" and itemproto.curved_rail == entproto then
+    itemcount = 2
+  end
+  cc1[#cc1+1]={index=#cc1+1,count=itemcount,signal={type="item",name=item}}
+
+  cc1[#cc1+1]={index=#cc1+1,count=entity.position.x,signal=knownsignals.X}
+  cc1[#cc1+1]={index=#cc1+1,count=entity.position.y,signal=knownsignals.Y}
+
+  if entity.direction then
+    cc1[#cc1+1]={index=#cc1+1,count=entity.direction,signal=knownsignals.D}
+  elseif entity.orientation then
+    log("orientation " .. entity.orientation .. " on " .. entity.name)
+  end
+
+  if entity.recipe and remote.interfaces['recipeid'] then
+    local recipeid = remote.call('recipeid','map_recipe',entity.recipe)
+    if recipeid then
+      cc1[#cc1+1]={index=#cc1+1,count=recipeid,signal=knownsignals.R}
+    end
+  end
+
+  if entity.inventory then
+    local inv = entity.inventory
+    if inv.bar then 
+      cc1[#cc1+1]={index=#cc1+1,count=inv.bar,signal=knownsignals.B}
+    end
+    if inventory.filters then
+      ReportItemFilters(inventory.filters,cc2)
+    end
+  elseif entity.bar then
+    cc1[#cc1+1]={index=#cc1+1,count=entity.bar,signal=knownsignals.B}
+  end
+
+  if entity.filters then
+    if entproto.type == "inserter" then
+      --need to do inserter filters differently, to free bits for condition...
+      for _,filter in pairs(entity.filters) do 
+        cc2[#cc2+1]={index=#cc2+1,count=bit32.lshift(1,filter.index + 2) ,signal={type="item",name=filter.item}}
+      end
+    else 
+      ReportItemFilters(entity.filters,cc2)
+    end
+  end
+
+  if entity.type == "output" then 
+    cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.U}
+  end
+
+  local splitterside = {left = 1, right = 2 }
+  local inputside = splitterside[entity.input_priority]
+  if inputside then 
+    cc1[#cc1+1]={index=#cc1+1,count=inputside,signal=knownsignals.I}
+  end
+  local outputside = splitterside[entity.output_priority]
+  if outputside then 
+    cc1[#cc1+1]={index=#cc1+1,count=outputside,signal=knownsignals.O}
+  end
+
+  if entity.filter then
+    cc2[#cc2+1]={index=#cc2+1,count=1,signal={type="item",name=entity.filter}}
+  end
+
+  if entity.filter_mode == "blacklist" then
+    cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.B}
+  end
+
+  if entity.override_stack_size then
+    cc1[#cc1+1]={index=#cc1+1,count=entity.override_stack_size,signal=knownsignals.I}
+  end
+
+  if entity.request_filters then
+    ReportItemFilters(entity.request_filters,cc2)
+  end
+
+  if entity.request_from_buffer then
+    cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.R}
+  end
+
+  if entity.parameters then
+    local parameters = entity.parameters
+    if parameters.playback_volume then
+      cc1[#cc1+1]={index=#cc1+1,count=parameters.playback_volume * 100,signal=knownsignals.U}
+    end
+    if parameters.playback_globally then
+      cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.G}
+    end
+    if parameters.allow_polyphony then
+      cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.P}
+    end
+  end
+  if entity.alert_parameters then
+    local parameters = entity.alert_parameters
+    if parameters.show_alert then
+      cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.A}
+    end
+    if parameters.show_on_map then
+      cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.M}
+    end
+    if parameters.icon_signal_id then
+      cc1[#cc1+1]={index=#cc1+1,count=4,signal=parameters.icon_signal_id}
+    end
+    if parameters.alert_message then
+      preload = parameters.alert_message
+    end
+  end
+
+  if entity.color then
+    local color = entity.color
+    cc1[#cc1+1]={index=#cc1+1,count=color.r*256,signal=knownsignals.red}
+    cc1[#cc1+1]={index=#cc1+1,count=color.g*256,signal=knownsignals.green}
+    cc1[#cc1+1]={index=#cc1+1,count=color.b*256,signal=knownsignals.blue}
+    cc1[#cc1+1]={index=#cc1+1,count=color.a*256,signal=knownsignals.white}
+  end
+  if entity.station then
+    preload = entity.station
+  end
+
+  if entity.control_behavior then
+    local controltype = EntityTypeToControlBehavior[entproto.type]
+    if controltype then
+      local special = ReportControlBehavior[controltype]
+      if special then
+        special(entity.control_behavior,cc1,cc2)
+      end
+    end
+  end
+  local outframes = {}
+  if preload and remote.interfaces['signalstrings'] then
+    outframes[#outframes+1] = {{index=1,count=1,signal=knownsignals.info}}
+    outframes[#outframes+1] = remote.call('signalstrings','string_to_signals', item.label)
+  end
+  outframes[#outframes+1] = cc1
+  outframes[#outframes+1] = cc2
+  return outframes
+end
+
 local function ReportBlueprintEntity(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read then
@@ -1328,146 +1486,10 @@ local function ReportBlueprintEntity(manager,signals1,signals2)
     local i = get_signal_from_set(knownsignals.grey,signals1)
     if i > 0 and i <= #entities then
       local entity = entities[i]
-      local entproto = game.entity_prototypes[entity.name]
-
-      local preload = nil
-      local cc1 = {}
-      local cc2 = {}
-      
-      cc1[#cc1+1]={index=#cc1+1,count=7,signal=knownsignals.blueprint}
-      cc1[#cc1+1]={index=#cc1+1,count=i,signal=knownsignals.grey}
-
-      local item = entproto.items_to_place_this[1].name
-      local itemproto = game.item_prototypes[item]
-      local itemcount = 1
-      if itemproto.type == "rail-planner" and itemproto.curved_rail == entproto then
-        itemcount = 2
-      end
-      cc1[#cc1+1]={index=#cc1+1,count=itemcount,signal={type="item",name=item}}
-
-      cc1[#cc1+1]={index=#cc1+1,count=entity.position.x,signal=knownsignals.X}
-      cc1[#cc1+1]={index=#cc1+1,count=entity.position.y,signal=knownsignals.Y}
-
-      if entity.direction then
-        cc1[#cc1+1]={index=#cc1+1,count=entity.direction,signal=knownsignals.D}
-      elseif entity.orientation then
-        log("orientation " .. entity.orientation .. " on " .. entity.name)
-      end
-
-      if entity.recipe and remote.interfaces['recipeid'] then
-        local recipeid = remote.call('recipeid','map_recipe',entity.recipe)
-        if recipeid then
-          cc1[#cc1+1]={index=#cc1+1,count=recipeid,signal=knownsignals.R}
-        end
-      end
-
-      if entity.inventory then
-        local inv = entity.inventory
-        if inv.bar then 
-          cc1[#cc1+1]={index=#cc1+1,count=inv.bar,signal=knownsignals.B}
-        end
-        if inventory.filters then
-          ReportItemFilters(inventory.filters,cc2)
-        end
-      elseif entity.bar then
-        cc1[#cc1+1]={index=#cc1+1,count=entity.bar,signal=knownsignals.B}
-      end
-
-      if entity.filters then
-        if entproto.type == "inserter" then
-          --need to do inserter filters differently, to free bits for condition...
-          for _,filter in pairs(entity.filters) do 
-            cc2[#cc2+1]={index=#cc2+1,count=bit32.lshift(1,filter.index + 2) ,signal={type="item",name=filter.item}}
-          end
-        else 
-          ReportItemFilters(entity.filters,cc2)
-        end
-      end
-
-      if entity.type == "output" then 
-        cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.U}
-      end
-
-      local splitterside = {left = 1, right = 2 }
-      local inputside = splitterside[entity.input_priority]
-      if inputside then 
-        cc1[#cc1+1]={index=#cc1+1,count=inputside,signal=knownsignals.I}
-      end
-      local outputside = splitterside[entity.output_priority]
-      if outputside then 
-        cc1[#cc1+1]={index=#cc1+1,count=outputside,signal=knownsignals.O}
-      end
-
-      if entity.filter then
-        cc2[#cc2+1]={index=#cc2+1,count=1,signal={type="item",name=entity.filter}}
-      end
-
-      if entity.filter_mode == "blacklist" then
-        cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.B}
-      end
-
-      if entity.override_stack_size then
-        cc1[#cc1+1]={index=#cc1+1,count=entity.override_stack_size,signal=knownsignals.I}
-      end
-
-      if entity.request_filters then
-        ReportItemFilters(entity.request_filters,cc2)
-      end
-
-      if entity.request_from_buffer then
-        cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.R}
-      end
-
-      if entity.parameters then
-        local parameters = entity.parameters
-        if parameters.playback_volume then
-          cc1[#cc1+1]={index=#cc1+1,count=parameters.playback_volume * 100,signal=knownsignals.U}
-        end
-        if parameters.playback_globally then
-          cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.G}
-        end
-        if parameters.allow_polyphony then
-          cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.P}
-        end
-      end
-      if entity.alert_parameters then
-        local parameters = entity.alert_parameters
-        if parameters.show_alert then
-          cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.A}
-        end
-        if parameters.show_on_map then
-          cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.M}
-        end
-        if parameters.icon_signal_id then
-          cc1[#cc1+1]={index=#cc1+1,count=4,signal=parameters.icon_signal_id}
-        end
-        if parameters.alert_message then
-          preload = parameters.alert_message
-        end
-      end
-
-      if entity.color then
-        local color = entity.color
-        cc1[#cc1+1]={index=#cc1+1,count=color.r*256,signal=knownsignals.red}
-        cc1[#cc1+1]={index=#cc1+1,count=color.g*256,signal=knownsignals.green}
-        cc1[#cc1+1]={index=#cc1+1,count=color.b*256,signal=knownsignals.blue}
-        cc1[#cc1+1]={index=#cc1+1,count=color.a*256,signal=knownsignals.white}
-      end
-      if entity.station then
-        preload = entity.station
-      end
-
-      if entity.control_behavior then
-        local controltype = EntityTypeToControlBehavior[entproto.type]
-        if controltype then
-          local special = ReportControlBehavior[controltype]
-          if special then
-            special(entity.control_behavior,cc1,cc2)
-          end
-        end
-      end
-
+      local outframes = ReportBlueprintEntityInternal(entity,i)
       manager.cc2.get_or_create_control_behavior().parameters={parameters=outframes[1]}
+      outframes[1] = nil
+      manager.morecc2 = outframes
       manager.clearcc2 = true
     end
   end
@@ -1634,6 +1656,7 @@ local function ReportBlueprintSchedule(manager,signals1,signals2)
       local schedule_index = get_signal_from_set(knownsignals.schedule,signals1)
       if entity.schedule and schedule_index > 0 and schedule_index <= #entity.schedule then 
         local outsignals = remote.call("stringy-train-stop", "reportScheduleEntry", entity.schedule[schedule_index])
+        
         manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
         manager.clearcc2 = true
       end
@@ -1658,6 +1681,58 @@ local function UpdateBlueprintSchedule(manager,signals1,signals2)
         bp.set_blueprint_entities(entities)
       end
     end
+  end
+end
+
+local function DumpBlueprint(manager,signals1,signals2)
+  local bp = GetBlueprint(manager,signals1)
+  if bp.valid and bp.valid_for_read then
+    local outframes = {
+    --dump enough signals to recreate this blueprint from scratch
+    {{index=1,count=-2,signal=knownsignals.blueprint}},
+    {},
+    --Label
+    {{index=1,count=4,signal=knownsignals.blueprint}},
+    ReportLabel(manager,bp,true),
+    --Icons
+    {{index=1,count=5,signal=knownsignals.blueprint}},
+    ReportBlueprintIconsInternal(bp),
+    }
+    --Tiles
+    local tiles = bp.get_blueprint_tiles()
+    if tiles then
+      for t,tile in pairs(tiles) do
+        local tilesigs = ReportBlueprintTileInternal(tile)
+        tilesigs[#tilesigs+1] = {index=#tilesigs+1,count=5,signal=knownsignals.blueprint}
+        tilesigs[#tilesigs+1] = {index=#tilesigs+1,count=t,signal=knownsignals.T}
+
+        outframes[#outframes+1] = tilesigs
+        outframes[#outframes+1] = {} -- tiles have no cc2 data, but everything is pairs
+      end
+    end
+
+    --Entities
+    local entities = bp.get_blueprint_entities()
+    local entitycmds = {}
+    if entities then
+      for i,entity in pairs(entities) do
+        -- Preload string will be before entity if needed
+        local entityframes = ReportBlueprintEntityInternal(entity,i)
+        for _,frame in pairs(entityframes) do
+          outframes[#outframes+1] = frame
+        end
+        -- Item Requests after entity
+        -- Wire Connections after the second entity is placed
+      end
+    end
+    
+    --Train Schedules
+
+    --write output...
+    manager.cc2.get_or_create_control_behavior().parameters={parameters=outframes[1]}
+    outframes[1] = nil
+    manager.morecc2 = outframes
+    manager.clearcc2 = true
   end
 end
 
@@ -1795,6 +1870,7 @@ local bp_signal_functions = {
   [7] = ReadWrite(ReportBlueprintEntity,UpdateBlueprintEntity),
   [8] = ReadWrite(ReportBlueprintItemRequests,UpdateBlueprintItemRequests),
   [10] = ReadWrite(ReportBlueprintSchedule,UpdateBlueprintSchedule),
+  [11] = DumpBlueprint,
 }
 
 local book_signal_functions = {
@@ -1807,7 +1883,16 @@ local book_signal_functions = {
 }
 
 local function onTickManager(manager)
-  
+  if manager.morecc2 then 
+    local i,nextframe = next(manager.morecc2)
+    if nextframe then
+      manager.cc2.get_or_create_control_behavior().parameters={parameters=nextframe}
+      manager.morecc2[i] = nil
+      return
+    else
+      manager.morecc2 = nil
+    end
+  end
   if manager.clearcc2 then
     manager.clearcc2 = nil
     manager.cc2.get_or_create_control_behavior().parameters=nil
@@ -2013,6 +2098,12 @@ script.on_event(defines.events.on_robot_built_entity, onBuilt)
 No_Profiler_Commands = true
 local ProfilerLoaded,Profiler = pcall(require,'__profiler__/profiler.lua')
 if not ProfilerLoaded then Profiler=nil end
+No_Profiler_Commands = nil
+ProfilerLoaded = nil
+
+local CoverageLoaded,Coverage = pcall(require,'__coverage__/coverage.lua')
+if not CoverageLoaded then Coverage=nil end
+CoverageLoaded = nil
 
 remote.add_interface('conman',{
   --TODO: call to register items for custom decoding into ghost tags?
@@ -2044,30 +2135,5 @@ remote.add_interface('conman',{
   end,
   stopProfile = function()
     if Profiler then Profiler.Stop() end
-  end,
-  startCoverage = function()
-    coverage = {}
-    debug.sethook(function(event,line)
-      local s = debug.getinfo(2,"S").short_src
-      if not coverage[s] then coverage[s] = {} end
-      coverage[s][line] = (coverage[s][line] or 0) + 1
-    end,"l")
-  end,
-  stopCoverage = function()
-    if not coverage then return end
-    debug.sethook()
-    local outlines = {}
-    outlines[#outlines+1] = "TN:conman\n"
-    for file,lines in pairs(coverage) do
-      local modname,filename = file:match("__(%a+)__/(.+)")
-      local modver = game.active_mods[modname]
-      outlines[#outlines+1] = string.format("SF:./%s_%s/%s\n",modname,modver,filename)
-      for line,count in pairs(lines) do
-        outlines[#outlines+1] = "DA:"..line..","..count.."\n"
-      end
-    end
-    outlines[#outlines+1] = "end_of_record\n"
-    game.write_file("lcov.info",table.concat(outlines))
-    coverage = nil
   end,
 })

@@ -1,3 +1,13 @@
+CoverageLoaded,Coverage = pcall(require,'__coverage__/coverage.lua')
+if CoverageLoaded then
+    Coverage.LevelPath("conman","scenarios/conman_test/")
+else
+    Coverage=nil
+end
+CoverageLoaded = nil
+
+
+
 local knownsignals = require("__conman__/knownsignals.lua")
 
 function get_signals_filtered(filters,signals)
@@ -38,8 +48,6 @@ local tests = {
                 if not global.profilecount then
                     remote.call("conman","startProfile")
                 end
-            else
-                remote.call("conman","startCoverage")
             end
         end,
         cc1 = {
@@ -2245,6 +2253,27 @@ local tests = {
             return true
         end
     },
+    ["dump"] = {
+        prepare = function()
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            global.bp = bp
+            bp.import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
+        end,
+        multifeed = {
+            {
+                cc1 = {
+                    {signal = knownsignals.blueprint, count = 11},
+                },
+            },
+            {},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},
+        },
+        verify = function(outsignals)
+            log(serpent.dump(outsignals))
+            
+            return false
+        end
+    },
+    
     ["profileend"] ={
         prepare = function()
             
@@ -2263,8 +2292,6 @@ local tests = {
                 else
                     global.testid = nil
                 end
-            else
-                remote.call("conman","stopCoverage")
             end
             return true
         end
@@ -2283,8 +2310,9 @@ local states = {
 }
 
 
-script.on_init(function()
+script.on_event(defines.events.on_game_created_from_scenario,function()
     game.print("init")
+    if Coverage then Coverage.Start("conman_tests") end
     game.autosave_enabled = false
     game.speed = 1000
     global = {
@@ -2372,7 +2400,10 @@ script.on_event(defines.events.on_tick, function()
                 game.speed = 1
                 game.print("test failed")
                 remote.call("conman","stopProfile")
-                remote.call("conman","stopCoverage")
+                if Coverage then
+                    Coverage.Stop()
+                    Coverage.Report()
+                end
                 return
             end
         end
@@ -2384,6 +2415,10 @@ script.on_event(defines.events.on_tick, function()
         else
             global.state = states.finished
             game.speed = 1
+            if Coverage then
+                Coverage.Stop()
+                Coverage.Report()
+            end
             --game.set_game_state{ game_finished=true, player_won=true, can_continue=false }
         end
     end

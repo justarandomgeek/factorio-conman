@@ -2349,6 +2349,7 @@ end
 script.on_event(defines.events.on_tick, function()
     if global.state == states.prepare then
         game.print("prepare " .. global.testid)
+        if Coverage then Coverage.Start(global.testid) end
         global.outsignals = {}
         if global.test.prepare then
             global.test.prepare()

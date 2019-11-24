@@ -1,13 +1,3 @@
-CoverageLoaded,Coverage = pcall(require,'__coverage__/coverage.lua')
-if CoverageLoaded then
-    Coverage.LevelPath("conman","scenarios/conman_test/")
-else
-    Coverage=nil
-end
-CoverageLoaded = nil
-
-
-
 local knownsignals = require("__conman__/knownsignals.lua")
 
 function get_signals_filtered(filters,signals)
@@ -2312,7 +2302,7 @@ local states = {
 
 script.on_event(defines.events.on_game_created_from_scenario,function()
     game.print("init")
-    if Coverage then Coverage.Start("conman_tests") end
+    if remote.interfaces["coverage"] then remote.call("coverage","start","conman_tests") end
     game.autosave_enabled = false
     game.speed = 1000
     global = {
@@ -2349,7 +2339,7 @@ end
 script.on_event(defines.events.on_tick, function()
     if global.state == states.prepare then
         game.print("prepare " .. global.testid)
-        if Coverage then Coverage.Start(global.testid) end
+        if remote.interfaces["coverage"] then remote.call("coverage","start",global.testid) end
         global.outsignals = {}
         if global.test.prepare then
             global.test.prepare()
@@ -2401,10 +2391,7 @@ script.on_event(defines.events.on_tick, function()
                 game.speed = 1
                 game.print("test failed")
                 remote.call("conman","stopProfile")
-                if Coverage then
-                    Coverage.Stop()
-                    Coverage.Report()
-                end
+                if remote.interfaces["coverage"] then remote.call("coverage","report") end
                 return
             end
         end
@@ -2416,10 +2403,7 @@ script.on_event(defines.events.on_tick, function()
         else
             global.state = states.finished
             game.speed = 1
-            if Coverage then
-                Coverage.Stop()
-                Coverage.Report()
-            end
+            if remote.interfaces["coverage"] then remote.call("coverage","report") end
             --game.set_game_state{ game_finished=true, player_won=true, can_continue=false }
         end
     end

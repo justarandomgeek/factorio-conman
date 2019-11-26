@@ -2247,7 +2247,7 @@ local tests = {
         prepare = function()
             local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
             global.bp = bp
-            bp.import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
+            bp.import_stack("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")
         end,
         multifeed = {
             {
@@ -2255,10 +2255,24 @@ local tests = {
                     {signal = knownsignals.blueprint, count = 11},
                 },
             },
-            {},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},
+            {},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}, -- 20
+            {},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}, -- 40
+            {},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}, -- 60
+            {},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}, -- 80
+            {},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}, -- 100
+            {},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}, -- 120
+            {},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}, -- 140
+            {},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}, -- 160
+            {},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}, -- 180
+            {},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}, -- 200
+            {},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}, -- 220
+            {},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}, -- 240
+            {},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}, -- 260
+            {},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}, -- 280
+            {},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}, -- 300
         },
         verify = function(outsignals)
-            log(serpent.dump(outsignals))
+            --log(serpent.block(outsignals))
             
             return false
         end

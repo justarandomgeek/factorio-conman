@@ -1149,11 +1149,8 @@ local ReportControlBehavior = {
       if condition.second_signal then 
         cc2[#cc2+1]={index=#cc2+1,count=2,signal=condition.second_signal}
       end
-      if condition.first_constant then
-        cc1[#cc1+1]={index=#cc1+1,count=condition.first_constant,signal=knownsignals.J}
-      end
-      if condition.second_constant then
-        cc1[#cc1+1]={index=#cc1+1,count=condition.second_constant,signal=knownsignals.K}
+      if condition.constant then
+        cc1[#cc1+1]={index=#cc1+1,count=condition.constant,signal=knownsignals.K}
       end
       if condition.comparator then
         for i,op in pairs(deciderop) do
@@ -1163,7 +1160,7 @@ local ReportControlBehavior = {
           end
         end
       end
-      if control.copy_count_from_input == false then
+      if condition.copy_count_from_input == false then
         cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.F}
       end
     end
@@ -1175,9 +1172,9 @@ local ReportControlBehavior = {
       cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.E}
     end
     if control.circuit_read_resources then
-      if control.resource_read_mode == defines.control_behavior.mining_drill.resource_read_mode.this_miner then
+      if control.circuit_resource_read_mode == defines.control_behavior.mining_drill.resource_read_mode.this_miner then
         cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.R}
-      elseif control.resource_read_mode == defines.control_behavior.mining_drill.resource_read_mode.entire_patch then
+      elseif control.circuit_resource_read_mode == defines.control_behavior.mining_drill.resource_read_mode.entire_patch then
         cc1[#cc1+1]={index=#cc1+1,count=2,signal=knownsignals.R}
       end
     end
@@ -1187,8 +1184,8 @@ local ReportControlBehavior = {
     if control.circuit_enable_disable then
       cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.E}
     end
-    if control.read_stopped_train and control.stopped_train_signal then
-      cc2[#cc2+1]={index=#cc2+1,count=4,signal=control.stopped_train_signal}
+    if control.read_stopped_train and control.train_stopped_signal then
+      cc2[#cc2+1]={index=#cc2+1,count=4,signal=control.train_stopped_signal}
     end
     if control.read_from_train then
       cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.R}
@@ -1199,7 +1196,7 @@ local ReportControlBehavior = {
   end,
   [defines.control_behavior.type.inserter] = function(control,cc1,cc2)
     ReportGenericOnOffControl(control,cc1,cc2)
-    if control.circuit_mode_of_operation == defines.control_behavior.inserter.circuit_mode_of_operation.enable_disable then
+    if not control.circuit_mode_of_operation or control.circuit_mode_of_operation == defines.control_behavior.inserter.circuit_mode_of_operation.enable_disable then
       cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.E}
     elseif control.circuit_mode_of_operation == defines.control_behavior.inserter.circuit_mode_of_operation.set_filters then
       cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.F}
@@ -1211,8 +1208,8 @@ local ReportControlBehavior = {
         cc1[#cc1+1]={index=#cc1+1,count=2,signal=knownsignals.R}
       end
     end
-    if control.circuit_set_stack_size and control.circuit_stack_control_signal then
-      cc2[#cc2+1]={index=#cc2+1,count=4,signal=control.circuit_stack_control_signal}
+    if control.circuit_set_stack_size and control.stack_control_input_signal then
+      cc2[#cc2+1]={index=#cc2+1,count=4,signal=control.stack_control_input_signal}
     end
   end,
   [defines.control_behavior.type.lamp] = function(control,cc1,cc2)
@@ -1227,7 +1224,7 @@ local ReportControlBehavior = {
     end
   end,
   [defines.control_behavior.type.roboport] = function(control,cc1,cc2)
-    if ccontrol.mode_of_operations == defines.control_behavior.roboport.circuit_mode_of_operation.read_robot_stats then
+    if control.circuit_mode_of_operation == defines.control_behavior.roboport.circuit_mode_of_operation.read_robot_stats then
       cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.R}
     end
 
@@ -1250,10 +1247,10 @@ local ReportControlBehavior = {
     if control.enable_disable then
       cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.E}
     end
-    if control.read_contents and control.read_contents_mode then
-      if control.read_contents_mode == defines.control_behavior.transport_belt.content_read_mode.pulse then
+    if control.circuit_read_hand_contents and control.circuit_content_read_mode then
+      if control.circuit_content_read_mode == defines.control_behavior.transport_belt.content_read_mode.pulse then
         cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.R}
-      elseif control.read_contents_mode == defines.control_behavior.transport_belt.content_read_mode.hold then
+      elseif control.circuit_content_read_mode == defines.control_behavior.transport_belt.content_read_mode.hold then
         cc1[#cc1+1]={index=#cc1+1,count=2,signal=knownsignals.R}
       end
     end
@@ -1266,42 +1263,42 @@ local ReportControlBehavior = {
   end,
   [defines.control_behavior.type.rail_signal] = function(control,cc1,cc2)
     ReportGenericOnOffControl(control,cc1,cc2)
-    if control.close_signal then
+    if control.circuit_close_signal then
       cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.E}
     end
-    if control.read_signal then
+    if control.circuit_read_signal then
       cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.R}
     end
-    if control.red_signal then
+    if control.red_output_signal then
       cc2[#cc2+1]={index=#cc2+1,count=4,signal=control.red_signal}
     end
-    if control.orange_signal then
+    if control.orange_output_signal then
       cc2[#cc2+1]={index=#cc2+1,count=8,signal=control.orange_signal}
     end
-    if control.green_signal then
+    if control.green_output_signal then
       cc2[#cc2+1]={index=#cc2+1,count=16,signal=control.green_signal}
     end
   end,
   [defines.control_behavior.type.rail_chain_signal] = function(control,cc1,cc2)
-    if control.red_signal then
+    if control.red_output_signal then
       cc2[#cc2+1]={index=#cc2+1,count=4,signal=control.red_signal}
     end
-    if control.orange_signal then
+    if control.orange_output_signal then
       cc2[#cc2+1]={index=#cc2+1,count=8,signal=control.orange_signal}
     end
-    if control.green_signal then
+    if control.green_output_signal then
       cc2[#cc2+1]={index=#cc2+1,count=16,signal=control.green_signal}
     end
-    if control.blue_signal then
+    if control.blue_output_signal then
       cc2[#cc2+1]={index=#cc2+1,count=32,signal=control.blue_signal}
     end
   end,
   [defines.control_behavior.type.wall] = function(control,cc1,cc2)
     ReportGenericOnOffControl(control,cc1,cc2)
-    if control.open_gate then
+    if control.circuit_open_gate then
       cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.E}
     end
-    if control.read_sensor then
+    if control.circuit_read_sensor then
       cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.R}
     end
     if control.output_signal then
@@ -1327,7 +1324,7 @@ local ReportControlBehavior = {
 
 local function ReportItemFilters(filters,outsignals)
   for _,filter in pairs(filters) do 
-    outsignals[#outsignals+1]={index=#outsignals+1,count=filter.count or 1,signal={type="item",name=filter.item}}
+    outsignals[#outsignals+1]={index=#outsignals+1,count=filter.count or 1,signal={type="item",name=filter.name}}
   end
 end
 
@@ -1369,8 +1366,16 @@ local function ReportBlueprintEntityInternal(entity,i)
     if inv.bar then 
       cc1[#cc1+1]={index=#cc1+1,count=inv.bar,signal=knownsignals.B}
     end
-    if inventory.filters then
-      ReportItemFilters(inventory.filters,cc2)
+    if inv.filters then
+      for _,filter in pairs(inv.filters) do
+        if filter.name then
+          if filter.index < 32 then
+            cc2[#cc2+1]={index=#cc2+1,count=bit32.lshift(1,filter.index-1) ,signal={type="item",name=filter.name}}
+          elseif filter.index == 32 then
+            cc2[#cc2+1]={index=#cc2+1,count=-0x80000000 ,signal={type="item",name=filter.name}}
+          end
+        end
+      end
     end
   elseif entity.bar then
     cc1[#cc1+1]={index=#cc1+1,count=entity.bar,signal=knownsignals.B}
@@ -1379,8 +1384,8 @@ local function ReportBlueprintEntityInternal(entity,i)
   if entity.filters then
     if entproto.type == "inserter" then
       --need to do inserter filters differently, to free bits for condition...
-      for _,filter in pairs(entity.filters) do 
-        cc2[#cc2+1]={index=#cc2+1,count=bit32.lshift(1,filter.index + 2) ,signal={type="item",name=filter.item}}
+      for _,filter in pairs(entity.filters) do
+        cc2[#cc2+1]={index=#cc2+1,count=bit32.lshift(1,filter.index + 2) ,signal={type="item",name=filter.name}}
       end
     else 
       ReportItemFilters(entity.filters,cc2)
@@ -1409,15 +1414,15 @@ local function ReportBlueprintEntityInternal(entity,i)
     cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.B}
   end
 
-  if entity.override_stack_size then
-    cc1[#cc1+1]={index=#cc1+1,count=entity.override_stack_size,signal=knownsignals.I}
+  if entity.inserter_stack_size_override then
+    cc1[#cc1+1]={index=#cc1+1,count=entity.inserter_stack_size_override,signal=knownsignals.I}
   end
 
   if entity.request_filters then
     ReportItemFilters(entity.request_filters,cc2)
   end
 
-  if entity.request_from_buffer then
+  if entity.request_from_buffers then
     cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.R}
   end
 
@@ -1472,7 +1477,7 @@ local function ReportBlueprintEntityInternal(entity,i)
   local outframes = {}
   if preload and remote.interfaces['signalstrings'] then
     outframes[#outframes+1] = {{index=1,count=1,signal=knownsignals.info}}
-    outframes[#outframes+1] = remote.call('signalstrings','string_to_signals', item.label)
+    outframes[#outframes+1] = remote.call('signalstrings','string_to_signals', preload)
   end
   outframes[#outframes+1] = cc1
   outframes[#outframes+1] = cc2
@@ -1518,16 +1523,21 @@ local function UpdateBlueprintEntity(manager,signals1,signals2)
   end
 end
 
+local function ReportBlueprintItemRequestsInternal(items)
+  local outsignals = {}
+  for item,count in pairs(items) do
+    outsignals[#outsignals+1]={index=#outsignals+1,count=count,signal={name=item,type="item"}}
+  end
+  return outsignals
+end
+
 local function ReportBlueprintItemRequests(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read then
     local entities = bp.get_blueprint_entities() or {}
     local i = get_signal_from_set(knownsignals.grey,signals1)
     if i > 0 and i <= #entities then
-      local outsignals = {}
-      for item,count in pairs(entities[i].items) do
-        outsignals[#outsignals+1]={index=#outsignals+1,count=count,signal={name=item,type="item"}}
-      end
+      local outsignals = ReportBlueprintItemRequestsInternal(entities[i].items)
       manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
       manager.clearcc2 = true
     end
@@ -1545,6 +1555,20 @@ local function UpdateBlueprintItemRequests(manager,signals1,signals2)
   end
 end
 
+local function ReportBlueprintWireInternal(entity_id,connector_index,color,connection_index,connection)
+  local outsignals = {}
+  
+  outsignals[1]={index=1,count=1,signal=knownsignals[color .. "wire"]}
+
+  outsignals[2]={index=2,count=entity_id,signal=knownsignals.grey}
+  outsignals[3]={index=3,count=connector_index,signal=knownsignals.Z}
+  outsignals[4]={index=4,count=connection_index,signal=knownsignals.X}
+  
+  outsignals[5]={index=5,count=connection.entity_id,signal=knownsignals.white}
+  outsignals[6]={index=6,count=connection.circuit_id or 1,signal=knownsignals.Y}
+  return outsignals
+end
+
 local function ReportBlueprintWire(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read then
@@ -1556,14 +1580,11 @@ local function ReportBlueprintWire(manager,signals1,signals2)
       local connector_index = get_signal_from_set(knownsignals.Z,signals1)
       local redwire = get_signal_from_set(knownsignals.redwire,signals1)
       local greenwire = get_signal_from_set(knownsignals.greenwire,signals1)
-      local connector
-      if connector_index == 2 then
-        connector = "2"
-      else
+
+      if connector_index ~= 2 then
         connector_index = 1
-        connector = "1"
       end
-      connector = entity.connections[connector]
+      local connector = entity.connections[tostring(connector_index)]
       if not connector then return end
 
       local color
@@ -1578,18 +1599,11 @@ local function ReportBlueprintWire(manager,signals1,signals2)
       end
     
       if connector and connection_index > 0 and connection_index <= #connector then 
-        local outsignals = {}
+        
         local connection = connector[connection_index]
-        
-        outsignals[1]={index=1,count=1,signal=knownsignals[color .. "wire"]}
 
-        outsignals[2]={index=2,count=i,signal=knownsignals.grey}
-        outsignals[3]={index=3,count=connector_index,signal=knownsignals.Z}
-        outsignals[4]={index=4,count=connection_index,signal=knownsignals.X}
+        local outsignals = ReportBlueprintWireInternal(i,connector_index,color,connection_index,connection)
         
-        outsignals[5]={index=5,count=connection.entity_id,signal=knownsignals.white}
-        outsignals[6]={index=6,count=connection.circuit_id or 1,signal=knownsignals.Y}
-
         manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
         manager.clearcc2 = true
       end
@@ -1653,9 +1667,9 @@ local function ReportBlueprintSchedule(manager,signals1,signals2)
     local i = get_signal_from_set(knownsignals.grey,signals1)
     if i > 0 and i <= #entities then
       local entity = entities[i]
-      local schedule_index = get_signal_from_set(knownsignals.schedule,signals1)
+      local schedule_index = get_signal_from_set(knownsignals.schedule,signals2)
       if entity.schedule and schedule_index > 0 and schedule_index <= #entity.schedule then 
-        local outsignals = remote.call("stringy-train-stop", "reportScheduleEntry", entity.schedule[schedule_index])
+        local outsignals = remote.call("stringy-train-stop", "reportScheduleEntry", entity.schedule[schedule_index])[1]
         
         manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
         manager.clearcc2 = true
@@ -1670,9 +1684,9 @@ local function UpdateBlueprintSchedule(manager,signals1,signals2)
     local i = get_signal_from_set(knownsignals.grey,signals1)
     if i > 0 and i <= #entities then
       local entity = entities[i]
-      local schedule_index = get_signal_from_set(knownsignals.schedule,signals1)
+      local schedule_index = get_signal_from_set(knownsignals.schedule,signals2)
       if entity.schedule and schedule_index > 0 and schedule_index <= #entity.schedule + 1 then 
-        local newschedule = remote.call("stringy-train-stop", "parseScheduleEntry", signals1, manager.ent.surface)
+        local newschedule = remote.call("stringy-train-stop", "parseScheduleEntry", signals2, manager.ent.surface)
         if newschedule.rail then
           newschedule.rail = nil
           newschedule.station = ""
@@ -1703,7 +1717,7 @@ local function DumpBlueprint(manager,signals1,signals2)
     if tiles then
       for t,tile in pairs(tiles) do
         local tilesigs = ReportBlueprintTileInternal(tile)
-        tilesigs[#tilesigs+1] = {index=#tilesigs+1,count=5,signal=knownsignals.blueprint}
+        tilesigs[#tilesigs+1] = {index=#tilesigs+1,count=6,signal=knownsignals.blueprint}
         tilesigs[#tilesigs+1] = {index=#tilesigs+1,count=t,signal=knownsignals.T}
 
         outframes[#outframes+1] = tilesigs
@@ -1722,11 +1736,43 @@ local function DumpBlueprint(manager,signals1,signals2)
           outframes[#outframes+1] = frame
         end
         -- Item Requests after entity
+        if entity.items then 
+          outframes[#outframes+1] = {
+            {index=1,count=8,signal=knownsignals.blueprint},
+            {index=2,count=i,signal=knownsignals.grey},
+          }
+          outframes[#outframes+1] = ReportBlueprintItemRequestsInternal(entity.items)
+        end
         -- Wire Connections after the second entity is placed
+        if entity.connections then
+          for connector_index,connector in pairs(entity.connections) do
+            for color,connections in pairs(connector) do
+              for connection_index,connection in pairs(connections) do
+                if connection.entity_id <= i then
+                  local outsignals = ReportBlueprintWireInternal(i,connector_index,color,connection_index,connection)
+                  outsignals[#outsignals+1] = {index=#outsignals+1,count=9,signal=knownsignals.blueprint}
+                  outframes[#outframes+1] = outsignals
+                  outframes[#outframes+1] = {} --no cc2 data for wires
+                end 
+              end
+            end
+          end
+        end
+        -- Train Schedules for every Loco
+        --TODO: Dedup Train Schedules somehow?
+        if entity.schedule then
+          for stop_index,stop in pairs(entity.schedule) do
+            outframes[#outframes+1] = {
+              {index=1,count=10,signal=knownsignals.blueprint},
+              {index=2,count=i,signal=knownsignals.grey},
+            }
+            local outsignals = remote.call("stringy-train-stop", "reportScheduleEntry", stop)[1] -- array of one element for now, multiple frames for OR groups eventually
+            outsignals[#outsignals+1] = {index=#outsignals+1,count=stop_index,signal=knownsignals.schedule}
+            outframes[#outframes+1] = outsignals
+          end
+        end
       end
     end
-    
-    --Train Schedules
 
     --write output...
     manager.cc2.get_or_create_control_behavior().parameters={parameters=outframes[1]}
@@ -1886,11 +1932,22 @@ local function onTickManager(manager)
   if manager.morecc2 then 
     local i,nextframe = next(manager.morecc2)
     if nextframe then
+      if i%2 == 0 then
+        manager.evens = (manager.evens or 0) + 1
+        if #nextframe == 0  then
+          manager.empties = (manager.empties or 0) + 1
+        end
+      end
+      log(i)
+      log(serpent.dump(nextframe))
       manager.cc2.get_or_create_control_behavior().parameters={parameters=nextframe}
       manager.morecc2[i] = nil
       return
     else
       manager.morecc2 = nil
+      log((manager.empties or 0) .. "/" .. (manager.evens or 0))
+      manager.evens = 0
+      manager.empties = 0
     end
   end
   if manager.clearcc2 then

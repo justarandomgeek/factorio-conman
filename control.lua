@@ -46,18 +46,18 @@ local signalsets = {
 
 
 local function ReadPosition(signals,secondary,offset)
-  if not offset then offset=0.5 end
+  if not offset then offset={x=0,y=0} end
   if not secondary then
     local p = get_signals_filtered(signalsets.position1,signals)
     return {
-      x = (p.x or 0)+offset,
-      y = (p.y or 0)+offset,
+      x = (p.x or 0)+offset.x,
+      y = (p.y or 0)+offset.y,
     }
   else
     local p = get_signals_filtered(signalsets.position2,signals)
     return {
-      x = (p.x or 0)+offset,
-      y = (p.y or 0)+offset,
+      x = (p.x or 0)+offset.x,
+      y = (p.y or 0)+offset.y,
     }
   end
 end
@@ -68,7 +68,7 @@ end
 
 local function ReadBoundingBox(signals)
   -- adjust offests to make *inclusive* selection
-  return {ReadPosition(signals,false,0),ReadPosition(signals,true,1)}
+  return {ReadPosition(signals,false,{x=0,y=0}),ReadPosition(signals,true,{x=1,y=1})}
 end
 
 local function ReadFilters(signals,count)
@@ -213,10 +213,6 @@ local ConstructionOrderEntitySpecific =
       createorder.color = ReadColor(signals1)
       createorder.color.a = a
     end
-    -- un-offset locos, they don't snap very well apparently
-    createorder.position.x = createorder.position.x - 0.5
-    createorder.position.y = createorder.position.y - 0.5
-    
   end,
   ["cargo-wagon"] = function(createorder,entproto,signals1,signals2)
     createorder.inventory = {
@@ -224,9 +220,6 @@ local ConstructionOrderEntitySpecific =
       filters = ReadInventoryFilters(signals2, entproto.get_inventory_size(defines.inventory.cargo_wagon))
     }
     createorder.bar = nil
-    -- un-offset cargo wagons, they don't snap very well apparently
-    createorder.position.x = createorder.position.x - 0.5
-    createorder.position.y = createorder.position.y - 0.5
     local a = get_signal_from_set(knownsignals.white,signals1)
     if a > 0 and a <= 256 then
       createorder.color = ReadColor(signals1)
@@ -255,7 +248,7 @@ local ConstructionOrderEntitySpecific =
   ["decider-combinator"] = nocc2,
 }
 
-local function ReadGenericOnOffControl(ghost,control,manager,signals1,signals2)
+local function ReadGenericOnOffControl(ghost,control,manager,signals1,signals2,forblueprint)
   local siglist = {}
   if signals2 then
     siglist = ReadSignalList(signals2)
@@ -271,13 +264,22 @@ local function ReadGenericOnOffControl(ghost,control,manager,signals1,signals2)
     siglist[1] = specials.every
   end
 
-  control.circuit_condition={ condition = {
-    first_signal = siglist[1],
-    second_signal = siglist[2],
-    constant = get_signal_from_set(knownsignals.K,signals1),
-    comparator =  deciderop[get_signal_from_set(knownsignals.O,signals1)] or "<",
-    }}
-
+  if forblueprint then
+    control.circuit_condition={
+      first_signal = siglist[1],
+      second_signal = siglist[2],
+      constant = get_signal_from_set(knownsignals.K,signals1),
+      comparator =  deciderop[get_signal_from_set(knownsignals.O,signals1)] or "<",
+      }
+    control.condition = control.circuit_condition
+  else
+    control.circuit_condition={ condition = {
+      first_signal = siglist[1],
+      second_signal = siglist[2],
+      constant = get_signal_from_set(knownsignals.K,signals1),
+      comparator =  deciderop[get_signal_from_set(knownsignals.O,signals1)] or "<",
+      }}
+  end
   -- for more complex controls to read additional signals
   return siglist
 end
@@ -299,7 +301,7 @@ local ConstructionOrderControlBehavior =
       control.enabled = get_signal_from_set(knownsignals.O,signals1) == 0
     end
   end,
-  [defines.control_behavior.type.arithmetic_combinator] = function(ghost,control,manager,signals1,signals2)
+  [defines.control_behavior.type.arithmetic_combinator] = function(ghost,control,manager,signals1,signals2,forblueprint)
     local siglist = {}
     if signals2 then
       siglist = ReadSignalList(signals2)
@@ -312,16 +314,21 @@ local ConstructionOrderControlBehavior =
       siglist[3] = specials.each
     end
 
-    control.parameters={parameters = {
+    local config = {
       first_signal = siglist[1],
       second_signal = siglist[2],
       first_constant = get_signal_from_set(knownsignals.J,signals1),
       second_constant = get_signal_from_set(knownsignals.K,signals1),
       operation = arithop[get_signal_from_set(knownsignals.O,signals1)] or "*",
       output_signal = siglist[3],
-      }}
+      }
+    if forblueprint then
+      control.arithmetic_conditions=config
+    else
+      control.parameters={parameters = config}
+    end
   end,
-  [defines.control_behavior.type.decider_combinator] = function(ghost,control,manager,signals1,signals2)
+  [defines.control_behavior.type.decider_combinator] = function(ghost,control,manager,signals1,signals2,forblueprint)
     local siglist = {}
     if signals2 then
       siglist = ReadSignalList(signals2)
@@ -346,18 +353,23 @@ local ConstructionOrderControlBehavior =
       siglist[3] = specials.every
     end
 
-    control.parameters={parameters = {
+    local config = {
       first_signal = siglist[1],
       second_signal = siglist[2],
       constant = get_signal_from_set(knownsignals.K,signals1),
       comparator =  deciderop[get_signal_from_set(knownsignals.O,signals1)] or "<",
       output_signal = siglist[3],
       copy_count_from_input = get_signal_from_set(knownsignals.F,signals1) == 0,
-      }}
+      }
+    if forblueprint then
+      control.decider_conditions = config
+    else
+      control.parameters={parameters = config}
+    end
   end,
   [defines.control_behavior.type.generic_on_off] = ReadGenericOnOffControl,
-  [defines.control_behavior.type.mining_drill] = function(ghost,control,manager,signals1,signals2)
-    ReadGenericOnOffControl(ghost,control,manager,signals1,signals2)
+  [defines.control_behavior.type.mining_drill] = function(ghost,control,manager,signals1,signals2,forblueprint)
+    ReadGenericOnOffControl(ghost,control,manager,signals1,signals2,forblueprint)
 
     control.circuit_enable_disable = get_signal_from_set(knownsignals.E,signals1) ~= 0
     local r = get_signal_from_set(knownsignals.R,signals1)
@@ -370,16 +382,28 @@ local ConstructionOrderControlBehavior =
     else 
       control.circuit_read_resources = false
     end
+    if forblueprint then
+      control.circuit_resource_read_mode = control.circuit_read_resources
+      control.circuit_read_resources = nil
+    end
   end,
   [defines.control_behavior.type.train_stop] = function(ghost,control,manager,signals1,signals2,forblueprint)
     local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2)
 
-    control.enable_disable = get_signal_from_set(knownsignals.E,signals1) ~= 0
+    if forblueprint then
+      control.circuit_enable_disable = get_signal_from_set(knownsignals.E,signals1) ~= 0
+    else  
+      control.enable_disable = get_signal_from_set(knownsignals.E,signals1) ~= 0
+    end
     control.read_from_train = get_signal_from_set(knownsignals.R,signals1) ~= 0
     control.send_to_train = get_signal_from_set(knownsignals.T,signals1) ~= 0
 
     if siglist[3] then
-      control.stopped_train_signal = siglist[3]
+      if forblueprint then
+        control.train_stopped_signal = siglist[3]
+      else
+        control.stopped_train_signal = siglist[3]
+      end
       control.read_stopped_train = true
     else
       control.read_stopped_train = false
@@ -397,7 +421,7 @@ local ConstructionOrderControlBehavior =
     end
   end,
   [defines.control_behavior.type.inserter] = function(ghost,control,manager,signals1,signals2,forblueprint)
-    local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2)
+    local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2,forblueprint)
 
     if get_signal_from_set(knownsignals.B,signals1) ~= 0 then 
       if forblueprint then 
@@ -444,7 +468,11 @@ local ConstructionOrderControlBehavior =
 
     if siglist[3] then 
       control.circuit_set_stack_size = true
-      control.circuit_stack_control_signal = siglist[3]
+      if forblueprint then
+        control.stack_control_input_signal = siglist[3]
+      else  
+        control.circuit_stack_control_signal = siglist[3]
+      end
     end
 
     for i=1,ghost.ghost_prototype.filter_count do 
@@ -455,8 +483,8 @@ local ConstructionOrderControlBehavior =
       end
     end
   end,
-  [defines.control_behavior.type.lamp] = function(ghost,control,manager,signals1,signals2)
-    local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2)
+  [defines.control_behavior.type.lamp] = function(ghost,control,manager,signals1,signals2,forblueprint)
+    local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2,forblueprint)
     control.use_colors = get_signal_from_set(knownsignals.C,signals1) ~= 0
   end,
   [defines.control_behavior.type.logistic_container] = function(ghost,control,manager,signals1,signals2)
@@ -464,27 +492,35 @@ local ConstructionOrderControlBehavior =
       if get_signal_from_set(knownsignals.R,signals1) ~= 0 then 
         control.circuit_mode_of_operation = defines.control_behavior.logistic_container.circuit_mode_of_operation.set_requests
       end
-    end    
+    end
   end,
-  [defines.control_behavior.type.roboport] = function(ghost,control,manager,signals1,signals2)
+  [defines.control_behavior.type.roboport] = function(ghost,control,manager,signals1,signals2,forblueprint)
     local siglist = {}
     if signals2 then
       siglist = ReadSignalList(signals2)
     end
 
-    if get_signal_from_set(knownsignals.R,signals1) ~= 0 then
-      control.mode_of_operations = defines.control_behavior.roboport.circuit_mode_of_operation.read_robot_stats	
+    if forblueprint then
+      if get_signal_from_set(knownsignals.R,signals1) ~= 0 then
+        control.circuit_mode_of_operation = defines.control_behavior.roboport.circuit_mode_of_operation.read_robot_stats	
+      else
+        control.circuit_mode_of_operation = defines.control_behavior.roboport.circuit_mode_of_operation.read_logistics	
+      end
     else
-      control.mode_of_operations = defines.control_behavior.roboport.circuit_mode_of_operation.read_logistics	
-    end      
+      if get_signal_from_set(knownsignals.R,signals1) ~= 0 then
+        control.mode_of_operations = defines.control_behavior.roboport.circuit_mode_of_operation.read_robot_stats	
+      else
+        control.mode_of_operations = defines.control_behavior.roboport.circuit_mode_of_operation.read_logistics	
+      end
+    end
     
     control.available_logistic_output_signal = siglist[1]
     control.total_logistic_output_signal = siglist[2]
     control.available_construction_output_signal = siglist[3]
     control.total_construction_output_signal = siglist[4]
   end,
-  [defines.control_behavior.type.transport_belt] = function(ghost,control,manager,signals1,signals2)
-    local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2)
+  [defines.control_behavior.type.transport_belt] = function(ghost,control,manager,signals1,signals2,forblueprint)
+    local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2,forblueprint)
     control.enable_disable = get_signal_from_set(knownsignals.E,signals1) ~= 0
 
     local r = get_signal_from_set(knownsignals.R,signals1)
@@ -497,6 +533,12 @@ local ConstructionOrderControlBehavior =
     else 
       control.read_contents = false
     end
+    if forblueprint then
+      control.circuit_read_hand_contents = control.read_contents
+      control.circuit_content_read_mode = control.read_contents_mode
+      control.read_contents = nil
+      control.read_contents_mode = nil
+    end
   end,
   [defines.control_behavior.type.accumulator] = function(ghost,control,manager,signals1,signals2)
     local siglist = {}
@@ -506,40 +548,59 @@ local ConstructionOrderControlBehavior =
     
     control.output_signal = siglist[1]
   end,
-  [defines.control_behavior.type.rail_signal] = function(ghost,control,manager,signals1,signals2)
+  [defines.control_behavior.type.rail_signal] = function(ghost,control,manager,signals1,signals2,forblueprint)
     -- Rail doesn't actually inheret from Generic, but it's close enough to work
-    local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2)
+    local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2,forblueprint)
 
-    control.close_signal = get_signal_from_set(knownsignals.E,signals1) ~= 0
-    control.read_signal = get_signal_from_set(knownsignals.R,signals1) ~= 0
-    
-    control.red_signal = siglist[3]
-    control.orange_signal = siglist[4]
-    control.green_signal = siglist[5]
+    if forblueprint then
+      control.circuit_close_signal = get_signal_from_set(knownsignals.E,signals1) ~= 0
+      control.circuit_read_signal = get_signal_from_set(knownsignals.R,signals1) ~= 0
+      control.red_output_signal = siglist[3]
+      control.orange_output_signal = siglist[4]
+      control.green_output_signal = siglist[5]
+    else
+      control.close_signal = get_signal_from_set(knownsignals.E,signals1) ~= 0
+      control.read_signal = get_signal_from_set(knownsignals.R,signals1) ~= 0
+      control.red_signal = siglist[3]
+      control.orange_signal = siglist[4]
+      control.green_signal = siglist[5]
+    end
   end,
-  [defines.control_behavior.type.rail_chain_signal] = function(ghost,control,manager,signals1,signals2)
+  [defines.control_behavior.type.rail_chain_signal] = function(ghost,control,manager,signals1,signals2,forblueprint)
     local siglist = {}
     if signals2 then
       siglist = ReadSignalList(signals2)
     end
     
-    control.red_signal = siglist[3]
-    control.orange_signal = siglist[4]
-    control.green_signal = siglist[5]
-    control.blue_signal = siglist[6]
+    if forblueprint then
+      control.red_output_signal = siglist[3]
+      control.orange_output_signal = siglist[4]
+      control.green_output_signal = siglist[5]
+      control.blue_output_signal = siglist[6]
+    else
+      control.red_signal = siglist[3]
+      control.orange_signal = siglist[4]
+      control.green_signal = siglist[5]
+      control.blue_signal = siglist[6]
+    end
   end,
-  [defines.control_behavior.type.wall] = function(ghost,control,manager,signals1,signals2)
+  [defines.control_behavior.type.wall] = function(ghost,control,manager,signals1,signals2,forblueprint)
     -- Wall doesn't actually inheret from Generic, but it's close enough to work
-    local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2)
+    local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2,forblueprint)
 
-    control.open_gate = get_signal_from_set(knownsignals.E,signals1) ~= 0
-    control.read_sensor = get_signal_from_set(knownsignals.R,signals1) ~= 0
+    if forblueprint then
+      control.circuit_open_gate = get_signal_from_set(knownsignals.E,signals1) ~= 0
+      control.circuit_read_sensor = get_signal_from_set(knownsignals.R,signals1) ~= 0
+    else
+      control.open_gate = get_signal_from_set(knownsignals.E,signals1) ~= 0
+      control.read_sensor = get_signal_from_set(knownsignals.R,signals1) ~= 0
+    end
     
     control.output_signal = siglist[3]
   end,
-  [defines.control_behavior.type.programmable_speaker] = function(ghost,control,manager,signals1,signals2)
+  [defines.control_behavior.type.programmable_speaker] = function(ghost,control,manager,signals1,signals2,forblueprint)
     -- Speaker doesn't actually inheret from Generic, but it's close enough to work
-    local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2)
+    local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2,forblueprint)
 
     local volume = (get_signal_from_set(knownsignals.U,signals1) or 100)/100
     
@@ -620,6 +681,8 @@ local function ConstructionOrder(manager,signals1,signals2,forblueprint)
       if entproto then
         createorder.inner_name = entproto.name
         
+        --TODO: adjust position to grid properly...
+
         local special = ConstructionOrderEntitySpecific[entproto.type]
         if special then
           special(createorder,entproto,signals1,signals2)
@@ -655,8 +718,7 @@ local function ConstructionOrder(manager,signals1,signals2,forblueprint)
           end
         end
       end
-    elseif ghost.name == "entity-ghost" then --forblueprint
-      game.print(serpent.block(createorder))
+    elseif createorder.name == "entity-ghost" then --and forblueprint
       local controltype = EntityTypeToControlBehavior[createorder.ghost_prototype.type]
       if controltype then
         -- enough fake objects for the various control specific stuff...
@@ -670,12 +732,12 @@ local function ConstructionOrder(manager,signals1,signals2,forblueprint)
         if special then
           special(createorder,control,manager,signals1,signals2,true)
         end
-        --clean up a bit, ready for a bp...
-        createorder.name = createorder.inner_name
-        createorder.inner_name = nil
-        createorder.set_filter = nil
-        createorder.ghost_prototype = nil
       end
+      --clean up a bit, ready for a bp...
+      createorder.name = createorder.inner_name
+      createorder.inner_name = nil
+      createorder.set_filter = nil
+      createorder.ghost_prototype = nil
       return createorder
     end
   end
@@ -792,8 +854,8 @@ local function ConnectWire(manager,signals1,signals2,color,disconnect)
   local w = get_signal_from_set(knownsignals.W,signals1)
   if w~=2 then w=1 end
 
-  local ent1 = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(signals1)}[1]
-  local ent2 = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(signals1,true)}[1]
+  local ent1 = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(signals1,false,{x=0.5,y=0.5})}[1]
+  local ent2 = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(signals1,true,{x=0.5,y=0.5})}[1]
 
   if not (ent1 and ent1.valid and ent2 and ent2.valid) then return end
   
@@ -1329,6 +1391,7 @@ local function ReportItemFilters(filters,outsignals)
 end
 
 local function ReportBlueprintEntityInternal(entity,i)
+  log(serpent.dump(entity))
   local entproto = game.entity_prototypes[entity.name]
   local preload = nil
   local cc1 = {}
@@ -1345,8 +1408,8 @@ local function ReportBlueprintEntityInternal(entity,i)
   end
   cc1[#cc1+1]={index=#cc1+1,count=itemcount,signal={type="item",name=item}}
 
-  cc1[#cc1+1]={index=#cc1+1,count=entity.position.x,signal=knownsignals.X}
-  cc1[#cc1+1]={index=#cc1+1,count=entity.position.y,signal=knownsignals.Y}
+  cc1[#cc1+1]={index=#cc1+1,count=math.floor(entity.position.x),signal=knownsignals.X}
+  cc1[#cc1+1]={index=#cc1+1,count=math.floor(entity.position.y),signal=knownsignals.Y}
 
   if entity.direction then
     cc1[#cc1+1]={index=#cc1+1,count=entity.direction,signal=knownsignals.D}
@@ -1851,7 +1914,7 @@ end
 
 local function DeliveryOrder(manager,signals1,signals2)
 
-  local ent = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(signals1)}[1]
+  local ent = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(signals1,false,{x=0.5,y=0.5})}[1]
   if not (ent and ent.valid) then return end
 
   if signals2 then

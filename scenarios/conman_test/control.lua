@@ -1174,10 +1174,7 @@ local tests = {
             {signal = {type = "item", name = "roboport"}, count = 1},
             {signal = knownsignals.X, count = -4},
             {signal = knownsignals.Y, count = -4},
-
             {signal = knownsignals.R, count = 1},
-
-
         },
         cc2 = {
             {signal = knownsignals.A, count = 1},
@@ -2282,7 +2279,7 @@ local tests = {
     --]]
 }
 
-local function replayOneFrameEntityTest(name,command)
+local function replayOneCommandEntityTest(name,command,data)
     command[#command+1] = {signal = knownsignals.blueprint, count = 7}
     command[#command+1] = {signal = knownsignals.grey, count = 1}
 
@@ -2294,38 +2291,131 @@ local function replayOneFrameEntityTest(name,command)
         expectsignals[i] = signal.signal
         expectvalues[i] = signal.count
     end
+    local expectdatasignals = {}
+    local expectdatavalues = {}
+    if data then 
+        for i,signal in pairs(data) do
+            expectdatasignals[i] = signal.signal
+            expectdatavalues[i] = signal.count
+        end
+    end
     local test = {
         multifeed = {
             {cc1 = {{signal = knownsignals.blueprint, count = -2},},}, -- create a new blueprint
-            {cc1 = writeCommand1,}, -- write an entity
+            {cc1 = writeCommand1,cc2 = data}, -- write an entity
             {   -- and request it back...
                 cc1 = {
                     {signal = knownsignals.blueprint, count = 7},
                     {signal = knownsignals.grey, count = 1},
                 },
             },
+            {}, -- wait for data
+            {}, -- wait for data
             {cc1 = {{signal = knownsignals.blueprint, count = -3},},}, -- destroy the print
         },
         verify = function(outsignals)
-            return expect_signals(expectsignals,expectvalues,outsignals[1])
+            return (outsignals[5] and expect_signals(expectsignals,expectvalues,outsignals[5])) and 
+            ((not data and not outsignals[6]) or (outsignals[6] and expect_signals(expectdatasignals,expectdatavalues,outsignals[6])))
         end,
     }
     tests[name] = test
 end
 
-replayOneFrameEntityTest("replaycraftingmachine",{
+replayOneCommandEntityTest("replaycraftingmachine",{
     {signal = {type = "item", name = "assembling-machine-3"}, count = 1},
     {signal = knownsignals.R, count = -126192623}, -- "inserter"
     {signal = knownsignals.X, count = -3},
     {signal = knownsignals.Y, count = -3},
 })
 
-replayOneFrameEntityTest("replayapchest",{
-    {signal = {type = "item", name = "logistic-chest-active-provider"}, count = 1},
+replayOneCommandEntityTest("replaystchest",{
+    {signal = {type = "item", name = "logistic-chest-storage"}, count = 1},
     {signal = knownsignals.X, count = -3},
     {signal = knownsignals.Y, count = -3},
+},{
+    {signal = {type = "item", name = "wooden-chest"}, count = 1},
 })
 
+replayOneCommandEntityTest("replaypump",{
+    {signal = {type = "item", name = "pump"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.K, count = 42},
+    {signal = knownsignals.O, count = 2},
+
+},
+{
+    {signal = knownsignals.A, count = 1},
+})
+
+replayOneCommandEntityTest("replayconstcomb",{
+    {signal = {type = "item", name = "constant-combinator"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+},{
+    {signal = knownsignals.A, count = 2},
+    {signal = knownsignals.B, count = 3},
+    {signal = knownsignals.blueprint, count = 4},
+})
+
+replayOneCommandEntityTest("replayarith",{
+    {signal = {type = "item", name = "arithmetic-combinator"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.O, count = 2},
+},{
+    {signal = knownsignals.A, count = 1},
+    {signal = knownsignals.blueprint, count = 2},
+    {signal = knownsignals.C, count = 4},
+})
+
+replayOneCommandEntityTest("replaydecider",{
+    {signal = {type = "item", name = "decider-combinator"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.O, count = 2},
+},{
+    {signal = knownsignals.A, count = 1},
+    {signal = knownsignals.blueprint, count = 2},
+    {signal = knownsignals.C, count = 4},
+})
+
+replayOneCommandEntityTest("replayminer",{
+    {signal = {type = "item", name = "electric-mining-drill"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.R, count = 1},
+})
+
+replayOneCommandEntityTest("replayinserter",{
+    {signal = {type = "item", name = "filter-inserter"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.B, count = 1},
+    {signal = knownsignals.E, count = 1},
+    {signal = knownsignals.O, count = 1},
+    {signal = knownsignals.R, count = 1},
+},{
+    {signal = knownsignals.A, count = 1},
+    {signal = knownsignals.B, count = 2},
+    {signal = knownsignals.C, count = 4},
+    {signal = knownsignals.redprint, count = 8},
+    {signal = knownsignals.blueprint, count = 16},
+    {signal = knownsignals.logbot, count = 64},
+    {signal = knownsignals.redwire, count = 128},
+})
+
+replayOneCommandEntityTest("replayroboport",{
+    {signal = {type = "item", name = "roboport"}, count = 1},
+    {signal = knownsignals.X, count = -4},
+    {signal = knownsignals.Y, count = -4},
+    {signal = knownsignals.R, count = 1},
+},{
+    {signal = knownsignals.A, count = 1},
+    {signal = knownsignals.B, count = 2},
+    {signal = knownsignals.C, count = 4},
+    {signal = knownsignals.D, count = 8},
+})
 
 tests["profileend"] ={
         prepare = function()

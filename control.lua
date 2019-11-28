@@ -383,8 +383,8 @@ local ConstructionOrderControlBehavior =
       control.circuit_read_resources = false
     end
     if forblueprint then
-      control.circuit_resource_read_mode = control.circuit_read_resources
-      control.circuit_read_resources = nil
+      control.circuit_resource_read_mode = control.resource_read_mode
+      control.resource_read_mode = nil
     end
   end,
   [defines.control_behavior.type.train_stop] = function(ghost,control,manager,signals1,signals2,forblueprint)
@@ -724,9 +724,18 @@ local function ConstructionOrder(manager,signals1,signals2,forblueprint)
         -- enough fake objects for the various control specific stuff...
         local control = { parameters = {} }
         createorder.control_behavior = control
-        createorder.filters = {}
+        local filters = {}
+        createorder.filters = filters
         createorder.set_filter = function(i,name)
-          filters[i] = name
+          if name then
+            for j,filter in pairs(filters) do
+              if filter.index == i then
+                filters[j] = {index=i,name=name}
+                return
+              end
+            end
+            filters[#filters+1] = {index=i,name=name}
+          end
         end
         local special = ConstructionOrderControlBehavior[controltype]
         if special then
@@ -1263,8 +1272,9 @@ local ReportControlBehavior = {
     elseif control.circuit_mode_of_operation == defines.control_behavior.inserter.circuit_mode_of_operation.set_filters then
       cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.F}
     end
-    if control.circuit_read_hand_contents and control.circuit_hand_read_mode then
-      if control.circuit_hand_read_mode == defines.control_behavior.inserter.hand_read_mode.pulse then
+    if control.circuit_read_hand_contents then
+      if not control.circuit_hand_read_mode or 
+          control.circuit_hand_read_mode == defines.control_behavior.inserter.hand_read_mode.pulse then
         cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.R}
       elseif control.circuit_hand_read_mode == defines.control_behavior.inserter.hand_read_mode.hold then
         cc1[#cc1+1]={index=#cc1+1,count=2,signal=knownsignals.R}
@@ -1384,9 +1394,9 @@ local ReportControlBehavior = {
   end,
 }
 
-local function ReportItemFilters(filters,outsignals)
+local function ReportItemFilters(filters,outsignals,ignorecount)
   for _,filter in pairs(filters) do 
-    outsignals[#outsignals+1]={index=#outsignals+1,count=filter.count or 1,signal={type="item",name=filter.name}}
+    outsignals[#outsignals+1]={index=#outsignals+1,count=(ignorecount and 1) or filter.count or 1,signal={type="item",name=filter.name}}
   end
 end
 
@@ -1482,7 +1492,7 @@ local function ReportBlueprintEntityInternal(entity,i)
   end
 
   if entity.request_filters then
-    ReportItemFilters(entity.request_filters,cc2)
+    ReportItemFilters(entity.request_filters,cc2, entproto.logistic_mode == "storage")
   end
 
   if entity.request_from_buffers then
@@ -1580,6 +1590,7 @@ local function UpdateBlueprintEntity(manager,signals1,signals2)
           end
         end
         entities[i] = newent
+        log(serpent.dump(newent))
         bp.set_blueprint_entities(entities)
       end
     end

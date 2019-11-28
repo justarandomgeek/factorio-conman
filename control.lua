@@ -489,7 +489,7 @@ local ConstructionOrderControlBehavior =
   end,
   [defines.control_behavior.type.logistic_container] = function(ghost,control,manager,signals1,signals2)
     if ghost.ghost_prototype.logistic_mode == "requester" or ghost.ghost_prototype.logistic_mode == "buffer" then
-      if get_signal_from_set(knownsignals.R,signals1) ~= 0 then 
+      if get_signal_from_set(knownsignals.S,signals1) ~= 0 then 
         control.circuit_mode_of_operation = defines.control_behavior.logistic_container.circuit_mode_of_operation.set_requests
       end
     end
@@ -534,8 +534,10 @@ local ConstructionOrderControlBehavior =
       control.read_contents = false
     end
     if forblueprint then
+      control.circuit_enable_disable = control.enable_disable
       control.circuit_read_hand_contents = control.read_contents
-      control.circuit_content_read_mode = control.read_contents_mode
+      control.circuit_contents_read_mode = control.read_contents_mode
+      control.enable_disable = nil
       control.read_contents = nil
       control.read_contents_mode = nil
     end
@@ -1292,7 +1294,7 @@ local ReportControlBehavior = {
   end,
   [defines.control_behavior.type.logistic_container] = function(control,cc1,cc2)
     if control.circuit_mode_of_operation == defines.control_behavior.logistic_container.circuit_mode_of_operation.set_requests then
-      cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.R}
+      cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.S}
     end
   end,
   [defines.control_behavior.type.roboport] = function(control,cc1,cc2)
@@ -1319,10 +1321,10 @@ local ReportControlBehavior = {
     if control.enable_disable then
       cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.E}
     end
-    if control.circuit_read_hand_contents and control.circuit_content_read_mode then
-      if control.circuit_content_read_mode == defines.control_behavior.transport_belt.content_read_mode.pulse then
+    if control.circuit_read_hand_contents and control.circuit_contents_read_mode then
+      if control.circuit_contents_read_mode == defines.control_behavior.transport_belt.content_read_mode.pulse then
         cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.R}
-      elseif control.circuit_content_read_mode == defines.control_behavior.transport_belt.content_read_mode.hold then
+      elseif control.circuit_contents_read_mode == defines.control_behavior.transport_belt.content_read_mode.hold then
         cc1[#cc1+1]={index=#cc1+1,count=2,signal=knownsignals.R}
       end
     end
@@ -1342,27 +1344,27 @@ local ReportControlBehavior = {
       cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.R}
     end
     if control.red_output_signal then
-      cc2[#cc2+1]={index=#cc2+1,count=4,signal=control.red_signal}
+      cc2[#cc2+1]={index=#cc2+1,count=4,signal=control.red_output_signal}
     end
     if control.orange_output_signal then
-      cc2[#cc2+1]={index=#cc2+1,count=8,signal=control.orange_signal}
+      cc2[#cc2+1]={index=#cc2+1,count=8,signal=control.orange_output_signal}
     end
     if control.green_output_signal then
-      cc2[#cc2+1]={index=#cc2+1,count=16,signal=control.green_signal}
+      cc2[#cc2+1]={index=#cc2+1,count=16,signal=control.green_output_signal}
     end
   end,
   [defines.control_behavior.type.rail_chain_signal] = function(control,cc1,cc2)
     if control.red_output_signal then
-      cc2[#cc2+1]={index=#cc2+1,count=4,signal=control.red_signal}
+      cc2[#cc2+1]={index=#cc2+1,count=4,signal=control.red_output_signal}
     end
     if control.orange_output_signal then
-      cc2[#cc2+1]={index=#cc2+1,count=8,signal=control.orange_signal}
+      cc2[#cc2+1]={index=#cc2+1,count=8,signal=control.orange_output_signal}
     end
     if control.green_output_signal then
-      cc2[#cc2+1]={index=#cc2+1,count=16,signal=control.green_signal}
+      cc2[#cc2+1]={index=#cc2+1,count=16,signal=control.green_output_signal}
     end
     if control.blue_output_signal then
-      cc2[#cc2+1]={index=#cc2+1,count=32,signal=control.blue_signal}
+      cc2[#cc2+1]={index=#cc2+1,count=32,signal=control.blue_output_signal}
     end
   end,
   [defines.control_behavior.type.wall] = function(control,cc1,cc2)
@@ -1487,8 +1489,8 @@ local function ReportBlueprintEntityInternal(entity,i)
     cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.B}
   end
 
-  if entity.inserter_stack_size_override then
-    cc1[#cc1+1]={index=#cc1+1,count=entity.inserter_stack_size_override,signal=knownsignals.I}
+  if entity.override_stack_size then
+    cc1[#cc1+1]={index=#cc1+1,count=entity.override_stack_size,signal=knownsignals.I}
   end
 
   if entity.request_filters then
@@ -1520,7 +1522,7 @@ local function ReportBlueprintEntityInternal(entity,i)
       cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.M}
     end
     if parameters.icon_signal_id then
-      cc1[#cc1+1]={index=#cc1+1,count=4,signal=parameters.icon_signal_id}
+      cc2[#cc2+1]={index=#cc1+1,count=4,signal=parameters.icon_signal_id}
     end
     if parameters.alert_message then
       preload = parameters.alert_message

@@ -25,6 +25,7 @@ function expect_signals(expectedsignals,expectedvalues,gotsignals,allowextra)
     local expectedsize = table_size(expectedvalues)
     if (gotsize < expectedsize) or (not allowextra and gotsize > expectedsize) then
         log(("expected %d signals, got %d"):format(expectedsize,gotsize))
+        log(serpent.block(gotsignals))
         return false 
     end
     for k,v in pairs(expectedvalues) do
@@ -744,16 +745,12 @@ local tests = {
             {signal = {type = "item", name = "rail-signal"}, count = 1},
             {signal = knownsignals.X, count = -3},
             {signal = knownsignals.Y, count = -3},
-
             {signal = knownsignals.R, count = 1},
-
-
         },
         cc2 = {
             {signal = knownsignals.A, count = 4},
             {signal = knownsignals.B, count = 8},
             {signal = knownsignals.C, count = 16},
-
         },
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
@@ -2336,6 +2333,23 @@ replayOneCommandEntityTest("replaystchest",{
     {signal = {type = "item", name = "wooden-chest"}, count = 1},
 })
 
+replayOneCommandEntityTest("replayrqchest",{
+    {signal = {type = "item", name = "logistic-chest-requester"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.B, count = 6},
+},{
+    {signal = {type = "item", name = "wooden-chest"}, count = 1234},
+})
+
+replayOneCommandEntityTest("replayrqchestcirc",{
+    {signal = {type = "item", name = "logistic-chest-requester"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.R, count = 1},
+    {signal = knownsignals.S, count = 1},
+})
+
 replayOneCommandEntityTest("replaypump",{
     {signal = {type = "item", name = "pump"}, count = 1},
     {signal = knownsignals.X, count = -3},
@@ -2352,6 +2366,7 @@ replayOneCommandEntityTest("replayconstcomb",{
     {signal = {type = "item", name = "constant-combinator"}, count = 1},
     {signal = knownsignals.X, count = -3},
     {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.D, count = 2},
 },{
     {signal = knownsignals.A, count = 2},
     {signal = knownsignals.B, count = 3},
@@ -2405,6 +2420,20 @@ replayOneCommandEntityTest("replayinserter",{
     {signal = knownsignals.redwire, count = 128},
 })
 
+replayOneCommandEntityTest("replayinserter2",{
+    {signal = {type = "item", name = "filter-inserter"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.I, count = 2},
+    {signal = knownsignals.R, count = 2},
+},{
+    {signal = knownsignals.redprint, count = 8},
+    {signal = knownsignals.blueprint, count = 16},
+    {signal = knownsignals.logbot, count = 64},
+    {signal = knownsignals.redwire, count = 128},
+})
+
+
 replayOneCommandEntityTest("replayroboport",{
     {signal = {type = "item", name = "roboport"}, count = 1},
     {signal = knownsignals.X, count = -4},
@@ -2416,6 +2445,165 @@ replayOneCommandEntityTest("replayroboport",{
     {signal = knownsignals.C, count = 4},
     {signal = knownsignals.D, count = 8},
 })
+
+replayOneCommandEntityTest("replaylamp",{
+    {signal = {type = "item", name = "small-lamp"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.C, count = 1},
+    {signal = knownsignals.O, count = 1},
+},{
+    {signal = knownsignals.A, count = 1},
+    {signal = knownsignals.B, count = 2},
+})
+
+replayOneCommandEntityTest("replaybelt",{
+    {signal = {type = "item", name = "transport-belt"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.R, count = 1},
+})
+
+replayOneCommandEntityTest("replayrailsignal",{
+    {signal = {type = "item", name = "rail-signal"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.R, count = 1},
+},{
+    {signal = knownsignals.A, count = 4},
+    {signal = knownsignals.B, count = 8},
+    {signal = knownsignals.C, count = 16},
+})
+
+replayOneCommandEntityTest("replaychainsignal",{
+    {signal = {type = "item", name = "rail-chain-signal"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+},{
+    {signal = knownsignals.A, count = 4},
+    {signal = knownsignals.B, count = 8},
+    {signal = knownsignals.C, count = 16},
+    {signal = knownsignals.D, count = 32},
+})
+
+replayOneCommandEntityTest("replaywall",{
+    {signal = {type = "item", name = "stone-wall"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.R, count = 1},
+},{
+    {signal = knownsignals.A, count = 4},
+})
+
+replayOneCommandEntityTest("replayaccu",{
+    {signal = {type = "item", name = "accumulator"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+},{
+    {signal = knownsignals.A, count = 1},
+})
+
+replayOneCommandEntityTest("replaysplitter",{
+    {signal = {type = "item", name = "express-splitter"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.I, count = 1},
+    {signal = knownsignals.O, count = 2},
+},{
+    {signal = knownsignals.redwire, count = 1},
+})
+
+replayOneCommandEntityTest("replayunder",{
+    {signal = {type = "item", name = "underground-belt"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.U, count = 1},
+})
+
+local function replayTwoCommandEntityTest(name,command,data,preload)
+    assert(preload)
+
+    command[#command+1] = {signal = knownsignals.blueprint, count = 7}
+    command[#command+1] = {signal = knownsignals.grey, count = 1}
+
+    local writeCommand1 = table.deepcopy(command)
+    writeCommand1[#writeCommand1+1] = {signal = knownsignals.W, count = 1}
+    local expectsignals = {}
+    local expectvalues = {}
+    for i,signal in pairs(command) do
+        expectsignals[i] = signal.signal
+        expectvalues[i] = signal.count
+    end
+    local expectdatasignals = {}
+    local expectdatavalues = {}
+    if data then 
+        for i,signal in pairs(data) do
+            expectdatasignals[i] = signal.signal
+            expectdatavalues[i] = signal.count
+        end
+    end
+    local test = {
+        multifeed = {
+            {cc1 = {{signal = knownsignals.blueprint, count = -2},},}, -- create a new blueprint
+            {   -- prepare a string...
+                cc1 = {
+                    {signal = knownsignals.info, count = 1},
+                },
+                cc2string = preload,
+            },
+            {cc1 = writeCommand1,cc2 = data}, -- write an entity
+            {   -- and request it back...
+                cc1 = {
+                    {signal = knownsignals.blueprint, count = 7},
+                    {signal = knownsignals.grey, count = 1},
+                },
+            },
+            {}, -- wait for data
+            {}, -- wait for data
+            {}, -- wait for data
+            {}, -- wait for data
+            {cc1 = {{signal = knownsignals.blueprint, count = -3},},}, -- destroy the print
+        },
+        verify = function(outsignals)
+            if not outsignals[6] and expect_signals({i=knownsignals.info},{i=1},outsignals[6]) then return false end
+            if not outsignals[7] and remote.call('signalstrings', 'signals_to_string', outsignals[7]) == "TEST" then return false end
+            if not outsignals[8] and expect_signals(expectsignals,expectvalues,outsignals[8]) then return false end
+            if not ((not data and not outsignals[9]) or (outsignals[9] and expect_signals(expectdatasignals,expectdatavalues,outsignals[9]))) then return false end
+            return true
+        end,
+    }
+    tests[name] = test
+end
+
+replayTwoCommandEntityTest("replaystop",{
+    {signal = {type = "item", name = "train-stop"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.R, count = 1},
+    {signal = knownsignals.T, count = 1},
+    {signal = knownsignals.red, count = 255},
+    {signal = knownsignals.green, count = 127},
+    {signal = knownsignals.blue, count = 63},
+    {signal = knownsignals.white, count = 255},
+},{
+    {signal = knownsignals.A, count = 4},
+}, "TEST")
+
+replayTwoCommandEntityTest("replayspeaker",{
+    {signal = {type = "item", name = "programmable-speaker"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.A, count = 1},
+    {signal = knownsignals.G, count = 1},
+    {signal = knownsignals.I, count = 3},
+    {signal = knownsignals.M, count = 1},
+    {signal = knownsignals.P, count = 1},
+    {signal = knownsignals.U, count = 42},
+    {signal = knownsignals.V, count = 1},
+},{
+    {signal = knownsignals.A, count = 1},
+    {signal = knownsignals.B, count = 4},
+}, "ALERT")
 
 tests["profileend"] ={
         prepare = function()

@@ -2757,6 +2757,46 @@ replayTwoCommandEntityTest("replayspeaker",{
     {signal = knownsignals.B, count = 4},
 }, "ALERT")
 
+local replayitemrequestitems = {
+    {signal = knownsignals.blueprint, count = 123},
+    {signal = knownsignals.redprint, count = 456},
+    {signal = knownsignals.blueprint_book, count = 789},
+}
+tests["replayitemrequests"] = {
+    prepare = function()
+        --bp string of a single wooden chest
+        global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
+    end,
+    multifeed = {
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 8},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.W, count = 1},
+            },
+            cc2 = replayitemrequestitems,
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 8},
+                {signal = knownsignals.grey, count = 1},
+            },
+        },
+    },
+    verify = function(outsignals)
+        log(serpent.block(outsignals))
+        local expectsignals = {}
+        local expectvalues = {}
+        for i,signal in pairs(replayitemrequestitems) do
+            expectsignals[i] = signal.signal
+            expectvalues[i] = signal.count
+        end
+        if not outsignals[1] and expect_signals(expectsignals,expectvalues,outsignals[1]) then return false end
+        return true
+    end
+}
+
+
 tests["profileend"] ={
         prepare = function()
             

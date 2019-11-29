@@ -63,7 +63,11 @@ local function ReadPosition(signals,secondary,offset)
 end
 
 local function ReadColor(signals)
-  return get_signals_filtered(signalsets.color,signals)
+  local color = get_signals_filtered(signalsets.color,signals)
+  color.r =  math.min(math.max(color.r, 0), 255)
+  color.g =  math.min(math.max(color.g, 0), 255)
+  color.b =  math.min(math.max(color.b, 0), 255)
+  return color
 end
 
 local function ReadBoundingBox(signals)
@@ -147,10 +151,7 @@ local specials = {
   every = {name="signal-everything", type="virtual"},
 }
 
-local splitterside = {
-  "left",
-  "right",
-}
+local splitterside = { "left", "right", }
 
 local function nocc2(createorder,entproto,signals1,signals2)
   createorder.usecc2items=false
@@ -202,26 +203,28 @@ local ConstructionOrderEntitySpecific =
   ["train-stop"] = function(createorder,entproto,signals1,signals2)
     createorder.usecc2items=false
     local a = get_signal_from_set(knownsignals.white,signals1)
-    if a > 0 and a <= 256 then
+    if a > 0 and a <= 255 then
       createorder.color = ReadColor(signals1)
       createorder.color.a = a
     end
   end,
   ["locomotive"] = function(createorder,entproto,signals1,signals2)
     local a = get_signal_from_set(knownsignals.white,signals1)
-    if a > 0 and a <= 256 then
+    if a > 0 and a <= 255 then
       createorder.color = ReadColor(signals1)
       createorder.color.a = a
     end
+    createorder.orientation = math.min(math.max(get_signal_from_set(knownsignals.O,signals1), 0), 65535)/65535
   end,
   ["cargo-wagon"] = function(createorder,entproto,signals1,signals2)
     createorder.inventory = {
       bar = createorder.bar,
       filters = ReadInventoryFilters(signals2, entproto.get_inventory_size(defines.inventory.cargo_wagon))
     }
+    createorder.orientation = math.min(math.max(get_signal_from_set(knownsignals.O,signals1), 0), 65535)/65535
     createorder.bar = nil
     local a = get_signal_from_set(knownsignals.white,signals1)
-    if a > 0 and a <= 256 then
+    if a > 0 and a <= 255 then
       createorder.color = ReadColor(signals1)
       createorder.color.a = a
     end
@@ -254,13 +257,9 @@ local function ReadGenericOnOffControl(ghost,control,manager,signals1,signals2,f
     siglist = ReadSignalList(signals2)
   end
   local sigmode = get_signal_from_set(knownsignals.S,signals1)
-  if sigmode == 3 then
+  if sigmode == 3 or sigmode == 4 then
     siglist[1] = specials.any
-  elseif sigmode == 4 then
-    siglist[1] = specials.any
-  elseif sigmode == 5 then
-    siglist[1] = specials.every
-  elseif sigmode == 6 then
+  elseif sigmode == 5 or sigmode == 6 then
     siglist[1] = specials.every
   end
 
@@ -452,7 +451,6 @@ local ConstructionOrderControlBehavior =
       else
         ghost.inserter_stack_size_override = sig_i
       end
-      
     end
 
     local r = get_signal_from_set(knownsignals.R,signals1)
@@ -843,14 +841,13 @@ local function CaptureBlueprint(manager,signals1,signals2)
       bp.label = remote.call('signalstrings','signals_to_string',signals2,true)
 
       local a = get_signal_from_set(knownsignals.white,signals2)
-      if a > 0 and a <= 256 then
+      if a > 0 and a <= 255 then
         local color = ReadColor(signals2)
         color.a = a
         bp.label_color = color
       else
         bp.label_color = { r=1, g=1, b=1, a=1 }
       end
-
     else
       bp.label = ''
       bp.label_color = { r=1, g=1, b=1, a=1 }
@@ -890,7 +887,6 @@ local function ConnectWire(manager,signals1,signals2,color,disconnect)
     else
       ent1.connect_neighbour(target)
     end
-
   end
 end
 
@@ -933,7 +929,7 @@ local function UpdateItemLabel(item,signals2)
   if remote.interfaces['signalstrings'] and signals2 then
     item.label = remote.call('signalstrings','signals_to_string',signals2,true)
     local a = get_signal_from_set(knownsignals.white,signals2)
-    if a > 0 and a <= 256 then
+    if a > 0 and a <= 255 then
       local color = ReadColor(signals2)
       color.a = a
       item.label_color = color
@@ -1025,12 +1021,10 @@ end
 
 local function ReportBlueprintIcons(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
-  
   if bp.valid and bp.valid_for_read then
     manager.cc2.get_or_create_control_behavior().parameters={parameters=ReportBlueprintIconsInternal(bp)}
     manager.clearcc2 = true
   end
-  
 end
 
 local function UpdateBlueprintIcons(manager,signals1,signals2)
@@ -1061,7 +1055,6 @@ local function ReportBlueprintTile(manager,signals1,signals2)
   if bp.valid and bp.valid_for_read then
     local tiles = bp.get_blueprint_tiles()
     local t = get_signal_from_set(knownsignals.T,signals1)
-    
     if t > 0 and t <= #tiles then
       local tile = tiles[t]
       manager.cc2.get_or_create_control_behavior().parameters={parameters=ReportBlueprintTileInternal(tile)}
@@ -1151,20 +1144,21 @@ local ReportControlBehavior = {
               cc2[#cc2+1]={index=#cc2+1,count=4,signal=condition.output_signal}
             end
           end
-        else
+        else -- first signal not nil and not each
           cc2[#cc2+1]={index=#cc2+1,count=1,signal=condition.first_signal}
           if condition.output_signal then
             cc2[#cc2+1]={index=#cc2+1,count=4,signal=condition.output_signal}
           end
         end
+      elseif condition.first_constant then
+        cc1[#cc1+1]={index=#cc1+1,count=condition.first_constant,signal=knownsignals.J}
+        if condition.output_signal then
+          cc2[#cc2+1]={index=#cc2+1,count=4,signal=condition.output_signal}
+        end
       end
       if condition.second_signal then 
         cc2[#cc2+1]={index=#cc2+1,count=2,signal=condition.second_signal}
-      end
-      if condition.first_constant then
-        cc1[#cc1+1]={index=#cc1+1,count=condition.first_constant,signal=knownsignals.J}
-      end
-      if condition.second_constant then
+      elseif condition.second_constant then
         cc1[#cc1+1]={index=#cc1+1,count=condition.second_constant,signal=knownsignals.K}
       end
       if condition.operation  then
@@ -1263,7 +1257,7 @@ local ReportControlBehavior = {
     if control.read_from_train then
       cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.R}
     end
-    if control.send_to_train then
+    if control.send_to_train == nil or control.send_to_train == true then
       cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.T}
     end
   end,
@@ -1318,7 +1312,7 @@ local ReportControlBehavior = {
   end,
   [defines.control_behavior.type.transport_belt] = function(control,cc1,cc2)
     ReportGenericOnOffControl(control,cc1,cc2)
-    if control.enable_disable then
+    if control.circuit_enable_disable then
       cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.E}
     end
     if control.circuit_read_hand_contents and control.circuit_contents_read_mode then
@@ -1328,7 +1322,6 @@ local ReportControlBehavior = {
         cc1[#cc1+1]={index=#cc1+1,count=2,signal=knownsignals.R}
       end
     end
-    
   end,
   [defines.control_behavior.type.accumulator] = function(control,cc1,cc2)
     if control.output_signal then
@@ -1396,14 +1389,7 @@ local ReportControlBehavior = {
   end,
 }
 
-local function ReportItemFilters(filters,outsignals,ignorecount)
-  for _,filter in pairs(filters) do 
-    outsignals[#outsignals+1]={index=#outsignals+1,count=(ignorecount and 1) or filter.count or 1,signal={type="item",name=filter.name}}
-  end
-end
-
 local function ReportBlueprintEntityInternal(entity,i)
-  log(serpent.dump(entity))
   local entproto = game.entity_prototypes[entity.name]
   local preload = nil
   local cc1 = {}
@@ -1426,7 +1412,7 @@ local function ReportBlueprintEntityInternal(entity,i)
   if entity.direction then
     cc1[#cc1+1]={index=#cc1+1,count=entity.direction,signal=knownsignals.D}
   elseif entity.orientation then
-    log("orientation " .. entity.orientation .. " on " .. entity.name)
+    cc1[#cc1+1]={index=#cc1+1,count=math.floor(entity.orientation * 65535 + 0.5),signal=knownsignals.O}
   end
 
   if entity.recipe and remote.interfaces['recipeid'] then
@@ -1448,6 +1434,7 @@ local function ReportBlueprintEntityInternal(entity,i)
             cc2[#cc2+1]={index=#cc2+1,count=bit32.lshift(1,filter.index-1) ,signal={type="item",name=filter.name}}
           elseif filter.index == 32 then
             cc2[#cc2+1]={index=#cc2+1,count=-0x80000000 ,signal={type="item",name=filter.name}}
+            --TODO: error signal for filters 33+ that don't match? extended report/command for more filters?
           end
         end
       end
@@ -1462,8 +1449,6 @@ local function ReportBlueprintEntityInternal(entity,i)
       for _,filter in pairs(entity.filters) do
         cc2[#cc2+1]={index=#cc2+1,count=bit32.lshift(1,filter.index + 2) ,signal={type="item",name=filter.name}}
       end
-    else 
-      ReportItemFilters(entity.filters,cc2)
     end
   end
 
@@ -1494,7 +1479,9 @@ local function ReportBlueprintEntityInternal(entity,i)
   end
 
   if entity.request_filters then
-    ReportItemFilters(entity.request_filters,cc2, entproto.logistic_mode == "storage")
+    for _,filter in pairs(entity.request_filters) do 
+      cc2[#cc2+1]={index=#cc2+1,count=(entproto.logistic_mode == "storage" and 1) or filter.count or 1,signal={type="item",name=filter.name}}
+    end
   end
 
   if entity.request_from_buffers then
@@ -1531,10 +1518,10 @@ local function ReportBlueprintEntityInternal(entity,i)
 
   if entity.color then
     local color = entity.color
-    cc1[#cc1+1]={index=#cc1+1,count=color.r*256,signal=knownsignals.red}
-    cc1[#cc1+1]={index=#cc1+1,count=color.g*256,signal=knownsignals.green}
-    cc1[#cc1+1]={index=#cc1+1,count=color.b*256,signal=knownsignals.blue}
-    cc1[#cc1+1]={index=#cc1+1,count=color.a*256,signal=knownsignals.white}
+    cc1[#cc1+1]={index=#cc1+1,count=color.r*255,signal=knownsignals.red}
+    cc1[#cc1+1]={index=#cc1+1,count=color.g*255,signal=knownsignals.green}
+    cc1[#cc1+1]={index=#cc1+1,count=color.b*255,signal=knownsignals.blue}
+    cc1[#cc1+1]={index=#cc1+1,count=(color.a or 1)*255,signal=knownsignals.white}
   end
   if entity.station then
     preload = entity.station
@@ -2077,7 +2064,7 @@ local function onTickManager(manager)
           manager.preloadstring = remote.call('signalstrings','signals_to_string',signals2,true)
     
           local a = get_signal_from_set(knownsignals.white,signals2)
-          if a > 0 and a <= 256 then
+          if a > 0 and a <= 255 then
             local color = ReadColor(signals2)
             color.a = a
             manager.preloadcolor = color
@@ -2234,9 +2221,7 @@ if not ProfilerLoaded then Profiler=nil end
 No_Profiler_Commands = nil
 ProfilerLoaded = nil
 
-local CoverageLoaded,Coverage = pcall(require,'__coverage__/coverage.lua')
-if not CoverageLoaded then Coverage=nil end
-CoverageLoaded = nil
+pcall(require,'__coverage__/coverage.lua')
 
 remote.add_interface('conman',{
   --TODO: call to register items for custom decoding into ghost tags?

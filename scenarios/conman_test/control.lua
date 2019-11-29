@@ -1344,12 +1344,10 @@ local tests = {
             {signal = {type = "item", name = "locomotive"}, count = 1},
             {signal = knownsignals.X, count = -3},
             {signal = knownsignals.Y, count = -4},
-            
             {signal = knownsignals.red, count = 255},
             {signal = knownsignals.green, count = 127},
             {signal = knownsignals.blue, count = 63},
             {signal = knownsignals.white, count = 255},
-
         },
         cc2 = {
             {signal = knownsignals.redwire, count = 12},
@@ -2356,7 +2354,6 @@ replayOneCommandEntityTest("replaypump",{
     {signal = knownsignals.Y, count = -3},
     {signal = knownsignals.K, count = 42},
     {signal = knownsignals.O, count = 2},
-
 },
 {
     {signal = knownsignals.A, count = 1},
@@ -2367,6 +2364,7 @@ replayOneCommandEntityTest("replayconstcomb",{
     {signal = knownsignals.X, count = -3},
     {signal = knownsignals.Y, count = -3},
     {signal = knownsignals.D, count = 2},
+    {signal = knownsignals.O, count = 1},
 },{
     {signal = knownsignals.A, count = 2},
     {signal = knownsignals.B, count = 3},
@@ -2378,9 +2376,40 @@ replayOneCommandEntityTest("replayarith",{
     {signal = knownsignals.X, count = -3},
     {signal = knownsignals.Y, count = -3},
     {signal = knownsignals.O, count = 2},
+    {signal = knownsignals.J, count = 123},
+},{
+    {signal = knownsignals.blueprint, count = 2},
+    {signal = knownsignals.C, count = 4},
+})
+
+replayOneCommandEntityTest("replayarith2",{
+    {signal = {type = "item", name = "arithmetic-combinator"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.O, count = 3},
+    {signal = knownsignals.S, count = 2},
+    {signal = knownsignals.K, count = 456},
+})
+
+replayOneCommandEntityTest("replayarith3",{
+    {signal = {type = "item", name = "arithmetic-combinator"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.O, count = 3},
 },{
     {signal = knownsignals.A, count = 1},
-    {signal = knownsignals.blueprint, count = 2},
+    {signal = knownsignals.B, count = 2},
+    {signal = knownsignals.C, count = 4},
+})
+
+replayOneCommandEntityTest("replayarith4",{
+    {signal = {type = "item", name = "arithmetic-combinator"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.O, count = 3},
+    {signal = knownsignals.S, count = 1},
+},{
+    {signal = knownsignals.B, count = 2},
     {signal = knownsignals.C, count = 4},
 })
 
@@ -2395,11 +2424,64 @@ replayOneCommandEntityTest("replaydecider",{
     {signal = knownsignals.C, count = 4},
 })
 
+replayOneCommandEntityTest("replaydecider2",{
+    {signal = {type = "item", name = "decider-combinator"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.O, count = 2},
+    {signal = knownsignals.S, count = 1},
+},{
+    {signal = knownsignals.blueprint, count = 2},
+    {signal = knownsignals.C, count = 4},
+})
+
+replayOneCommandEntityTest("replaydecider3",{
+    {signal = {type = "item", name = "decider-combinator"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.O, count = 2},
+    {signal = knownsignals.S, count = 4},
+},{
+    {signal = knownsignals.blueprint, count = 2},
+})
+
+replayOneCommandEntityTest("replaydecider4",{
+    {signal = {type = "item", name = "decider-combinator"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.F, count = 1},
+    {signal = knownsignals.K, count = 132},
+    {signal = knownsignals.O, count = 1},
+    {signal = knownsignals.S, count = 5},
+},{
+    {signal = knownsignals.C, count = 4},
+})
+
+replayOneCommandEntityTest("replaydecider5",{
+    {signal = {type = "item", name = "decider-combinator"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.O, count = 2},
+    {signal = knownsignals.S, count = 7},
+},{
+    {signal = knownsignals.C, count = 1},
+    {signal = knownsignals.blueprint, count = 2},
+})
+
 replayOneCommandEntityTest("replayminer",{
     {signal = {type = "item", name = "electric-mining-drill"}, count = 1},
     {signal = knownsignals.X, count = -3},
     {signal = knownsignals.Y, count = -3},
     {signal = knownsignals.R, count = 1},
+})
+
+replayOneCommandEntityTest("replayminer2",{
+    {signal = {type = "item", name = "electric-mining-drill"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.E, count = 1},
+    {signal = knownsignals.R, count = 2},
+    {signal = knownsignals.S, count = 3},
 })
 
 replayOneCommandEntityTest("replayinserter",{
@@ -2426,11 +2508,7 @@ replayOneCommandEntityTest("replayinserter2",{
     {signal = knownsignals.Y, count = -3},
     {signal = knownsignals.I, count = 2},
     {signal = knownsignals.R, count = 2},
-},{
-    {signal = knownsignals.redprint, count = 8},
-    {signal = knownsignals.blueprint, count = 16},
-    {signal = knownsignals.logbot, count = 64},
-    {signal = knownsignals.redwire, count = 128},
+    {signal = knownsignals.F, count = 1},
 })
 
 
@@ -2464,10 +2542,19 @@ replayOneCommandEntityTest("replaybelt",{
     {signal = knownsignals.R, count = 1},
 })
 
+replayOneCommandEntityTest("replaybelt2",{
+    {signal = {type = "item", name = "transport-belt"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.E, count = 1},
+    {signal = knownsignals.R, count = 2},
+})
+
 replayOneCommandEntityTest("replayrailsignal",{
     {signal = {type = "item", name = "rail-signal"}, count = 1},
     {signal = knownsignals.X, count = -3},
     {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.E, count = 1},
     {signal = knownsignals.R, count = 1},
 },{
     {signal = knownsignals.A, count = 4},
@@ -2486,11 +2573,25 @@ replayOneCommandEntityTest("replaychainsignal",{
     {signal = knownsignals.D, count = 32},
 })
 
+replayOneCommandEntityTest("replayrail",{
+    {signal = {type = "item", name = "rail"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+})
+
+replayOneCommandEntityTest("replayrail2",{
+    {signal = {type = "item", name = "rail"}, count = 2},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+})
+
 replayOneCommandEntityTest("replaywall",{
     {signal = {type = "item", name = "stone-wall"}, count = 1},
     {signal = knownsignals.X, count = -3},
     {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.E, count = 1},
     {signal = knownsignals.R, count = 1},
+    {signal = knownsignals.S, count = 5},
 },{
     {signal = knownsignals.A, count = 4},
 })
@@ -2518,6 +2619,46 @@ replayOneCommandEntityTest("replayunder",{
     {signal = knownsignals.X, count = -3},
     {signal = knownsignals.Y, count = -3},
     {signal = knownsignals.U, count = 1},
+})
+
+replayOneCommandEntityTest("replayunder2",{
+    {signal = {type = "item", name = "underground-belt"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+})
+
+replayOneCommandEntityTest("replayloader",{
+    {signal = {type = "item", name = "loader"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.U, count = 1},
+})
+
+replayOneCommandEntityTest("replaycargowagon",{
+    {signal = {type = "item", name = "cargo-wagon"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -4},
+    {signal = knownsignals.B, count = 3},
+    {signal = knownsignals.O, count = 9512},
+    {signal = knownsignals.red, count = 255},
+    {signal = knownsignals.green, count = 127},
+    {signal = knownsignals.blue, count = 63},
+    {signal = knownsignals.white, count = 255},
+},{
+    {signal = knownsignals.redwire, count = 0x40000001},
+    {signal = knownsignals.greenwire, count = 2},
+    {signal = knownsignals.coppercable, count = -0x80000000},
+})
+
+replayOneCommandEntityTest("replayloco",{
+    {signal = {type = "item", name = "locomotive"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -4},
+    {signal = knownsignals.O, count = 7564},
+    {signal = knownsignals.red, count = 255},
+    {signal = knownsignals.green, count = 127},
+    {signal = knownsignals.blue, count = 63},
+    {signal = knownsignals.white, count = 255},
 })
 
 local function replayTwoCommandEntityTest(name,command,data,preload)
@@ -2588,6 +2729,17 @@ replayTwoCommandEntityTest("replaystop",{
 },{
     {signal = knownsignals.A, count = 4},
 }, "TEST")
+
+replayTwoCommandEntityTest("replaystop2",{
+    {signal = {type = "item", name = "train-stop"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.R, count = 1},
+    {signal = knownsignals.E, count = 1},
+    {signal = knownsignals.S, count = 5},
+},{
+    {signal = knownsignals.A, count = 4},
+}, "TEST2")
 
 replayTwoCommandEntityTest("replayspeaker",{
     {signal = {type = "item", name = "programmable-speaker"}, count = 1},

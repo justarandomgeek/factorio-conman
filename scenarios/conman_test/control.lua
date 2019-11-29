@@ -2784,7 +2784,6 @@ tests["replayitemrequests"] = {
         },
     },
     verify = function(outsignals)
-        log(serpent.block(outsignals))
         local expectsignals = {}
         local expectvalues = {}
         for i,signal in pairs(replayitemrequestitems) do

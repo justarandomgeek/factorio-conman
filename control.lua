@@ -1702,7 +1702,7 @@ local function UpdateBlueprintWire(manager,signals1,signals2)
       if redwire == 1 or redwire == -1 then
         color = "red"
         colorvalue = redwire
-      elseif greenwire == 1 then
+      elseif greenwire == 1 or greenwire == -1 then
         color = "green"
         colorvalue = greenwire
       end

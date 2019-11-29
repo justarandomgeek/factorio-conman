@@ -2990,6 +2990,105 @@ tests["replaceentitywithconnectionsitems"] = {
     end
 }
 
+tests["replayschedule"] = {
+    prepare = function()
+        --bp string of loco
+        global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].import_stack("0eNptjsEKgzAQRP9lzjloLYj5lVKK2qUsmF1JolQk/26ilx56WZjdmbezY5gWmj1LhN3Bo0qAfewI/JF+Kru4zQQLjuRgIL0ratJRnUZeCcmA5U1f2Do9DUgiR6aLcortJYsbyGfDv7zBrCFHVMq3jKkMtjwzVz1nQn/dqkI/W9if0gYr+XAa2rapuntdN7cupQOvq0ix")
+    end,
+    multifeed = {
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 10},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.W, count = 1},
+            },
+            cc2string = "FOO",
+            cc2 = {
+                {signal = knownsignals.schedule, count = 1},
+                {signal = {name="signal-wait-time",type="virtual"}, count = 123},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 10},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.W, count = 1},
+            },
+            cc2string = "BAR",
+            cc2 = {
+                {signal = knownsignals.schedule, count = 2},
+                {signal = {name="signal-wait-time",type="virtual"}, count = 456},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 10},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.W, count = 1},
+            },
+            cc2string = "BAZ",
+            cc2 = {
+                {signal = knownsignals.schedule, count = 3},
+                {signal = {name="signal-wait-time",type="virtual"}, count = 789},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 10},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.W, count = 1},
+            },
+            cc2 = {
+                {signal = knownsignals.schedule, count = 2},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 10},
+                {signal = knownsignals.grey, count = 1},
+            },
+            cc2 = {
+                {signal = knownsignals.schedule, count = 1},
+            },
+        },
+        {},
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 10},
+                {signal = knownsignals.grey, count = 1},
+            },
+            cc2 = {
+                {signal = knownsignals.schedule, count = 2},
+            },
+        },
+        {},
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 10},
+                {signal = knownsignals.grey, count = 1},
+            },
+            cc2 = {
+                {signal = knownsignals.schedule, count = 3},
+            },
+        },
+        {},
+    },
+    verify = function(outsignals)
+        log(serpent.dump(outsignals))
+        
+        return expect_frames({
+            [7] = remote.call('signalstrings', 'string_to_signals', "FOO", {
+                {signal = knownsignals.schedule, count = 1},
+                {signal = {name="signal-wait-time",type="virtual"}, count = 123},
+            }),
+            [9] = remote.call('signalstrings', 'string_to_signals', "BAZ", {
+                {signal = knownsignals.schedule, count = 2},
+                {signal = {name="signal-wait-time",type="virtual"}, count = 789},
+            }),
+          },outsignals)
+    end
+}
+
 tests["profileend"] ={
         prepare = function()
             

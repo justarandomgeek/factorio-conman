@@ -1770,6 +1770,7 @@ local function ReportBlueprintSchedule(manager,signals1,signals2)
       local schedule_index = get_signal_from_set(knownsignals.schedule,signals2)
       if entity.schedule and schedule_index > 0 and schedule_index <= #entity.schedule then 
         local outsignals = remote.call("stringy-train-stop", "reportScheduleEntry", entity.schedule[schedule_index])[1]
+        outsignals[#outsignals+1] = { index = #outsignals+1, signal = knownsignals.schedule, count = schedule_index}
         
         manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
         manager.clearcc2 = true
@@ -1785,11 +1786,17 @@ local function UpdateBlueprintSchedule(manager,signals1,signals2)
     if i > 0 and i <= #entities then
       local entity = entities[i]
       local schedule_index = get_signal_from_set(knownsignals.schedule,signals2)
-      if entity.schedule and schedule_index > 0 and schedule_index <= #entity.schedule + 1 then 
+      if not entity.schedule then 
+        entity.schedule = {}
+      end
+      if schedule_index > 0 and schedule_index <= #entity.schedule + 1 then 
         local newschedule = remote.call("stringy-train-stop", "parseScheduleEntry", signals2, manager.ent.surface)
         if newschedule.rail then
           newschedule.rail = nil
           newschedule.station = ""
+        end
+        if newschedule.station == "" and (not newschedule.wait_conditions or #newschedule.wait_conditions == 0) then 
+          newschedule = nil
         end
         entity.schedule[schedule_index] = newschedule
         bp.set_blueprint_entities(entities)

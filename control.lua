@@ -1579,7 +1579,6 @@ local function UpdateBlueprintEntity(manager,signals1,signals2)
           end
         end
         entities[i] = newent
-        log(serpent.dump(newent))
         bp.set_blueprint_entities(entities)
       end
     end
@@ -1647,6 +1646,7 @@ local function ReportBlueprintWire(manager,signals1,signals2)
       if connector_index ~= 2 then
         connector_index = 1
       end
+      if not entity.connections then return end
       local connector = entity.connections[tostring(connector_index)]
       if not connector then return end
 
@@ -1684,39 +1684,64 @@ local function UpdateBlueprintWire(manager,signals1,signals2)
       local connector_index = get_signal_from_set(knownsignals.Z,signals1)
       local redwire = get_signal_from_set(knownsignals.redwire,signals1)
       local greenwire = get_signal_from_set(knownsignals.greenwire,signals1)
-      local connector
+      local connectorstr
       if connector_index == 2 then
-        connector = "2"
+        connectorstr = "2"
       else
         connector_index = 1
-        connector = "1"
+        connectorstr = "1"
       end
-      connector = entity.connections[connector]
-      if not connector then return end
+      if not entity.connections then
+        entity.connections = {}
+      end
+      if not entity.connections[connectorstr] then entity.connections[connectorstr] = {} end
+      local connector = entity.connections[connectorstr]
 
       local color
-      if redwire == 1 then
+      local colorvalue 
+      if redwire == 1 or redwire == -1 then
         color = "red"
+        colorvalue = redwire
       elseif greenwire == 1 then
         color = "green"
+        colorvalue = greenwire
       end
       if color then
+        if not connector[color] then connector[color] = {} end
         connector = connector[color]
         if not connector then return end
       end
-      
-      local far_entity_index = get_signal_from_set(knownsignals.white,signals1)
-      if not (far_entity_index > 0 and far_connector_index < #entities) then return end
-      local far_connector_index = get_signal_from_set(knownsignals.y,signals1)
-      if far_connector_index ~= 2 then 
-        far_connector_index = 1
-      end
 
-      if connector and connection_index > 0 and connection_index <= #connector+1 then 
-        connector[connection_index] = {
-          entity_id = far_entity_index,
-          circuit_id = far_connector_index,
-        }
+      if connector and connection_index > 0 and connection_index <= #connector+1 then
+        if colorvalue == 1 then
+          local far_entity_index = get_signal_from_set(knownsignals.white,signals1)
+          if not (far_entity_index > 0 and far_entity_index <= #entities) then return end
+          local far_connector_index = get_signal_from_set(knownsignals.Y,signals1)
+          if far_connector_index ~= 2 then 
+            far_connector_index = 1
+          end
+          connector[connection_index] = {
+            entity_id = far_entity_index,
+            circuit_id = far_connector_index,
+          }
+        else -- colorvalue == -1
+          if connection_index == #connector+1 then return end -- don't allow the +1 when deleting
+          local removedwire = connector[connection_index]
+          if connection_index ~= #connector then
+            connector[connection_index] = connector[#connector]
+          end
+          connector[#connector] = nil
+          local farconnections = entities[removedwire.entity_id].connections[tostring(removedwire.circuit_id or 1)][color]
+          for j,farconnection in pairs(farconnections) do
+            if farconnection.entity_id == i and (farconnection.circuit_id or 1) == connector_index then
+              if j ~= #farconnections then
+                farconnections[j] = farconnections[#farconnections]
+              end
+              farconnections[#farconnections] = nil
+              break
+            end
+          end
+        end
         bp.set_blueprint_entities(entities)
       end
     end
@@ -1978,6 +2003,7 @@ local bp_signal_functions = {
   [6] = ReadWrite(ReportBlueprintTile,UpdateBlueprintTile),
   [7] = ReadWrite(ReportBlueprintEntity,UpdateBlueprintEntity),
   [8] = ReadWrite(ReportBlueprintItemRequests,UpdateBlueprintItemRequests),
+  [9] = ReadWrite(ReportBlueprintWire,UpdateBlueprintWire),
   [10] = ReadWrite(ReportBlueprintSchedule,UpdateBlueprintSchedule),
   [11] = DumpBlueprint,
 }
@@ -2001,14 +2027,12 @@ local function onTickManager(manager)
           manager.empties = (manager.empties or 0) + 1
         end
       end
-      log(i)
-      log(serpent.dump(nextframe))
       manager.cc2.get_or_create_control_behavior().parameters={parameters=nextframe}
       manager.morecc2[i] = nil
       return
     else
       manager.morecc2 = nil
-      log((manager.empties or 0) .. "/" .. (manager.evens or 0))
+      --log((manager.empties or 0) .. "/" .. (manager.evens or 0))
       manager.evens = 0
       manager.empties = 0
     end

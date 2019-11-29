@@ -2795,6 +2795,122 @@ tests["replayitemrequests"] = {
     end
 }
 
+tests["replaywires"] = {
+    prepare = function()
+        --bp string of two combinators (arith/decider)
+        global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].import_stack("0eNqFkttqwzAMht9Fl8MdSdpRavYmYwQn0VZBfMBWykLwu09OC9u6sVwZHf5fn2wv0I0ThkiOQS9AvXcJ9MsCid6dGUuO54CggRgtKHDGlshE4rNFpn7Xe9uRM+wjZAXkBvwAXWe16TFgTwPGvw2a/KoAHRMTXonWYG7dZDuMMmGDRUHwSdTeFQBx3IlilqN6fJIxsihHP7Ydns2FpF+avoxaKQ+rOJVCwhKXZGJTbqpS4ANGc7WHB8i5LHyH2Py36i++agvvZnLH9gNK/IOJq7+GZyiJMItgcty+RW9bcmGSVo4TCrJc8fok+tsvUHDBmFas43FfnQ51vW9OOX8CaoC//g==")
+    end,
+    multifeed = {
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 9},
+                {signal = knownsignals.redwire, count = 1},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.white, count = 2},
+                {signal = knownsignals.W, count = 1},
+                {signal = knownsignals.X, count = 1},
+                {signal = knownsignals.Y, count = 1},
+                {signal = knownsignals.Z, count = 1},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 9},
+                {signal = knownsignals.redwire, count = 1},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.X, count = 1},
+                {signal = knownsignals.Z, count = 1},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 9},
+                {signal = knownsignals.redwire, count = 1},
+                {signal = knownsignals.grey, count = 2},
+                {signal = knownsignals.X, count = 1},
+                {signal = knownsignals.Z, count = 1},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 9},
+                {signal = knownsignals.redwire, count = -1},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.white, count = 2},
+                {signal = knownsignals.W, count = 1},
+                {signal = knownsignals.X, count = 1},
+                {signal = knownsignals.Y, count = 1},
+                {signal = knownsignals.Z, count = 1},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 9},
+                {signal = knownsignals.redwire, count = 1},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.X, count = 1},
+                {signal = knownsignals.Z, count = 1},
+            },
+        },
+        -- green wire on 2s
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 9},
+                {signal = knownsignals.greenwire, count = 1},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.white, count = 2},
+                {signal = knownsignals.W, count = 1},
+                {signal = knownsignals.X, count = 1},
+                {signal = knownsignals.Y, count = 2},
+                {signal = knownsignals.Z, count = 2},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 9},
+                {signal = knownsignals.greenwire, count = 1},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.X, count = 1},
+                {signal = knownsignals.Z, count = 2},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 9},
+                {signal = knownsignals.greenwire, count = -1},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.white, count = 2},
+                {signal = knownsignals.W, count = 1},
+                {signal = knownsignals.X, count = 1},
+                {signal = knownsignals.Y, count = 2},
+                {signal = knownsignals.Z, count = 2},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 9},
+                {signal = knownsignals.greenwire, count = 1},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.X, count = 1},
+                {signal = knownsignals.Z, count = 2},
+            },
+        },
+        {},{},{},{},
+    },
+    verify = function(outsignals)
+        log(serpent.block(outsignals))
+        do return false end
+        local expectsignals = {}
+        local expectvalues = {}
+        for i,signal in pairs(replayitemrequestitems) do
+            expectsignals[i] = signal.signal
+            expectvalues[i] = signal.count
+        end
+        if not outsignals[1] and expect_signals(expectsignals,expectvalues,outsignals[1]) then return false end
+        return true
+    end
+}
+
 
 tests["profileend"] ={
         prepare = function()

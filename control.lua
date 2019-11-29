@@ -1661,12 +1661,9 @@ local function ReportBlueprintWire(manager,signals1,signals2)
         if not connector then return end
       end
     
-      if connector and connection_index > 0 and connection_index <= #connector then 
-        
+      if connector and connection_index > 0 and connection_index <= #connector then
         local connection = connector[connection_index]
-
         local outsignals = ReportBlueprintWireInternal(i,connector_index,color,connection_index,connection)
-        
         manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
         manager.clearcc2 = true
       end
@@ -1938,7 +1935,6 @@ local function DeconstructionOrder(manager,signals1,signals2,cancel)
 end
 
 local function DeliveryOrder(manager,signals1,signals2)
-
   local ent = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(signals1,false,{x=0.5,y=0.5})}[1]
   if not (ent and ent.valid) then return end
 

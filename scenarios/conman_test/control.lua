@@ -1506,6 +1506,31 @@ local tests = {
             return true
         end
     },
+    ["irp2"] = {
+        prepare = function()
+            global.chest=global.surface.create_entity{name="wooden-chest",force="player",position={-3.5,-3.5}}
+            global.irp=global.surface.create_entity{name="item-request-proxy",modules={["wooden-chest"]=1},target=global.chest,force="player",position={-3.5,-3.5}}
+        end,
+        cc1 = {
+            {signal = knownsignals.logbot, count = 1},
+            {signal = knownsignals.X, count = -4},
+            {signal = knownsignals.Y, count = -4},
+        },
+        cc2 = {
+            {signal = knownsignals.redwire, count = 12},
+        },
+        verify = function()
+            local irp = global.irp
+            
+            if not(irp and irp.proxy_target == global.chest and irp.item_requests[knownsignals.redwire.name] == 12 and irp.item_requests["wooden-chest"] == 1) then return false end
+            irp.destroy()
+            global.irp = nil
+            
+            global.chest.destroy()
+            global.chest = nil
+            return true
+        end
+    },
 
     ["connectwires"] = {
         prepare = function()

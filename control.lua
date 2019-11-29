@@ -746,7 +746,6 @@ local function ConstructionOrder(manager,signals1,signals2,forblueprint)
       createorder.name = createorder.inner_name
       createorder.inner_name = nil
       createorder.set_filter = nil
-      createorder.ghost_prototype = nil
       return createorder
     end
   end
@@ -1571,8 +1570,24 @@ local function UpdateBlueprintEntity(manager,signals1,signals2)
       if newent then
         newent.entity_number = i
         if entities[i] then 
-          if entities[i].connections then 
+          if entities[i].connections then
             newent.connections = entities[i].connections
+            if newent.connections["2"] then
+              local hasTwo = { ["arithmetic-combinator"] = true, ["decider-combinator"] = true }
+              if not hasTwo[newent.ghost_prototype.type] then
+                for color,wires in pairs(newent.connections["2"]) do
+                  for _,wire in pairs(wires) do
+                    local farwires = entities[wire.entity_id].connections[tostring(wire.circuit_id or 1)][color]
+                    for fari,farwire in pairs(farwires) do
+                      if farwire.entity_id == i and farwire.circuit_id == 2 then
+                        farwires[fari] = nil
+                      end
+                    end
+                  end
+                end
+                newent.connections["2"] = nil
+              end
+            end
           end
           if entities[i].items then 
             newent.items = entities[i].items

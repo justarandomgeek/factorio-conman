@@ -19,6 +19,12 @@ function get_signals_filtered(filters,signals)
     return results
 end
 
+function expect(name,expected,got)
+    if expected == got then return true end
+    log(("expected %s = %d got %d"):format(name,expected,got))
+    return false
+end
+
 function expect_signals(expectedsignals,expectedvalues,gotsignals,allowextra)
     local gotvalues = get_signals_filtered(expectedsignals,gotsignals)
     local gotsize = table_size(gotvalues)
@@ -2302,37 +2308,6 @@ local tests = {
             return true
         end
     },
-    --[[
-    ["bpcraftingmachine"] = {
-        multifeed = {
-            {cc1 = {{signal = knownsignals.blueprint, count = -2},},}, -- create a new blueprint
-            {
-                cc1 = {
-                    {signal = knownsignals.blueprint, count = 7},
-                    {signal = knownsignals.grey, count = 1},
-                    {signal = knownsignals.W, count = 1},
-                    {signal = knownsignals.conbot, count = 1},
-                    {signal = {type = "item", name = "assembling-machine-3"}, count = 1},
-                    {signal = knownsignals.R, count = -126192623}, -- "inserter"
-                    {signal = knownsignals.X, count = -3},
-                    {signal = knownsignals.Y, count = -3},
-                },
-            },
-            {
-                cc1 = {
-                    {signal = knownsignals.blueprint, count = 7},
-                    {signal = knownsignals.grey, count = 1},
-                },
-            },
-            {cc1 = {{signal = knownsignals.blueprint, count = -3},},}, -- destroy the print
-        },
-        verify = function(outsignals)
-            log(serpent.dump(outsignals))
-            
-            return false
-        end
-    },
-    --]]
 }
 
 local function replayOneCommandEntityTest(name,command,data)
@@ -2988,6 +2963,32 @@ tests["replaywires"] = {
     end
 }
 
+tests["replaceentitywithconnectionsitems"] = {
+    prepare = function()
+        --bp string of wired combinator with irp and chest
+        global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].import_stack("0eNqdUu1ugzAMfBf/nMIEdFNVXmWqUAjesFQSlJhuCPHuc4K20bVSp/0h8sedz4dnaE4jDp4sQzUDGWcDVC8zBHqz+hRzPA0IFRBjDwqs7mOkPXHXI5PJjOsbspqdh0UB2RY/oCoWdZfj3bkWbWY6DLyBlstRAVomJly1pGCq7dg36IX7jgoFgwuCdjaOFsZMEJM8+eOzjJEV2btT3WCnzyT90vRDVEu5TeAQC6/kA8dcYB0tyhUEjC2XOTeg1+tEeIBlnWLRfPMU8eOx3e5DbdrFkDcjcQrLaNumLF4IV/k3cHEDHG0V05OGC7+le9P+ZW15++dcOZonQ/N/7/lb6pUNojyeQTqYanOjCs7oQxKy3+/yw1NR7MrDsnwCXCry2w==")
+    end,
+    multifeed = {
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 7},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.W, count = 1},
+                {signal = {name="steel-chest",type="item"}, count = 2},
+                {signal = knownsignals.X, count = 1},
+                {signal = knownsignals.Y, count = 1},
+            },
+        },
+    },
+    verify = function(outsignals)
+        local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+        local entities = bp.get_blueprint_entities()
+        if not expect("name","steel-chest",entities[1].name) then return false end
+        if not entities[1].connections then return false end
+        if not entities[1].items then return false end
+        return true
+    end
+}
 
 tests["profileend"] ={
         prepare = function()

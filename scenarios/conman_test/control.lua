@@ -37,6 +37,42 @@ function expect_signals(expectedsignals,expectedvalues,gotsignals,allowextra)
     return true
 end
 
+function expect_frames(expectedframes,gotframes)
+    local gotsize = table_size(gotframes)
+    local expectedsize = table_size(expectedframes)
+    if (gotsize < expectedsize) or (gotsize > expectedsize) then
+        log(("expected %d frames, got %d"):format(expectedsize,gotsize))
+        return false
+    end
+
+    for k,_ in pairs(expectedframes) do 
+        if not gotframes[k] then
+            log(("missing expected frame [%d]"):format(k))
+            return false
+        end
+    end
+
+    for k,gotframe in pairs(gotframes) do
+        local expectsignals = {}
+        local expectvalues = {}
+        local expectedframe = expectedframes[k]
+        if not expectedframe then
+            log(("unexpected frame [%d]"):format(k))
+            log(serpent.dump(gotframe))
+            return false
+        end
+        for i,signal in pairs(expectedframe) do
+            expectsignals[i] = signal.signal
+            expectvalues[i] = signal.count
+        end
+        local p = expect_signals(expectsignals,expectvalues,gotframe)
+        if p then return true end
+        log(("in frame [%d]"):format(k))
+        return false
+    end
+    return true
+end
+
 local tests = {
     ["profilestart"] ={
         prepare = function()
@@ -2898,16 +2934,32 @@ tests["replaywires"] = {
         {},{},{},{},
     },
     verify = function(outsignals)
-        log(serpent.block(outsignals))
-        do return false end
-        local expectsignals = {}
-        local expectvalues = {}
-        for i,signal in pairs(replayitemrequestitems) do
-            expectsignals[i] = signal.signal
-            expectvalues[i] = signal.count
-        end
-        if not outsignals[1] and expect_signals(expectsignals,expectvalues,outsignals[1]) then return false end
-        return true
+        return expect_frames({
+            [4] = {
+              { count = 1, signal = knownsignals.X },
+              { count = 1, signal = knownsignals.Y },
+              { count = 1, signal = knownsignals.Z },
+              { count = 2, signal = knownsignals.white },
+              { count = 1, signal = knownsignals.grey },
+              { count = 1, signal = knownsignals.redwire}
+            },
+            [5] = {
+              { count = 1, signal = knownsignals.X },
+              { count = 1, signal = knownsignals.Y },
+              { count = 1, signal = knownsignals.Z },
+              { count = 1, signal = knownsignals.white },
+              { count = 2, signal = knownsignals.grey },
+              { count = 1, signal = knownsignals.redwire }
+            },
+            [9] = {
+              { count = 1, signal = knownsignals.X },
+              { count = 2, signal = knownsignals.Y },
+              { count = 2, signal = knownsignals.Z },
+              { count = 2, signal = knownsignals.white },
+              { count = 1, signal = knownsignals.grey },
+              { count = 1, signal = knownsignals.greenwire }
+            }
+          },outsignals)
     end
 }
 

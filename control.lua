@@ -1811,7 +1811,7 @@ local function DumpBlueprint(manager,signals1,signals2)
     local outframes = {
     --dump enough signals to recreate this blueprint from scratch
     {{index=1,count=-2,signal=knownsignals.blueprint}},
-    {},
+    {}, --TODO: some metadata in this frame? how many frames to expect? number of entities/tiles/etc?
     --Label
     {{index=1,count=4,signal=knownsignals.blueprint}},
     ReportLabel(manager,bp,true),

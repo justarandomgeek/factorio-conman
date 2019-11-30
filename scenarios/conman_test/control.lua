@@ -3087,6 +3087,208 @@ tests["replayschedule"] = {
     end
 }
 
+tests["dump"] = {
+    prepare = function()
+        --bp string of a print with a little of everything to dump
+        global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].import_stack("0eNq9Vk2vmzAQ/C97bKEC8vWSY9VrpR7a01OEHNgkq4CNbJM2ivjvXUMSEM9Vw6vUS4KxZ+yd8e5yhV1RY6VJWthcgTIlDWxer2DoIEXh3tlLhbABslhCAFKUbqQFFdAEQDLHX7CJm+CvkEJlqlSWzjgAJl7gmbSt+c0D260IsyNmpwF6NglNcq8G4HmzDQClJUvYxdwOLqmsyx1qDqonsBzv4WjDNuwAKmUYpaTblJnCJIAL/y0bd54RS+IT4I8ULCQoTcwhutkoaGU0bl2mXJyLyLfNbOph5z6W+YPFkcjQWFW9pYjuDAEfSVqtinSHR3EmpVsbHDR10Arz9Gl7vkPTEUrM3GZtyLH70ZgP/SEerXgl6awm2w7jQSye6aTZOm5zFxU+19kJtUTS4FFhMVXLxKfl8sEiNNljiZaykG/AjqSwrNRbWT8t7nR+YXuelKdzeqi0J23s80qjyI4uEQw6GsfFyrgCwMaqCvVdpY+MVLWt6snc/+LklrHJc4tbXz3Sr6ZKH/437aOB8E+DYgcaOvPhHc4kk2yZjzJqOcWm5dimYMTtt+1lYt55C+F6Iok3d+NoIgtXU+4mhhtUXhe3dtLXezdOBvNdh/VVowB+ClZteMVeXeEvK6ExvTnc3uDbs6XStRO+lydeG79EkQtnBBAy7xGVMAblAXVaaeQnC2zH1h3f0v3ooyDjLjdWTd//cU8Sc04qmWm02JZRP2o5DZW8a6/kib22XSvluf6bJ4BC7JDTB778+PqNh2fUpqVdrWbReh7Hs2TdNL8BFccYSA==")
+    end,
+    multifeed = {
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 11},
+            },
+        },
+        {},{},--create/blank
+        {},{},--label
+        {},{},--icons
+        {},{},{},{},{},{},{},{},--tiles (and blanks)
+        {},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},--entities
+        {},{},{},{},{},{},{},{},--wires
+        {},{},--item requests
+        {},{},--schedule
+
+        {},{},{},{},{},{}, -- padding off the end...
+    },
+    verify = function(outsignals)
+        return expect_frames({
+            [3]={{signal=knownsignals.blueprint,count=-2}},
+            [5]={{signal=knownsignals.blueprint,count=4}},
+            [6]={
+                {signal=knownsignals.D,count=1},
+                {signal=knownsignals.M,count=4},
+                {signal=knownsignals.P,count=8},
+                {signal=knownsignals.U,count=2}
+                },
+            [7]={{signal=knownsignals.blueprint,count=5}},
+            [8]={
+                {signal={type="virtual",name="signal-check"},count=4},
+                {signal=knownsignals.info,count=8},
+                {signal={type="item",name="rail"},count=1},
+                {signal={type="item",name="locomotive"},count=2}
+                },
+            [9]={
+                {signal=knownsignals.T,count=1},
+                {signal=knownsignals.X,count=1},
+                {signal=knownsignals.Y,count=-7},
+                {signal={type="item",name="refined-concrete"},count=1},
+                {signal=knownsignals.blueprint,count=6}
+                },
+            [11]={
+                {signal=knownsignals.T,count=2},
+                {signal=knownsignals.X,count=1},
+                {signal=knownsignals.Y,count=-6},
+                {signal={type="item",name="refined-concrete"},count=1},
+                {signal=knownsignals.blueprint,count=6}
+                },
+            [13]={
+                {signal=knownsignals.T,count=3},
+                {signal=knownsignals.X,count=2},
+                {signal=knownsignals.Y,count=-7},
+                {signal={type="item",name="refined-concrete"},count=1},
+                {signal=knownsignals.blueprint,count=6}
+                },
+            [15]={
+                {signal=knownsignals.T,count=4},
+                {signal=knownsignals.X,count=2},
+                {signal=knownsignals.Y,count=-6},
+                {signal={type="item",name="refined-concrete"},count=1},
+                {signal=knownsignals.blueprint,count=6}
+                },
+            [17]={
+                {signal=knownsignals.X,count=-2},
+                {signal=knownsignals.Y,count=-6},
+                {signal=knownsignals.grey,count=1},
+                {signal={type="item",name="rail"},count=1},
+                {signal=knownsignals.blueprint,count=7}
+                },
+            [19]={
+                {signal=knownsignals.X,count=-2},
+                {signal=knownsignals.Y,count=-1},
+                {signal=knownsignals.grey,count=2},
+                {signal={type="item",name="locomotive"},count=1},
+                {signal=knownsignals.blueprint,count=7}
+                },
+            [21]={
+                {signal=knownsignals.grey,count=2},
+                {signal=knownsignals.blueprint,count=8}
+                },
+            [22]={{signal={type="item",name="coal"},count=50}},
+            [23]={{signal=knownsignals.grey,count=2},{signal=knownsignals.blueprint,count=10}},
+            [24]={
+                {signal=knownsignals.B,count=1},
+                {signal=knownsignals.C,count=4},
+                {signal=knownsignals.E,count=144},
+                {signal=knownsignals.I,count=256},
+                {signal=knownsignals.K,count=8},
+                {signal=knownsignals.N,count=64},
+                {signal=knownsignals.R,count=544},
+                {signal=knownsignals.U,count=2},
+                {signal=knownsignals.schedule,count=1}
+                },
+            [25]={
+                {signal=knownsignals.X,count=-2},
+                {signal=knownsignals.Y,count=-4},
+                {signal=knownsignals.grey,count=3},
+                {signal={type="item",name="rail"},count=1},
+                {signal=knownsignals.blueprint,count=7}
+                },
+            [27]={{signal=knownsignals.info,count=1}},
+            [28]=remote.call('signalstrings', 'string_to_signals', "BUCKERNEIR"),
+            [29]={
+                {signal=knownsignals.T,count=1},
+                {signal=knownsignals.Y,count=-4},
+                {signal=knownsignals.grey,count=4},
+                {signal={type="item",name="train-stop"},count=1},
+                {signal=knownsignals.blueprint,count=7}
+                },
+            [31]={
+                {signal=knownsignals.X,count=-2},
+                {signal=knownsignals.Y,count=-2},
+                {signal=knownsignals.grey,count=5},
+                {signal={type="item",name="rail"},count=1},
+                {signal=knownsignals.blueprint,count=7}
+                },
+            [33]={
+                {signal=knownsignals.O,count=3},
+                {signal=knownsignals.S,count=2},
+                {signal=knownsignals.Y,count=-2},
+                {signal=knownsignals.grey,count=6},
+                {signal={type="item",name="arithmetic-combinator"},count=1},
+                {signal=knownsignals.blueprint,count=7}
+                },
+            [35]={
+                {signal=knownsignals.O,count=1},
+                {signal=knownsignals.X,count=-1},
+                {signal=knownsignals.Y,count=-2},
+                {signal=knownsignals.grey,count=7},
+                {signal={type="item",name="arithmetic-combinator"},count=1},
+                {signal=knownsignals.blueprint,count=7}
+                },
+            [36]={
+                {signal={type="virtual",name="signal-0"},count=1},
+                {signal={type="virtual",name="signal-1"},count=2},
+                {signal={type="virtual",name="signal-2"},count=4}
+                },
+            [37]={
+                {signal=knownsignals.X,count=1},
+                {signal=knownsignals.Y,count=1},
+                {signal=knownsignals.Z,count=1},
+                {signal=knownsignals.white,count=4},
+                {signal=knownsignals.grey,count=7},
+                {signal=knownsignals.redwire,count=1},
+                {signal=knownsignals.blueprint,count=9}
+                },
+            [39]={
+                {signal=knownsignals.X,count=2},
+                {signal=knownsignals.Y,count=1},
+                {signal=knownsignals.Z,count=1},
+                {signal=knownsignals.white,count=6},
+                {signal=knownsignals.grey,count=7},
+                {signal=knownsignals.redwire,count=1},
+                {signal=knownsignals.blueprint,count=9}
+                },
+            [41]={
+                {signal=knownsignals.X,count=1},
+                {signal=knownsignals.Y,count=1},
+                {signal=knownsignals.Z,count=2},
+                {signal=knownsignals.white,count=4},
+                {signal=knownsignals.grey,count=7},
+                {signal=knownsignals.redwire,count=1},
+                {signal=knownsignals.blueprint,count=9}
+                },
+            [43]={
+                {signal=knownsignals.X,count=2},
+                {signal=knownsignals.Y,count=2},
+                {signal=knownsignals.Z,count=2},
+                {signal=knownsignals.white,count=6},
+                {signal=knownsignals.grey,count=7},
+                {signal=knownsignals.redwire,count=1},
+                {signal=knownsignals.blueprint,count=9}
+                },
+            [45]={
+                {signal=knownsignals.X,count=-2},
+                {signal=knownsignals.grey,count=8},
+                {signal={type="item",name="rail"},count=1},
+                {signal=knownsignals.blueprint,count=7}
+                },
+            [47]={
+                {signal=knownsignals.X,count=-2},
+                {signal=knownsignals.Y,count=2},
+                {signal=knownsignals.grey,count=9},
+                {signal={type="item",name="rail"},count=1},
+                {signal=knownsignals.blueprint,count=7}
+                },
+            [49]={
+                {signal=knownsignals.X,count=-2},
+                {signal=knownsignals.Y,count=4},
+                {signal=knownsignals.grey,count=10},
+                {signal={type="item",name="rail"},count=1},
+                {signal=knownsignals.blueprint,count=7}
+                }
+            },outsignals)
+    end
+}
+
 tests["profileend"] ={
         prepare = function()
             

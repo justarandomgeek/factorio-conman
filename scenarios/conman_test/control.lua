@@ -3074,8 +3074,6 @@ tests["replayschedule"] = {
         {},
     },
     verify = function(outsignals)
-        log(serpent.dump(outsignals))
-        
         return expect_frames({
             [7] = remote.call('signalstrings', 'string_to_signals', "FOO", {
                 {signal = knownsignals.schedule, count = 1},

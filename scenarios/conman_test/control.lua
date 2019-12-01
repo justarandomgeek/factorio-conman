@@ -3323,7 +3323,7 @@ local states = {
 
 
 script.on_event(defines.events.on_game_created_from_scenario,function()
-    game.print("init")
+    log("init")
     if remote.interfaces["coverage"] then remote.call("coverage","start","conman_tests") end
     game.autosave_enabled = false
     game.speed = 1000
@@ -3360,7 +3360,7 @@ end
 
 script.on_event(defines.events.on_tick, function()
     if global.state == states.prepare then
-        game.print("prepare " .. global.testid)
+        log("prepare " .. global.testid)
         if remote.interfaces["coverage"] then remote.call("coverage","start",global.testid) end
         global.outsignals = {}
         if global.test.prepare then
@@ -3373,14 +3373,14 @@ script.on_event(defines.events.on_tick, function()
             global.state = states.feed
         end
     elseif global.state == states.feed then
-        game.print("feed " .. global.testid)
+        log("feed " .. global.testid)
         -- feed cc1/cc2 data
         writeInput(global.test.cc1, global.test.cc1string, global.testprobe1)
         writeInput(global.test.cc2, global.test.cc2string, global.testprobe2)
         global.outsignals[1] = global.testprobe2out.get_merged_signals()
         global.state = states.clear
     elseif global.state == states.multifeed then
-        game.print("multifeed " .. global.testid .. " " .. global.nextfeed)
+        log("multifeed " .. global.testid .. " " .. global.nextfeed)
         -- feed cc1/cc2 data
         local nextdata = global.test.multifeed[global.nextfeed]
         writeInput(nextdata.cc1, nextdata.cc1string, global.testprobe1)
@@ -3394,7 +3394,7 @@ script.on_event(defines.events.on_tick, function()
             global.state = states.clear
         end
     elseif global.state == states.clear then
-        game.print("clear " .. global.testid)
+        log("clear " .. global.testid)
         -- clear cc1/cc2 data
         writeInput(nil,nil, global.testprobe1)
         writeInput(nil,nil, global.testprobe2)
@@ -3403,7 +3403,7 @@ script.on_event(defines.events.on_tick, function()
         global.outsignals[#global.outsignals+1] = global.testprobe2out.get_merged_signals()
         global.state = states.verify
     elseif global.state == states.verify then
-        game.print("verify " .. global.testid)
+        log("verify " .. global.testid)
     
         if global.test.verify then
             global.outsignals[#global.outsignals+1] = global.testprobe2out.get_merged_signals()
@@ -3411,7 +3411,7 @@ script.on_event(defines.events.on_tick, function()
                 --game.set_game_state{ game_finished=true, player_won=false, can_continue=true }    
                 global.state = states.finished
                 game.speed = 1
-                game.print("test failed")
+                log("test failed")
                 remote.call("conman","stopProfile")
                 if remote.interfaces["coverage"] then remote.call("coverage","report") end
                 return

@@ -80,24 +80,6 @@ function expect_frames(expectedframes,gotframes)
 end
 
 local tests = {
-    ["profilestart"] ={
-        prepare = function()
-            if remote.call("conman","hasProfiler") then
-                if not global.profilecount then
-                    remote.call("conman","startProfile")
-                end
-            end
-        end,
-        cc1 = {
-
-        },
-        cc2 = {
-
-        },
-        verify = function()
-            return true
-        end
-    },
     ["container"] = {
         cc1 = {
             {signal = knownsignals.conbot, count = 1},
@@ -3289,29 +3271,6 @@ tests["dump"] = {
     end
 }
 
-tests["profileend"] ={
-        prepare = function()
-            
-        end,
-        cc1 = {
-
-        },
-        cc2 = {
-
-        },
-        verify = function()
-            if remote.call("conman","hasProfiler") then
-                global.profilecount = (global.profilecount or 0) + 1
-                if global.profilecount == 50 then
-                    remote.call("conman","stopProfile")
-                else
-                    global.testid = nil
-                end
-            end
-            return true
-        end
-    }
-
 local states = {
     prepare = 10,       -- run prepare()
     feed = 20,          -- feed cc1/cc2
@@ -3324,7 +3283,9 @@ local states = {
 
 script.on_event(defines.events.on_game_created_from_scenario,function()
     log("init")
+    if remote.call("conman","hasProfiler") then remote.call("conman","startProfile") end
     if remote.interfaces["coverage"] then remote.call("coverage","start","conman_tests") end
+    global.profilecount = 0
     game.autosave_enabled = false
     game.speed = 1000
     global = {
@@ -3412,7 +3373,7 @@ script.on_event(defines.events.on_tick, function()
                 global.state = states.finished
                 game.speed = 1
                 log("test failed")
-                remote.call("conman","stopProfile")
+                if remote.call("conman","hasProfiler") then remote.call("conman","stopProfile") end
                 if remote.interfaces["coverage"] then remote.call("coverage","report") end
                 return
             end
@@ -3423,10 +3384,17 @@ script.on_event(defines.events.on_tick, function()
         if global.testid then
             global.state = states.prepare
         else
-            global.state = states.finished
-            game.speed = 1
-            if remote.interfaces["coverage"] then remote.call("coverage","report") end
-            --game.set_game_state{ game_finished=true, player_won=true, can_continue=false }
+            global.profilecount = global.profilecount + 1
+            if global.profilecount ~= 50 then
+                global.testid,global.test = next(tests)
+                global.state = states.prepare
+            else
+                global.state = states.finished
+                game.speed = 1
+                if remote.call("conman","hasProfiler") then remote.call("conman","stopProfile") end
+                if remote.interfaces["coverage"] then remote.call("coverage","report") end
+                --game.set_game_state{ game_finished=true, player_won=true, can_continue=false }
+            end
         end
     end
 end)

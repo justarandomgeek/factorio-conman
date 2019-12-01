@@ -2617,8 +2617,8 @@ replayOneCommandEntityTest("replayrail",{
 
 replayOneCommandEntityTest("replayrail2",{
     {signal = {type = "item", name = "rail"}, count = 2},
-    {signal = knownsignals.X, count = -3},
-    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.X, count = -4},
+    {signal = knownsignals.Y, count = -4},
 })
 
 replayOneCommandEntityTest("replaywall",{

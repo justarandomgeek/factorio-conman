@@ -681,7 +681,36 @@ local function ConstructionOrder(manager,signals1,signals2,forblueprint)
       if entproto then
         createorder.inner_name = entproto.name
         
-        --TODO: adjust position to grid properly...
+        -- adjust position to grid properly...
+        if entproto.type == "curved-rail" then
+          -- snap to evens
+          createorder.position.x = createorder.position.x - (createorder.position.x%2)
+          createorder.position.y = createorder.position.y - (createorder.position.y%2)
+        elseif entproto.type == "straight-rail" or entproto.type == "train-stop" then
+          -- snap to odds
+          createorder.position.x = createorder.position.x - (createorder.position.x%2) + 1
+          createorder.position.y = createorder.position.y - (createorder.position.y%2) + 1
+        elseif entproto.type == "offshore-pump" then
+          -- snap to tile centers
+          createorder.position.x = createorder.position.x + 0.5
+          createorder.position.y = createorder.position.y + 0.5
+        elseif entproto.type == "locomotive" or entproto.type == "cargo-wagon" or entproto.type == "fluid-wagon" or entproto.type == "artillery-wagon" then
+          -- don't bother snapping trains, you just have to get them right...
+        else
+          -- snap based on box size
+          local box = entproto.collision_box
+          local width = math.ceil(box.right_bottom.x - box.left_top.x)
+          local offsetX = width % 2 / 2
+          local height = math.ceil(box.right_bottom.y - box.left_top.y)
+          local offsetY = height % 2 / 2
+          
+          if createorder.direction == 2 or createorder.direction == 6 then
+            offsetX,offsetY = offsetY,offsetX
+          end
+
+          createorder.position.x = createorder.position.x + offsetX
+          createorder.position.y = createorder.position.y + offsetY
+        end
 
         local special = ConstructionOrderEntitySpecific[entproto.type]
         if special then
@@ -696,6 +725,10 @@ local function ConstructionOrder(manager,signals1,signals2,forblueprint)
       elseif tileresult then
         createorder.name = "tile-ghost"
         createorder.inner_name = tileresult.result.name
+        -- All tiles are one tile big...
+        createorder.position.x = createorder.position.x + 0.5
+        createorder.position.y = createorder.position.y + 0.5
+
         break -- once we're found one, get out of the loop, so we don't build multiple things.
       end
     end
@@ -704,6 +737,9 @@ local function ConstructionOrder(manager,signals1,signals2,forblueprint)
   if createorder.inner_name then
     if not forblueprint then
       local ghost =  manager.ent.surface.create_entity(createorder)
+      if createorder.position.x ~= ghost.position.x or createorder.position.y ~= ghost.position.y then
+        log(serpent.dump({name=createorder.inner_name,expected=createorder.position,got=ghost.position}))
+      end
       if ghost and ghost.name == "entity-ghost" then
         local control = ghost.get_or_create_control_behavior()
         if control and control.valid then

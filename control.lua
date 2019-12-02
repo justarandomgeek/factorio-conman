@@ -46,20 +46,21 @@ local signalsets = {
 
 
 local function ReadPosition(signals,secondary,offset)
-  if not offset then offset={x=0,y=0} end
   if not secondary then
     local p = get_signals_filtered(signalsets.position1,signals)
-    return {
-      x = (p.x or 0)+offset.x,
-      y = (p.y or 0)+offset.y,
-    }
+    if offset then
+      p.x = (p.x or 0)+offset.x
+      p.y = (p.y or 0)+offset.y
+    end
+    return p
   else
     local p = get_signals_filtered(signalsets.position2,signals)
-    return {
-      x = (p.x or 0)+offset.x,
-      y = (p.y or 0)+offset.y,
-    }
+    if offset then
+      p.x = (p.x or 0)+offset.x
+      p.y = (p.y or 0)+offset.y
   end
+    return p
+end
 end
 
 local function ReadColor(signals)
@@ -2308,7 +2309,7 @@ remote.add_interface('conman',{
     return global.managers[manager_id] and global.managers[manager_id].preloadstring
   end,
   read_preload_color = function(manager_id)
-    return global.managers[manager_id] and global.managers[manager_id].preloadstring
+    return global.managers[manager_id] and global.managers[manager_id].preloadcolor
   end,
   
   set_preload_string = function(manager_id,str)
@@ -2318,7 +2319,7 @@ remote.add_interface('conman',{
   end,
   set_preload_color = function(manager_id,color)
     if global.managers[manager_id] then
-      global.managers[manager_id].preloadstring = color
+      global.managers[manager_id].preloadcolor = color
     end
   end,
   

@@ -21,7 +21,7 @@ end
 
 function expect(name,expected,got)
     if expected == got then return true end
-    log(("expected %s = %d got %d"):format(name,expected,got))
+    log(("expected %s = %s got %s"):format(name,serpent.line(expected),serpent.line(got)))
     return false
 end
 
@@ -3384,17 +3384,17 @@ script.on_event(defines.events.on_tick, function()
         if global.testid then
             global.state = states.prepare
         else
-            global.profilecount = global.profilecount + 1
-            if global.profilecount ~= 50 then
-                global.testid,global.test = next(tests)
-                global.state = states.prepare
-            else
+            --global.profilecount = global.profilecount + 1
+            --if global.profilecount ~= 50 then
+            --    global.testid,global.test = next(tests)
+            --    global.state = states.prepare
+            --else
                 global.state = states.finished
                 game.speed = 1
                 if remote.call("conman","hasProfiler") then remote.call("conman","stopProfile") end
                 if remote.interfaces["coverage"] then remote.call("coverage","report") end
                 --game.set_game_state{ game_finished=true, player_won=true, can_continue=false }
-            end
+            --end
         end
     end
 end)

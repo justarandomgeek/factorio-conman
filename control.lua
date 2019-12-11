@@ -2300,6 +2300,12 @@ No_Profiler_Commands = nil
 
 if script.active_mods["coverage"] then require('__coverage__/coverage.lua') end
 
+DebugLoaded,Debugger = pcall(require,'__debugadapter__/debugadapter.lua')
+if DebugLoaded then
+  Debugger.setBreakpoints("__conman__/control.lua",{[670]=true})
+  Debugger.attach()
+end
+
 remote.add_interface('conman',{
   --TODO: call to register items for custom decoding into ghost tags?
 

@@ -1066,7 +1066,7 @@ end
 local function UpdateBlueprintIcons(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read and signals2 then
-    siglist = ReadSignalList(signals2)
+    local siglist = ReadSignalList(signals2)
     local icons = {}
     for i=1,4 do
       local sig = siglist[i]

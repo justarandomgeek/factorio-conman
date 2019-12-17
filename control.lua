@@ -2301,12 +2301,7 @@ No_Profiler_Commands = nil
 ProfilerLoaded = nil
 
 pcall(require,'__coverage__/coverage.lua')
-
-DebugLoaded,Debugger = pcall(require,'__debugadapter__/debugadapter.lua')
-if DebugLoaded then
-  Debugger.setBreakpoints("__conman__/control.lua",{[670]=true})
-  Debugger.attach()
-end
+pcall(require,'__debugadapter__/debugadapter.lua')
 
 remote.add_interface('conman',{
   --TODO: call to register items for custom decoding into ghost tags?

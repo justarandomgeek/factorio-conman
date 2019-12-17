@@ -1066,7 +1066,7 @@ end
 local function UpdateBlueprintIcons(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read and signals2 then
-    siglist = ReadSignalList(signals2)
+    local siglist = ReadSignalList(signals2)
     local icons = {}
     for i=1,4 do
       local sig = siglist[i]
@@ -2299,12 +2299,7 @@ local Profiler = script.active_mods["profiler"] and require('__profiler__/profil
 No_Profiler_Commands = nil
 
 if script.active_mods["coverage"] then require('__coverage__/coverage.lua') end
-
-DebugLoaded,Debugger = pcall(require,'__debugadapter__/debugadapter.lua')
-if DebugLoaded then
-  Debugger.setBreakpoints("__conman__/control.lua",{[670]=true})
-  Debugger.attach()
-end
+if script.active_mods["debugadapter"] then require('__debugadapter__/debugadapter.lua') end
 
 remote.add_interface('conman',{
   --TODO: call to register items for custom decoding into ghost tags?

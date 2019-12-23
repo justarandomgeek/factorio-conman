@@ -1,3 +1,10 @@
+No_Profiler_Commands = true
+local Profiler = script.active_mods["profiler"] and require('__profiler__/profiler.lua')
+No_Profiler_Commands = nil
+
+if script.active_mods["coverage"] then require('__coverage__/coverage.lua') end
+if script.active_mods["debugadapter"] then require('__debugadapter__/debugadapter.lua') end
+
 function get_signal_from_set(signal,set)
   for _,sig in pairs(set) do
     if sig.signal.type == signal.type and sig.signal.name == signal.name then
@@ -2293,13 +2300,6 @@ end
 script.on_event(defines.events.on_tick, onTick)
 script.on_event(defines.events.on_built_entity, onBuilt)
 script.on_event(defines.events.on_robot_built_entity, onBuilt)
-
-No_Profiler_Commands = true
-local Profiler = script.active_mods["profiler"] and require('__profiler__/profiler.lua')
-No_Profiler_Commands = nil
-
-if script.active_mods["coverage"] then require('__coverage__/coverage.lua') end
-if script.active_mods["debugadapter"] then require('__debugadapter__/debugadapter.lua') end
 
 remote.add_interface('conman',{
   --TODO: call to register items for custom decoding into ghost tags?

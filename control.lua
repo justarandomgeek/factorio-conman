@@ -1,3 +1,12 @@
+No_Profiler_Commands = true
+local ProfilerLoaded,Profiler = pcall(require,'__profiler__/profiler.lua')
+if not ProfilerLoaded then Profiler=nil end
+No_Profiler_Commands = nil
+ProfilerLoaded = nil
+
+pcall(require,'__coverage__/coverage.lua')
+pcall(require,'__debugadapter__/debugadapter.lua')
+
 function get_signal_from_set(signal,set)
   for _,sig in pairs(set) do
     if sig.signal.type == signal.type and sig.signal.name == signal.name then
@@ -2293,15 +2302,6 @@ end
 script.on_event(defines.events.on_tick, onTick)
 script.on_event(defines.events.on_built_entity, onBuilt)
 script.on_event(defines.events.on_robot_built_entity, onBuilt)
-
-No_Profiler_Commands = true
-local ProfilerLoaded,Profiler = pcall(require,'__profiler__/profiler.lua')
-if not ProfilerLoaded then Profiler=nil end
-No_Profiler_Commands = nil
-ProfilerLoaded = nil
-
-pcall(require,'__coverage__/coverage.lua')
-pcall(require,'__debugadapter__/debugadapter.lua')
 
 remote.add_interface('conman',{
   --TODO: call to register items for custom decoding into ghost tags?

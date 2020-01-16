@@ -783,6 +783,10 @@ local function ConstructionOrder(manager,signals1,signals2,forblueprint)
       createorder.name = createorder.inner_name
       createorder.inner_name = nil
       createorder.set_filter = nil
+      if not forblueprint then
+        script.raise_event(defines.events.script_raised_built, {created_entity=ghost})  
+      end
+      
       return createorder
     end
   end
@@ -839,13 +843,16 @@ local function DeployBlueprint(manager,signals1,signals2)
 
     local force_build = get_signal_from_set(knownsignals.F,signals1)==1
 
-    bp.build_blueprint{
+    local entities = bp.build_blueprint{
       surface=manager.ent.surface,
       force=manager.ent.force,
       position=ReadPosition(signals1),
       direction = get_signal_from_set(knownsignals.D,signals1),
       force_build= force_build,
     }
+    for _, ent in pairs entities do
+      script.raise_event(defines.events.script_raised_built,{created_entity=ent})
+    end
   end
 end
 

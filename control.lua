@@ -850,7 +850,7 @@ local function DeployBlueprint(manager,signals1,signals2)
       direction = get_signal_from_set(knownsignals.D,signals1),
       force_build= force_build,
     }
-    for _, ent in pairs entities do
+    for _, ent in pairs(entities) do
       script.raise_event(defines.events.script_raised_built,{created_entity=ent})
     end
   end

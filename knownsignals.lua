@@ -34,6 +34,7 @@ return {
     Y = {name="signal-Y",type="virtual"}, -- Y1
     Z = {name="signal-Z",type="virtual"}, -- wire connection select for XY1
   
+    grey = {name="signal-grey",type="virtual"},
     white = {name="signal-white",type="virtual"},
     red = {name="signal-red",type="virtual"},
     green = {name="signal-green",type="virtual"},

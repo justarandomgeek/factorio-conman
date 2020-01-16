@@ -1,4 +1,5 @@
 local knownsignals = require("__conman__/knownsignals.lua")
+require("util")
 
 function get_signals_filtered(filters,signals)
     --   filters = {
@@ -18,23 +19,67 @@ function get_signals_filtered(filters,signals)
     return results
 end
 
-local tests = {
-    ["profilestart"] ={
-        prepare = function()
-            if not global.profilecount then
-                remote.call("conman","startProfile")
-            end
-        end,
-        cc1 = {
+function expect(name,expected,got)
+    if expected == got then return true end
+    log(("expected %s = %s got %s"):format(name,serpent.line(expected),serpent.line(got)))
+    return false
+end
 
-        },
-        cc2 = {
-
-        },
-        verify = function()
-            return true
+function expect_signals(expectedsignals,expectedvalues,gotsignals,allowextra)
+    local gotvalues = get_signals_filtered(expectedsignals,gotsignals)
+    local gotsize = table_size(gotvalues)
+    local expectedsize = table_size(expectedvalues)
+    if (gotsize < expectedsize) or (not allowextra and gotsize > expectedsize) then
+        log(("expected %d signals, got %d"):format(expectedsize,gotsize))
+        log(serpent.block(gotsignals))
+        return false 
+    end
+    for k,v in pairs(expectedvalues) do
+        if gotvalues[k] ~= v then
+            log(("expected signal %s:%s value %d got %d"):format(expectedsignals[k].type,expectedsignals[k].name,v,gotvalues[k]))
+            return false
         end
-    },
+    end
+    return true
+end
+
+function expect_frames(expectedframes,gotframes)
+    local gotsize = table_size(gotframes)
+    local expectedsize = table_size(expectedframes)
+    if (gotsize < expectedsize) or (gotsize > expectedsize) then
+        log(("expected %d frames, got %d"):format(expectedsize,gotsize))
+        return false
+    end
+
+    for k,_ in pairs(expectedframes) do 
+        if not gotframes[k] then
+            log(("missing expected frame [%d]"):format(k))
+            return false
+        end
+    end
+
+    for k,gotframe in pairs(gotframes) do
+        local expectsignals = {}
+        local expectvalues = {}
+        local expectedframe = expectedframes[k]
+        if not expectedframe then
+            log(("unexpected frame [%d]"):format(k))
+            log(serpent.dump(gotframe))
+            return false
+        end
+        for i,signal in pairs(expectedframe) do
+            expectsignals[i] = signal.signal
+            expectvalues[i] = signal.count
+        end
+        local p = expect_signals(expectsignals,expectvalues,gotframe)
+        if p then return true end
+        log(("in frame [%d]"):format(k))
+        return false
+    end
+    return true
+end
+
+local tests = {
     ["container"] = {
         cc1 = {
             {signal = knownsignals.conbot, count = 1},
@@ -631,6 +676,9 @@ local tests = {
         end
     },
     ["train-stop"] = {
+        prepare = function()
+            remote.call("conman","set_preload_string",global.conman.unit_number,"TEST")
+        end,
         cc1 = {
             {signal = knownsignals.conbot, count = 1},
             {signal = {type = "item", name = "train-stop"}, count = 1},
@@ -658,6 +706,8 @@ local tests = {
                 return false
             end
 
+            if ghost.backer_name ~= "TEST" then return false end
+
             local control = ghost.get_or_create_control_behavior()
             if not (control.send_to_train and control.read_from_train and control.read_stopped_train and
                 control.stopped_train_signal.name == knownsignals.A.name) then return false end
@@ -673,22 +723,58 @@ local tests = {
             return true
         end
     },
+    
+    ["straight-rail"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "rail"}, count = 1},
+            {signal = knownsignals.X, count = -3},
+            {signal = knownsignals.Y, count = -3},
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+            if irp then
+                return false
+            end
+            if not ghost.name=="straight-rail" then return false end
+            ghost.destroy()
+            return true
+        end
+    },
+    ["curved-rail"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "rail"}, count = 2},
+            {signal = knownsignals.X, count = -4},
+            {signal = knownsignals.Y, count = -4},
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-4,-4})
+            local irp 
+            if not ghost then return false end
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+            if irp then
+                return false
+            end
+            if not ghost.name=="curved-rail" then return false end
+            ghost.destroy()
+            return true
+        end
+    },
     ["rail-signal"] = {
         cc1 = {
             {signal = knownsignals.conbot, count = 1},
             {signal = {type = "item", name = "rail-signal"}, count = 1},
             {signal = knownsignals.X, count = -3},
             {signal = knownsignals.Y, count = -3},
-
             {signal = knownsignals.R, count = 1},
-
-
         },
         cc2 = {
             {signal = knownsignals.A, count = 4},
             {signal = knownsignals.B, count = 8},
             {signal = knownsignals.C, count = 16},
-
         },
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
@@ -1109,10 +1195,7 @@ local tests = {
             {signal = {type = "item", name = "roboport"}, count = 1},
             {signal = knownsignals.X, count = -4},
             {signal = knownsignals.Y, count = -4},
-
             {signal = knownsignals.R, count = 1},
-
-
         },
         cc2 = {
             {signal = knownsignals.A, count = 1},
@@ -1152,7 +1235,7 @@ local tests = {
             {signal = {type = "item", name = "accumulator"}, count = 1},
         },
         verify = function()
-            local ghost = global.surface.find_entity('entity-ghost', {-3,-3})
+            local ghost = global.surface.find_entity('entity-ghost', {-4,-4})
             local irp 
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
@@ -1185,6 +1268,29 @@ local tests = {
             return true
         end
     },
+    ["rocket-silo"] = {
+        cc1 = {
+            {signal = knownsignals.conbot, count = 1},
+            {signal = {type = "item", name = "rocket-silo"}, count = 1},
+            {signal = knownsignals.X, count = -6},
+            {signal = knownsignals.Y, count = -6},
+            {signal = knownsignals.A, count = 1},
+        },
+        verify = function()
+            local ghost = global.surface.find_entity('entity-ghost', {-5,-5})
+            local irp 
+            _,ghost,irp = ghost.revive{return_item_request_proxy=true}
+
+            if irp or not ghost then
+                return false
+            end
+
+            if not ghost.auto_launch then return false end
+            
+            ghost.destroy()
+            return true
+        end
+    },
     
     ["cargo-wagon"] = {
         prepare = function()
@@ -1210,11 +1316,13 @@ local tests = {
 
         },
         cc2 = {
-            {signal = knownsignals.redwire, count = 1},
+            {signal = knownsignals.redwire, count = 0x40000001},
             {signal = knownsignals.greenwire, count = 2},
+            {signal = knownsignals.coppercable, count = -0x80000000},
         },
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-3,-3})
+            if not ghost then return false end
             _,ghost = ghost.revive()
             
             if not(
@@ -1228,10 +1336,17 @@ local tests = {
             if not (inv.getbar() == 4 and 
                 inv.get_filter(1) == knownsignals.redwire.name and
                 inv.get_filter(2) == knownsignals.greenwire.name and
-                inv.get_filter(3) == nil
+                inv.get_filter(3) == nil and 
+                inv.get_filter(31) == knownsignals.redwire.name and
+                inv.get_filter(32) == knownsignals.coppercable.name and
+                inv.get_filter(33) == knownsignals.coppercable.name and
+                inv.get_filter(34) == knownsignals.coppercable.name and
+                inv.get_filter(35) == knownsignals.coppercable.name and
+                inv.get_filter(36) == knownsignals.coppercable.name and
+                inv.get_filter(37) == knownsignals.coppercable.name and
+                inv.get_filter(38) == knownsignals.coppercable.name and
+                inv.get_filter(39) == knownsignals.coppercable.name
                 ) then return false end
-            
-            
             ghost.destroy()
 
             for _,ent in pairs(global.rails) do ent.destroy() end
@@ -1253,12 +1368,10 @@ local tests = {
             {signal = {type = "item", name = "locomotive"}, count = 1},
             {signal = knownsignals.X, count = -3},
             {signal = knownsignals.Y, count = -4},
-            
             {signal = knownsignals.red, count = 255},
             {signal = knownsignals.green, count = 127},
             {signal = knownsignals.blue, count = 63},
             {signal = knownsignals.white, count = 255},
-
         },
         cc2 = {
             {signal = knownsignals.redwire, count = 12},
@@ -1316,6 +1429,7 @@ local tests = {
                     {signal = knownsignals.schedule, count = 3},
                     {signal = {name="signal-stopname-richtext",type="virtual"}, count = 1},
                     {signal = {name="signal-wait-empty",type="virtual"}, count = 1},
+                    {signal = {name="signal-wait-robots",type="virtual"}, count = 1},
                 },
             },
             {
@@ -1339,12 +1453,13 @@ local tests = {
             local schedule = global.loco.train.schedule
 
             if not (
+                schedule and
                 schedule.records[1].station == "FOO" and
                 schedule.records[1].wait_conditions[1].type == "time" and schedule.records[1].wait_conditions[1].ticks == 123 and
                 schedule.records[2].station == "BAR" and
                 schedule.records[2].wait_conditions[1].type == "inactivity" and schedule.records[2].wait_conditions[1].ticks == 456 and
                 schedule.records[3].station == "[item=iron-ore]DROP" and
-                schedule.records[3].wait_conditions[1].type == "empty" and
+                schedule.records[3].wait_conditions[1].type == "empty" and schedule.records[3].wait_conditions[2].type == "robots_inactive" and
                 schedule.records[4].rail == global.rails[1] and 
                 schedule.records[4].wait_conditions[1].type == "full"
             ) then return false end
@@ -1373,6 +1488,31 @@ local tests = {
             
             if not(irp and irp.proxy_target == global.chest and irp.item_requests[knownsignals.redwire.name] == 12) then return false end
             irp.destroy()
+            
+            global.chest.destroy()
+            global.chest = nil
+            return true
+        end
+    },
+    ["irp2"] = {
+        prepare = function()
+            global.chest=global.surface.create_entity{name="wooden-chest",force="player",position={-3.5,-3.5}}
+            global.irp=global.surface.create_entity{name="item-request-proxy",modules={["wooden-chest"]=1},target=global.chest,force="player",position={-3.5,-3.5}}
+        end,
+        cc1 = {
+            {signal = knownsignals.logbot, count = 1},
+            {signal = knownsignals.X, count = -4},
+            {signal = knownsignals.Y, count = -4},
+        },
+        cc2 = {
+            {signal = knownsignals.redwire, count = 12},
+        },
+        verify = function()
+            local irp = global.irp
+            
+            if not(irp and irp.proxy_target == global.chest and irp.item_requests[knownsignals.redwire.name] == 12 and irp.item_requests["wooden-chest"] == 1) then return false end
+            irp.destroy()
+            global.irp = nil
             
             global.chest.destroy()
             global.chest = nil
@@ -1491,11 +1631,149 @@ local tests = {
             {signal = knownsignals.Y, count = -3},
         },
         verify = function()
-            local flare = global.surface.find_entity('artillery-flare', {-2.5,-2.5})
+            local flare = global.surface.find_entity('artillery-flare', {-3,-3})
             if not flare then return false end
             
             flare.destroy()
             
+            return true
+        end
+    },
+
+    ["create"] = {
+        prepare = function()
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].clear()
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = -2},
+        },
+        verify = function()
+            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            if not stack.valid_for_read then return false end
+            
+            stack.clear()
+            
+            return true
+        end
+    },
+    ["createbook"] = {
+        prepare = function()
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[2].clear()
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint_book, count = -2},
+        },
+        verify = function()
+            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            if not stack.valid_for_read then return false end
+            
+            stack.clear()
+            
+            return true
+        end
+    },
+    ["createinbook"] = {
+        prepare = function()
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[2].set_stack("blueprint-book")
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = -2},
+            {signal = knownsignals.blueprint_book, count = 1},
+        },
+        verify = function()
+            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            if not stack.valid_for_read then return false end
+            local bp = stack.get_inventory(defines.inventory.item_main)[1]
+            if not bp.valid_for_read then return false end
+            stack.clear()
+            return true
+        end
+    },
+
+    ["destroy"] = {
+        prepare = function()
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].set_stack("blueprint")
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = -3},
+        },
+        verify = function()
+            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            if stack.valid_for_read then return false end
+            return true
+        end
+    },
+    ["destroybook"] = {
+        prepare = function()
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[2].set_stack("blueprint-book")
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint_book, count = -3},
+        },
+        verify = function()
+            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            if stack.valid_for_read then return false end
+            return true
+        end
+    },
+    ["destroyinbook"] = {
+        prepare = function()
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].clear()
+            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            book.set_stack("blueprint-book")
+            book.get_inventory(defines.inventory.item_main).insert{name="blueprint",count=1}
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = -3},
+            {signal = knownsignals.blueprint_book, count = 1},
+        },
+        verify = function()
+            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            if not stack.valid_for_read then return false end
+            local bp = stack.get_inventory(defines.inventory.item_main)[1]
+            if bp.valid_for_read then return false end
+            return true
+        end
+    },
+
+
+    ["takefrombook"] = {
+        prepare = function()
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].clear()
+            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            book.set_stack("blueprint-book")
+            book.get_inventory(defines.inventory.item_main).insert{name="blueprint",count=1}
+            
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = -4},
+            {signal = knownsignals.blueprint_book, count = 1},
+        },
+        verify = function()
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            if not bp.valid_for_read then return false end
+            bp.clear()
+            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            if book.get_inventory(defines.inventory.item_main).get_item_count() ~= 0 then return false end
+            book.clear()
+            return true
+        end
+    },
+    ["inserttobook"] = {
+        prepare = function()
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].set_stack("blueprint")
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[2].set_stack("blueprint-book")            
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = -5},
+            {signal = knownsignals.blueprint_book, count = 1},
+        },
+        verify = function()
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            if bp.valid_for_read then return false end            
+            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            if book.get_inventory(defines.inventory.item_main).get_item_count() ~= 1 then return false end
+            book.clear()
             return true
         end
     },
@@ -1516,6 +1794,23 @@ local tests = {
             return true
         end
     },
+    ["ejectbook"] = {
+        prepare = function()
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[2].set_stack("blueprint-book")
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint_book, count = -1},
+        },
+        verify = function()
+            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_output)[2]
+            if not (stack.valid_for_read and stack.name == "blueprint-book") then return false end
+            
+            stack.clear()
+            
+            return true
+        end
+    },
+
     ["deploy"] = {
         prepare = function()
             --bp string of a single wooden chest
@@ -1561,6 +1856,7 @@ local tests = {
             {signal = knownsignals.V, count = -3},
             {signal = knownsignals.E, count = 1},
         },
+        cc2string ="CAPTURE",
         verify = function()
             local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
             local ents = bp.get_blueprint_entities()
@@ -1568,6 +1864,7 @@ local tests = {
             local tiles = bp.get_blueprint_tiles()
             if tiles then return false end
             for _,ent in pairs(global.entities) do ent.destroy() end
+            if bp.label ~= "CAPTURE" then return false end
             bp.clear()
             return true
         end
@@ -1599,6 +1896,13 @@ local tests = {
             {signal = knownsignals.V, count = -3},
             {signal = knownsignals.T, count = 1},
         },
+        cc2string ="CAPTURE",
+        cc2 = {
+            {signal = knownsignals.red, count = 255},
+            {signal = knownsignals.green, count = 255},
+            {signal = knownsignals.blue, count = 255},
+            {signal = knownsignals.white, count = 255},
+        },
         verify = function()
             local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
             local ents = bp.get_blueprint_entities()
@@ -1606,6 +1910,9 @@ local tests = {
             local tiles = bp.get_blueprint_tiles()
             if tiles and #tiles ~= 9 then return false end
             for _,ent in pairs(global.entities) do ent.destroy() end
+            if bp.label ~= "CAPTURE" then return false end
+            local color = bp.label_color
+            for _,v in pairs(color) do if v~=1 then return false end end
             bp.clear()
             return true
         end
@@ -1642,13 +1949,13 @@ local tests = {
             local signals = outsignals[1]
             local string = remote.call('signalstrings', 'signals_to_string', signals)
             if string ~= "TEST" then return false end
-            local color = get_signals_filtered({
+            return expect_signals({
                 r = knownsignals.red,
                 g = knownsignals.green,
                 b = knownsignals.blue,
                 a = knownsignals.white,
-            }, signals)
-            return color.r == 12 and color.g == 34 and color.b == 56 and color.a == 78
+            }, {r=12,g=34,b=56,a=78} , signals, true)
+            
         end
     },
 
@@ -1679,6 +1986,174 @@ local tests = {
                 (color.g - 34/255 < 0.0001) and 
                 (color.b - 56/255 < 0.0001) and 
                 (color.a - 78/255 < 0.0001)
+        end
+    },
+
+    ["readicons"] = {
+        prepare = function()
+            --bp string of a single wooden chest
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            bp.import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = 5},
+        },
+        verify = function(outsignals)
+            if not outsignals or #outsignals ~= 1 or #outsignals[1] ~= 1 then return false end
+            local signal = outsignals[1][1]
+            return signal.count == 1 and signal.signal.name == "wooden-chest"
+        end
+    },
+    ["writeicons"] = {
+        prepare = function()
+            --bp string of a single wooden chest
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            global.bp = bp
+            bp.import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = 5},
+            {signal = knownsignals.W, count = 1},
+        },
+        cc2 = {
+            {signal = knownsignals.red, count = 1},
+            {signal = knownsignals.green, count = 2},
+            {signal = knownsignals.blue, count = 4},
+            {signal = knownsignals.white, count = 8},
+        },
+        verify = function(outsignals)
+            local icons = global.bp.blueprint_icons
+            if not ( icons[1].index == 1 and icons[1].signal.name=="signal-red" ) then return false end
+            if not ( icons[2].index == 2 and icons[2].signal.name=="signal-green" ) then return false end
+            if not ( icons[3].index == 3 and icons[3].signal.name=="signal-blue" ) then return false end
+            if not ( icons[4].index == 4 and icons[4].signal.name=="signal-white" ) then return false end
+            return true
+        end
+    },
+
+    ["readtile"] = {
+        prepare = function()
+            --bp string of a single wooden chest
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            bp.import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
+            bp.set_blueprint_tiles({{name="concrete",position={1,1}}})
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = 6},
+            {signal = knownsignals.T, count = 1},
+        },
+        verify = function(outsignals)
+            if not outsignals or #outsignals ~= 1 or #outsignals[1] ~= 3 then return false end
+            return expect_signals({
+                x = knownsignals.X,
+                y = knownsignals.Y,
+                concrete = {type="item",name="concrete"},
+            }, {x=1, y=1, concrete=1}, outsignals[1])
+        end
+    },
+    ["writetile"] = {
+        prepare = function()
+            --bp string of a single wooden chest
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            global.bp = bp
+            bp.import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint, count = 6},
+            {signal = knownsignals.T, count = 1},
+            {signal = knownsignals.W, count = 1},
+            {signal = knownsignals.X, count = 1},
+            {signal = knownsignals.Y, count = 1},
+            {signal = {type="item",name="concrete"}, count = 1},
+        },
+        verify = function(outsignals)
+            local tiles = global.bp.get_blueprint_tiles()
+            if not tiles or #tiles ~= 1 then return false end
+            local tile = tiles[1]
+            if not ( tile.name == "concrete" and tile.position.x == 1 and tile.position.y == 1 ) then return false end
+            return true
+        end
+    },
+
+
+    
+    ["readbooklabel"] = {
+        prepare = function()
+            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            book.set_stack("blueprint-book")
+            book.label = "TEST"
+            book.label_color = {r=12,g=34,b=56,a=78}
+            global.book = book
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint_book, count = -4},
+        },
+        verify = function(outsignals)
+            if not outsignals or #outsignals ~= 1 then return false end
+            local signals = outsignals[1]
+            local string = remote.call('signalstrings', 'signals_to_string', signals)
+            if string ~= "TEST" then return false end
+            global.book.clear()
+            global.book = nil
+            return expect_signals({
+                r = knownsignals.red,
+                g = knownsignals.green,
+                b = knownsignals.blue,
+                a = knownsignals.white,
+            }, {r=12,g=34,b=56,a=78} , signals, true)
+            
+        end
+    },
+
+    ["writebooklabel"] = {
+        prepare = function()
+            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            book.set_stack("blueprint-book")
+            global.book = book
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint_book, count = -4},
+            {signal = knownsignals.W, count = 1},
+        },
+        cc2string = "TEST",
+        cc2 = {
+            {signal = knownsignals.red, count = 12},
+            {signal = knownsignals.green, count = 34},
+            {signal = knownsignals.blue, count = 56},
+            {signal = knownsignals.white, count = 78},
+        },
+        verify = function(outsignals)
+            if global.book.label ~= "TEST" then return false end
+            local color = global.book.label_color
+            global.book.clear()
+            global.book = nil
+            return --factorio returns colors as float values 0-1, but they're not exactly n/255 or n/256, so just make sure the difference is small...
+                (color.r - 12/255 < 0.0001) and 
+                (color.g - 34/255 < 0.0001) and 
+                (color.b - 56/255 < 0.0001) and 
+                (color.a - 78/255 < 0.0001)
+        end
+    },
+
+    ["readbookcount"] = {
+        prepare = function()
+            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            book.set_stack("blueprint-book")
+            book.get_inventory(defines.inventory.item_main).insert{name="blueprint",count=3}
+            global.book = book
+        end,
+        cc1 = {
+            {signal = knownsignals.blueprint_book, count = -5},
+        },
+        verify = function(outsignals)
+            if not outsignals or #outsignals ~= 1 then return false end
+            local signals = outsignals[1]
+            global.book.clear()
+            global.book = nil
+            return expect_signals({
+                count = knownsignals.info,
+            }, {count = 3} , signals)
+            
         end
     },
 
@@ -1815,30 +2290,985 @@ local tests = {
             return true
         end
     },
-    ["profileend"] ={
-        prepare = function()
-            
-        end,
-        cc1 = {
+}
 
-        },
-        cc2 = {
+local function replayOneCommandEntityTest(name,command,data)
+    command[#command+1] = {signal = knownsignals.blueprint, count = 7}
+    command[#command+1] = {signal = knownsignals.grey, count = 1}
 
-        },
-        verify = function()
-            if remote.call("conman","hasProfiler") then
-                global.profilecount = (global.profilecount or 0) + 1
-                if global.profilecount == 50 then
-                    remote.call("conman","stopProfile")
-                else
-                    global.testid = nil
-                end
-            end
-            return true
+    local writeCommand1 = table.deepcopy(command)
+    writeCommand1[#writeCommand1+1] = {signal = knownsignals.W, count = 1}
+    local expectsignals = {}
+    local expectvalues = {}
+    for i,signal in pairs(command) do
+        expectsignals[i] = signal.signal
+        expectvalues[i] = signal.count
+    end
+    local expectdatasignals = {}
+    local expectdatavalues = {}
+    if data then 
+        for i,signal in pairs(data) do
+            expectdatasignals[i] = signal.signal
+            expectdatavalues[i] = signal.count
         end
+    end
+    local test = {
+        multifeed = {
+            {cc1 = {{signal = knownsignals.blueprint, count = -2},},}, -- create a new blueprint
+            {cc1 = writeCommand1,cc2 = data}, -- write an entity
+            {   -- and request it back...
+                cc1 = {
+                    {signal = knownsignals.blueprint, count = 7},
+                    {signal = knownsignals.grey, count = 1},
+                },
+            },
+            {}, -- wait for data
+            {}, -- wait for data
+            {cc1 = {{signal = knownsignals.blueprint, count = -3},},}, -- destroy the print
+        },
+        verify = function(outsignals)
+            return (outsignals[5] and expect_signals(expectsignals,expectvalues,outsignals[5])) and 
+            ((not data and not outsignals[6]) or (outsignals[6] and expect_signals(expectdatasignals,expectdatavalues,outsignals[6])))
+        end,
+    }
+    tests[name] = test
+end
+
+replayOneCommandEntityTest("replaycraftingmachine",{
+    {signal = {type = "item", name = "assembling-machine-3"}, count = 1},
+    {signal = knownsignals.R, count = -126192623}, -- "inserter"
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+})
+
+replayOneCommandEntityTest("replaystchest",{
+    {signal = {type = "item", name = "logistic-chest-storage"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+},{
+    {signal = {type = "item", name = "wooden-chest"}, count = 1},
+})
+
+replayOneCommandEntityTest("replayrqchest",{
+    {signal = {type = "item", name = "logistic-chest-requester"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.B, count = 6},
+},{
+    {signal = {type = "item", name = "wooden-chest"}, count = 1234},
+})
+
+replayOneCommandEntityTest("replayrqchestcirc",{
+    {signal = {type = "item", name = "logistic-chest-requester"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.R, count = 1},
+    {signal = knownsignals.S, count = 1},
+})
+
+replayOneCommandEntityTest("replaypump",{
+    {signal = {type = "item", name = "pump"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.K, count = 42},
+    {signal = knownsignals.O, count = 2},
+},
+{
+    {signal = knownsignals.A, count = 1},
+})
+
+replayOneCommandEntityTest("replayconstcomb",{
+    {signal = {type = "item", name = "constant-combinator"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.D, count = 2},
+    {signal = knownsignals.O, count = 1},
+},{
+    {signal = knownsignals.A, count = 2},
+    {signal = knownsignals.B, count = 3},
+    {signal = knownsignals.blueprint, count = 4},
+})
+
+replayOneCommandEntityTest("replayarith",{
+    {signal = {type = "item", name = "arithmetic-combinator"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.O, count = 2},
+    {signal = knownsignals.J, count = 123},
+},{
+    {signal = knownsignals.blueprint, count = 2},
+    {signal = knownsignals.C, count = 4},
+})
+
+replayOneCommandEntityTest("replayarith2",{
+    {signal = {type = "item", name = "arithmetic-combinator"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.O, count = 3},
+    {signal = knownsignals.S, count = 2},
+    {signal = knownsignals.K, count = 456},
+})
+
+replayOneCommandEntityTest("replayarith3",{
+    {signal = {type = "item", name = "arithmetic-combinator"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.O, count = 3},
+},{
+    {signal = knownsignals.A, count = 1},
+    {signal = knownsignals.B, count = 2},
+    {signal = knownsignals.C, count = 4},
+})
+
+replayOneCommandEntityTest("replayarith4",{
+    {signal = {type = "item", name = "arithmetic-combinator"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.O, count = 3},
+    {signal = knownsignals.S, count = 1},
+},{
+    {signal = knownsignals.B, count = 2},
+    {signal = knownsignals.C, count = 4},
+})
+
+replayOneCommandEntityTest("replaydecider",{
+    {signal = {type = "item", name = "decider-combinator"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.O, count = 2},
+},{
+    {signal = knownsignals.A, count = 1},
+    {signal = knownsignals.blueprint, count = 2},
+    {signal = knownsignals.C, count = 4},
+})
+
+replayOneCommandEntityTest("replaydecider2",{
+    {signal = {type = "item", name = "decider-combinator"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.O, count = 2},
+    {signal = knownsignals.S, count = 1},
+},{
+    {signal = knownsignals.blueprint, count = 2},
+    {signal = knownsignals.C, count = 4},
+})
+
+replayOneCommandEntityTest("replaydecider3",{
+    {signal = {type = "item", name = "decider-combinator"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.O, count = 2},
+    {signal = knownsignals.S, count = 4},
+},{
+    {signal = knownsignals.blueprint, count = 2},
+})
+
+replayOneCommandEntityTest("replaydecider4",{
+    {signal = {type = "item", name = "decider-combinator"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.F, count = 1},
+    {signal = knownsignals.K, count = 132},
+    {signal = knownsignals.O, count = 1},
+    {signal = knownsignals.S, count = 5},
+},{
+    {signal = knownsignals.C, count = 4},
+})
+
+replayOneCommandEntityTest("replaydecider5",{
+    {signal = {type = "item", name = "decider-combinator"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.O, count = 2},
+    {signal = knownsignals.S, count = 7},
+},{
+    {signal = knownsignals.C, count = 1},
+    {signal = knownsignals.blueprint, count = 2},
+})
+
+replayOneCommandEntityTest("replayminer",{
+    {signal = {type = "item", name = "electric-mining-drill"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.R, count = 1},
+})
+
+replayOneCommandEntityTest("replayminer2",{
+    {signal = {type = "item", name = "electric-mining-drill"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.E, count = 1},
+    {signal = knownsignals.R, count = 2},
+    {signal = knownsignals.S, count = 3},
+})
+
+replayOneCommandEntityTest("replayinserter",{
+    {signal = {type = "item", name = "filter-inserter"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.B, count = 1},
+    {signal = knownsignals.E, count = 1},
+    {signal = knownsignals.O, count = 1},
+    {signal = knownsignals.R, count = 1},
+},{
+    {signal = knownsignals.A, count = 1},
+    {signal = knownsignals.B, count = 2},
+    {signal = knownsignals.C, count = 4},
+    {signal = knownsignals.redprint, count = 8},
+    {signal = knownsignals.blueprint, count = 16},
+    {signal = knownsignals.logbot, count = 64},
+    {signal = knownsignals.redwire, count = 128},
+})
+
+replayOneCommandEntityTest("replayinserter2",{
+    {signal = {type = "item", name = "filter-inserter"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.I, count = 2},
+    {signal = knownsignals.R, count = 2},
+    {signal = knownsignals.F, count = 1},
+})
+
+
+replayOneCommandEntityTest("replayroboport",{
+    {signal = {type = "item", name = "roboport"}, count = 1},
+    {signal = knownsignals.X, count = -4},
+    {signal = knownsignals.Y, count = -4},
+    {signal = knownsignals.R, count = 1},
+},{
+    {signal = knownsignals.A, count = 1},
+    {signal = knownsignals.B, count = 2},
+    {signal = knownsignals.C, count = 4},
+    {signal = knownsignals.D, count = 8},
+})
+
+replayOneCommandEntityTest("replaylamp",{
+    {signal = {type = "item", name = "small-lamp"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.C, count = 1},
+    {signal = knownsignals.O, count = 1},
+},{
+    {signal = knownsignals.A, count = 1},
+    {signal = knownsignals.B, count = 2},
+})
+
+replayOneCommandEntityTest("replaybelt",{
+    {signal = {type = "item", name = "transport-belt"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.R, count = 1},
+})
+
+replayOneCommandEntityTest("replaybelt2",{
+    {signal = {type = "item", name = "transport-belt"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.E, count = 1},
+    {signal = knownsignals.R, count = 2},
+})
+
+replayOneCommandEntityTest("replayrailsignal",{
+    {signal = {type = "item", name = "rail-signal"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.E, count = 1},
+    {signal = knownsignals.R, count = 1},
+},{
+    {signal = knownsignals.A, count = 4},
+    {signal = knownsignals.B, count = 8},
+    {signal = knownsignals.C, count = 16},
+})
+
+replayOneCommandEntityTest("replaychainsignal",{
+    {signal = {type = "item", name = "rail-chain-signal"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+},{
+    {signal = knownsignals.A, count = 4},
+    {signal = knownsignals.B, count = 8},
+    {signal = knownsignals.C, count = 16},
+    {signal = knownsignals.D, count = 32},
+})
+
+replayOneCommandEntityTest("replayrail",{
+    {signal = {type = "item", name = "rail"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+})
+
+replayOneCommandEntityTest("replayrail2",{
+    {signal = {type = "item", name = "rail"}, count = 2},
+    {signal = knownsignals.X, count = -4},
+    {signal = knownsignals.Y, count = -4},
+})
+
+replayOneCommandEntityTest("replaywall",{
+    {signal = {type = "item", name = "stone-wall"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.E, count = 1},
+    {signal = knownsignals.R, count = 1},
+    {signal = knownsignals.S, count = 5},
+},{
+    {signal = knownsignals.A, count = 4},
+})
+
+replayOneCommandEntityTest("replayaccu",{
+    {signal = {type = "item", name = "accumulator"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+},{
+    {signal = knownsignals.A, count = 1},
+})
+
+replayOneCommandEntityTest("replaysplitter",{
+    {signal = {type = "item", name = "express-splitter"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.I, count = 1},
+    {signal = knownsignals.O, count = 2},
+},{
+    {signal = knownsignals.redwire, count = 1},
+})
+
+replayOneCommandEntityTest("replayunder",{
+    {signal = {type = "item", name = "underground-belt"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.U, count = 1},
+})
+
+replayOneCommandEntityTest("replayunder2",{
+    {signal = {type = "item", name = "underground-belt"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+})
+
+replayOneCommandEntityTest("replayloader",{
+    {signal = {type = "item", name = "loader"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.U, count = 1},
+})
+
+replayOneCommandEntityTest("replaycargowagon",{
+    {signal = {type = "item", name = "cargo-wagon"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -4},
+    {signal = knownsignals.B, count = 3},
+    {signal = knownsignals.O, count = 9512},
+    {signal = knownsignals.red, count = 255},
+    {signal = knownsignals.green, count = 127},
+    {signal = knownsignals.blue, count = 63},
+    {signal = knownsignals.white, count = 255},
+},{
+    {signal = knownsignals.redwire, count = 0x40000001},
+    {signal = knownsignals.greenwire, count = 2},
+    {signal = knownsignals.coppercable, count = -0x80000000},
+})
+
+replayOneCommandEntityTest("replayloco",{
+    {signal = {type = "item", name = "locomotive"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -4},
+    {signal = knownsignals.O, count = 7564},
+    {signal = knownsignals.red, count = 255},
+    {signal = knownsignals.green, count = 127},
+    {signal = knownsignals.blue, count = 63},
+    {signal = knownsignals.white, count = 255},
+})
+
+local function replayTwoCommandEntityTest(name,command,data,preload)
+    assert(preload)
+
+    command[#command+1] = {signal = knownsignals.blueprint, count = 7}
+    command[#command+1] = {signal = knownsignals.grey, count = 1}
+
+    local writeCommand1 = table.deepcopy(command)
+    writeCommand1[#writeCommand1+1] = {signal = knownsignals.W, count = 1}
+    local expectsignals = {}
+    local expectvalues = {}
+    for i,signal in pairs(command) do
+        expectsignals[i] = signal.signal
+        expectvalues[i] = signal.count
+    end
+    local expectdatasignals = {}
+    local expectdatavalues = {}
+    if data then 
+        for i,signal in pairs(data) do
+            expectdatasignals[i] = signal.signal
+            expectdatavalues[i] = signal.count
+        end
+    end
+    local test = {
+        multifeed = {
+            {cc1 = {{signal = knownsignals.blueprint, count = -2},},}, -- create a new blueprint
+            {   -- prepare a string...
+                cc1 = {
+                    {signal = knownsignals.info, count = 1},
+                },
+                cc2string = preload,
+            },
+            {cc1 = writeCommand1,cc2 = data}, -- write an entity
+            {   -- and request it back...
+                cc1 = {
+                    {signal = knownsignals.blueprint, count = 7},
+                    {signal = knownsignals.grey, count = 1},
+                },
+            },
+            {}, -- wait for data
+            {}, -- wait for data
+            {}, -- wait for data
+            {}, -- wait for data
+            {cc1 = {{signal = knownsignals.blueprint, count = -3},},}, -- destroy the print
+        },
+        verify = function(outsignals)
+            if not outsignals[6] and expect_signals({i=knownsignals.info},{i=1},outsignals[6]) then return false end
+            if not outsignals[7] and remote.call('signalstrings', 'signals_to_string', outsignals[7]) == "TEST" then return false end
+            if not outsignals[8] and expect_signals(expectsignals,expectvalues,outsignals[8]) then return false end
+            if not ((not data and not outsignals[9]) or (outsignals[9] and expect_signals(expectdatasignals,expectdatavalues,outsignals[9]))) then return false end
+            return true
+        end,
+    }
+    tests[name] = test
+end
+
+replayTwoCommandEntityTest("replaystop",{
+    {signal = {type = "item", name = "train-stop"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.R, count = 1},
+    {signal = knownsignals.T, count = 1},
+    {signal = knownsignals.red, count = 255},
+    {signal = knownsignals.green, count = 127},
+    {signal = knownsignals.blue, count = 63},
+    {signal = knownsignals.white, count = 255},
+},{
+    {signal = knownsignals.A, count = 4},
+}, "TEST")
+
+replayTwoCommandEntityTest("replaystop2",{
+    {signal = {type = "item", name = "train-stop"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.R, count = 1},
+    {signal = knownsignals.E, count = 1},
+    {signal = knownsignals.S, count = 5},
+},{
+    {signal = knownsignals.A, count = 4},
+}, "TEST2")
+
+replayTwoCommandEntityTest("replayspeaker",{
+    {signal = {type = "item", name = "programmable-speaker"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.A, count = 1},
+    {signal = knownsignals.G, count = 1},
+    {signal = knownsignals.I, count = 3},
+    {signal = knownsignals.M, count = 1},
+    {signal = knownsignals.P, count = 1},
+    {signal = knownsignals.U, count = 42},
+    {signal = knownsignals.V, count = 1},
+},{
+    {signal = knownsignals.A, count = 1},
+    {signal = knownsignals.B, count = 4},
+}, "ALERT")
+
+local replayitemrequestitems = {
+    {signal = knownsignals.blueprint, count = 123},
+    {signal = knownsignals.redprint, count = 456},
+    {signal = knownsignals.blueprint_book, count = 789},
+}
+tests["replayitemrequests"] = {
+    prepare = function()
+        --bp string of a single wooden chest
+        global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
+    end,
+    multifeed = {
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 8},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.W, count = 1},
+            },
+            cc2 = replayitemrequestitems,
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 8},
+                {signal = knownsignals.grey, count = 1},
+            },
+        },
     },
-    
-    -- ]]
+    verify = function(outsignals)
+        local expectsignals = {}
+        local expectvalues = {}
+        for i,signal in pairs(replayitemrequestitems) do
+            expectsignals[i] = signal.signal
+            expectvalues[i] = signal.count
+        end
+        if not outsignals[1] and expect_signals(expectsignals,expectvalues,outsignals[1]) then return false end
+        return true
+    end
+}
+
+tests["replaywires"] = {
+    prepare = function()
+        --bp string of two combinators (arith/decider)
+        global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].import_stack("0eNqFkttqwzAMht9Fl8MdSdpRavYmYwQn0VZBfMBWykLwu09OC9u6sVwZHf5fn2wv0I0ThkiOQS9AvXcJ9MsCid6dGUuO54CggRgtKHDGlshE4rNFpn7Xe9uRM+wjZAXkBvwAXWe16TFgTwPGvw2a/KoAHRMTXonWYG7dZDuMMmGDRUHwSdTeFQBx3IlilqN6fJIxsihHP7Ydns2FpF+avoxaKQ+rOJVCwhKXZGJTbqpS4ANGc7WHB8i5LHyH2Py36i++agvvZnLH9gNK/IOJq7+GZyiJMItgcty+RW9bcmGSVo4TCrJc8fok+tsvUHDBmFas43FfnQ51vW9OOX8CaoC//g==")
+    end,
+    multifeed = {
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 9},
+                {signal = knownsignals.redwire, count = 1},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.white, count = 2},
+                {signal = knownsignals.W, count = 1},
+                {signal = knownsignals.X, count = 1},
+                {signal = knownsignals.Y, count = 1},
+                {signal = knownsignals.Z, count = 1},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 9},
+                {signal = knownsignals.redwire, count = 1},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.X, count = 1},
+                {signal = knownsignals.Z, count = 1},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 9},
+                {signal = knownsignals.redwire, count = 1},
+                {signal = knownsignals.grey, count = 2},
+                {signal = knownsignals.X, count = 1},
+                {signal = knownsignals.Z, count = 1},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 9},
+                {signal = knownsignals.redwire, count = -1},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.white, count = 2},
+                {signal = knownsignals.W, count = 1},
+                {signal = knownsignals.X, count = 1},
+                {signal = knownsignals.Y, count = 1},
+                {signal = knownsignals.Z, count = 1},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 9},
+                {signal = knownsignals.redwire, count = 1},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.X, count = 1},
+                {signal = knownsignals.Z, count = 1},
+            },
+        },
+        -- green wire on 2s
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 9},
+                {signal = knownsignals.greenwire, count = 1},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.white, count = 2},
+                {signal = knownsignals.W, count = 1},
+                {signal = knownsignals.X, count = 1},
+                {signal = knownsignals.Y, count = 2},
+                {signal = knownsignals.Z, count = 2},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 9},
+                {signal = knownsignals.greenwire, count = 1},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.X, count = 1},
+                {signal = knownsignals.Z, count = 2},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 9},
+                {signal = knownsignals.greenwire, count = -1},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.white, count = 2},
+                {signal = knownsignals.W, count = 1},
+                {signal = knownsignals.X, count = 1},
+                {signal = knownsignals.Y, count = 2},
+                {signal = knownsignals.Z, count = 2},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 9},
+                {signal = knownsignals.greenwire, count = 1},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.X, count = 1},
+                {signal = knownsignals.Z, count = 2},
+            },
+        },
+        {},{},{},{},
+    },
+    verify = function(outsignals)
+        return expect_frames({
+            [4] = {
+              { count = 1, signal = knownsignals.X },
+              { count = 1, signal = knownsignals.Y },
+              { count = 1, signal = knownsignals.Z },
+              { count = 2, signal = knownsignals.white },
+              { count = 1, signal = knownsignals.grey },
+              { count = 1, signal = knownsignals.redwire}
+            },
+            [5] = {
+              { count = 1, signal = knownsignals.X },
+              { count = 1, signal = knownsignals.Y },
+              { count = 1, signal = knownsignals.Z },
+              { count = 1, signal = knownsignals.white },
+              { count = 2, signal = knownsignals.grey },
+              { count = 1, signal = knownsignals.redwire }
+            },
+            [9] = {
+              { count = 1, signal = knownsignals.X },
+              { count = 2, signal = knownsignals.Y },
+              { count = 2, signal = knownsignals.Z },
+              { count = 2, signal = knownsignals.white },
+              { count = 1, signal = knownsignals.grey },
+              { count = 1, signal = knownsignals.greenwire }
+            }
+          },outsignals)
+    end
+}
+
+tests["replaceentitywithconnectionsitems"] = {
+    prepare = function()
+        --bp string of wired combinator with irp and chest
+        global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].import_stack("0eNqdUu1ugzAMfBf/nMIEdFNVXmWqUAjesFQSlJhuCPHuc4K20bVSp/0h8sedz4dnaE4jDp4sQzUDGWcDVC8zBHqz+hRzPA0IFRBjDwqs7mOkPXHXI5PJjOsbspqdh0UB2RY/oCoWdZfj3bkWbWY6DLyBlstRAVomJly1pGCq7dg36IX7jgoFgwuCdjaOFsZMEJM8+eOzjJEV2btT3WCnzyT90vRDVEu5TeAQC6/kA8dcYB0tyhUEjC2XOTeg1+tEeIBlnWLRfPMU8eOx3e5DbdrFkDcjcQrLaNumLF4IV/k3cHEDHG0V05OGC7+le9P+ZW15++dcOZonQ/N/7/lb6pUNojyeQTqYanOjCs7oQxKy3+/yw1NR7MrDsnwCXCry2w==")
+    end,
+    multifeed = {
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 7},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.W, count = 1},
+                {signal = {name="steel-chest",type="item"}, count = 2},
+                {signal = knownsignals.X, count = 1},
+                {signal = knownsignals.Y, count = 1},
+            },
+        },
+    },
+    verify = function(outsignals)
+        local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+        local entities = bp.get_blueprint_entities()
+        if not expect("name","steel-chest",entities[1].name) then return false end
+        if not entities[1].connections then return false end
+        if not entities[1].items then return false end
+        return true
+    end
+}
+
+tests["replayschedule"] = {
+    prepare = function()
+        --bp string of loco
+        global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].import_stack("0eNptjsEKgzAQRP9lzjloLYj5lVKK2qUsmF1JolQk/26ilx56WZjdmbezY5gWmj1LhN3Bo0qAfewI/JF+Kru4zQQLjuRgIL0ratJRnUZeCcmA5U1f2Do9DUgiR6aLcortJYsbyGfDv7zBrCFHVMq3jKkMtjwzVz1nQn/dqkI/W9if0gYr+XAa2rapuntdN7cupQOvq0ix")
+    end,
+    multifeed = {
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 10},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.W, count = 1},
+            },
+            cc2string = "FOO",
+            cc2 = {
+                {signal = knownsignals.schedule, count = 1},
+                {signal = {name="signal-wait-time",type="virtual"}, count = 123},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 10},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.W, count = 1},
+            },
+            cc2string = "BAR",
+            cc2 = {
+                {signal = knownsignals.schedule, count = 2},
+                {signal = {name="signal-wait-time",type="virtual"}, count = 456},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 10},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.W, count = 1},
+            },
+            cc2string = "BAZ",
+            cc2 = {
+                {signal = knownsignals.schedule, count = 3},
+                {signal = {name="signal-wait-time",type="virtual"}, count = 789},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 10},
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.W, count = 1},
+            },
+            cc2 = {
+                {signal = knownsignals.schedule, count = 2},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 10},
+                {signal = knownsignals.grey, count = 1},
+            },
+            cc2 = {
+                {signal = knownsignals.schedule, count = 1},
+            },
+        },
+        {},
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 10},
+                {signal = knownsignals.grey, count = 1},
+            },
+            cc2 = {
+                {signal = knownsignals.schedule, count = 2},
+            },
+        },
+        {},
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 10},
+                {signal = knownsignals.grey, count = 1},
+            },
+            cc2 = {
+                {signal = knownsignals.schedule, count = 3},
+            },
+        },
+        {},
+    },
+    verify = function(outsignals)
+        return expect_frames({
+            [7] = remote.call('signalstrings', 'string_to_signals', "FOO", {
+                {signal = knownsignals.schedule, count = 1},
+                {signal = {name="signal-wait-time",type="virtual"}, count = 123},
+            }),
+            [9] = remote.call('signalstrings', 'string_to_signals', "BAZ", {
+                {signal = knownsignals.schedule, count = 2},
+                {signal = {name="signal-wait-time",type="virtual"}, count = 789},
+            }),
+          },outsignals)
+    end
+}
+
+tests["dump"] = {
+    prepare = function()
+        --bp string of a print with a little of everything to dump
+        global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].import_stack("0eNq9Vk2vmzAQ/C97bKEC8vWSY9VrpR7a01OEHNgkq4CNbJM2ivjvXUMSEM9Vw6vUS4KxZ+yd8e5yhV1RY6VJWthcgTIlDWxer2DoIEXh3tlLhbABslhCAFKUbqQFFdAEQDLHX7CJm+CvkEJlqlSWzjgAJl7gmbSt+c0D260IsyNmpwF6NglNcq8G4HmzDQClJUvYxdwOLqmsyx1qDqonsBzv4WjDNuwAKmUYpaTblJnCJIAL/y0bd54RS+IT4I8ULCQoTcwhutkoaGU0bl2mXJyLyLfNbOph5z6W+YPFkcjQWFW9pYjuDAEfSVqtinSHR3EmpVsbHDR10Arz9Gl7vkPTEUrM3GZtyLH70ZgP/SEerXgl6awm2w7jQSye6aTZOm5zFxU+19kJtUTS4FFhMVXLxKfl8sEiNNljiZaykG/AjqSwrNRbWT8t7nR+YXuelKdzeqi0J23s80qjyI4uEQw6GsfFyrgCwMaqCvVdpY+MVLWt6snc/+LklrHJc4tbXz3Sr6ZKH/437aOB8E+DYgcaOvPhHc4kk2yZjzJqOcWm5dimYMTtt+1lYt55C+F6Iok3d+NoIgtXU+4mhhtUXhe3dtLXezdOBvNdh/VVowB+ClZteMVeXeEvK6ExvTnc3uDbs6XStRO+lydeG79EkQtnBBAy7xGVMAblAXVaaeQnC2zH1h3f0v3ooyDjLjdWTd//cU8Sc04qmWm02JZRP2o5DZW8a6/kib22XSvluf6bJ4BC7JDTB778+PqNh2fUpqVdrWbReh7Hs2TdNL8BFccYSA==")
+    end,
+    multifeed = {
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 11},
+            },
+        },
+        {},{},--create/blank
+        {},{},--label
+        {},{},--icons
+        {},{},{},{},{},{},{},{},--tiles (and blanks)
+        {},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},--entities
+        {},{},{},{},{},{},{},{},--wires
+        {},{},--item requests
+        {},{},--schedule
+
+        {},{},{},{},{},{}, -- padding off the end...
+    },
+    verify = function(outsignals)
+        return expect_frames({
+            [3]={{signal=knownsignals.blueprint,count=-2}},
+            [5]={{signal=knownsignals.blueprint,count=4}},
+            [6]={
+                {signal=knownsignals.D,count=1},
+                {signal=knownsignals.M,count=4},
+                {signal=knownsignals.P,count=8},
+                {signal=knownsignals.U,count=2}
+                },
+            [7]={{signal=knownsignals.blueprint,count=5}},
+            [8]={
+                {signal={type="virtual",name="signal-check"},count=4},
+                {signal=knownsignals.info,count=8},
+                {signal={type="item",name="rail"},count=1},
+                {signal={type="item",name="locomotive"},count=2}
+                },
+            [9]={
+                {signal=knownsignals.T,count=1},
+                {signal=knownsignals.X,count=1},
+                {signal=knownsignals.Y,count=-7},
+                {signal={type="item",name="refined-concrete"},count=1},
+                {signal=knownsignals.blueprint,count=6}
+                },
+            [11]={
+                {signal=knownsignals.T,count=2},
+                {signal=knownsignals.X,count=1},
+                {signal=knownsignals.Y,count=-6},
+                {signal={type="item",name="refined-concrete"},count=1},
+                {signal=knownsignals.blueprint,count=6}
+                },
+            [13]={
+                {signal=knownsignals.T,count=3},
+                {signal=knownsignals.X,count=2},
+                {signal=knownsignals.Y,count=-7},
+                {signal={type="item",name="refined-concrete"},count=1},
+                {signal=knownsignals.blueprint,count=6}
+                },
+            [15]={
+                {signal=knownsignals.T,count=4},
+                {signal=knownsignals.X,count=2},
+                {signal=knownsignals.Y,count=-6},
+                {signal={type="item",name="refined-concrete"},count=1},
+                {signal=knownsignals.blueprint,count=6}
+                },
+            [17]={
+                {signal=knownsignals.X,count=-2},
+                {signal=knownsignals.Y,count=-6},
+                {signal=knownsignals.grey,count=1},
+                {signal={type="item",name="rail"},count=1},
+                {signal=knownsignals.blueprint,count=7}
+                },
+            [19]={
+                {signal=knownsignals.X,count=-2},
+                {signal=knownsignals.Y,count=-1},
+                {signal=knownsignals.grey,count=2},
+                {signal={type="item",name="locomotive"},count=1},
+                {signal=knownsignals.blueprint,count=7}
+                },
+            [21]={
+                {signal=knownsignals.grey,count=2},
+                {signal=knownsignals.blueprint,count=8}
+                },
+            [22]={{signal={type="item",name="coal"},count=50}},
+            [23]={{signal=knownsignals.grey,count=2},{signal=knownsignals.blueprint,count=10}},
+            [24]={
+                {signal=knownsignals.B,count=1},
+                {signal=knownsignals.C,count=4},
+                {signal=knownsignals.E,count=144},
+                {signal=knownsignals.I,count=256},
+                {signal=knownsignals.K,count=8},
+                {signal=knownsignals.N,count=64},
+                {signal=knownsignals.R,count=544},
+                {signal=knownsignals.U,count=2},
+                {signal=knownsignals.schedule,count=1}
+                },
+            [25]={
+                {signal=knownsignals.X,count=-2},
+                {signal=knownsignals.Y,count=-4},
+                {signal=knownsignals.grey,count=3},
+                {signal={type="item",name="rail"},count=1},
+                {signal=knownsignals.blueprint,count=7}
+                },
+            [27]={{signal=knownsignals.info,count=1}},
+            [28]=remote.call('signalstrings', 'string_to_signals', "BUCKERNEIR"),
+            [29]={
+                {signal=knownsignals.T,count=1},
+                {signal=knownsignals.Y,count=-4},
+                {signal=knownsignals.grey,count=4},
+                {signal={type="item",name="train-stop"},count=1},
+                {signal=knownsignals.blueprint,count=7}
+                },
+            [31]={
+                {signal=knownsignals.X,count=-2},
+                {signal=knownsignals.Y,count=-2},
+                {signal=knownsignals.grey,count=5},
+                {signal={type="item",name="rail"},count=1},
+                {signal=knownsignals.blueprint,count=7}
+                },
+            [33]={
+                {signal=knownsignals.O,count=3},
+                {signal=knownsignals.S,count=2},
+                {signal=knownsignals.Y,count=-2},
+                {signal=knownsignals.grey,count=6},
+                {signal={type="item",name="arithmetic-combinator"},count=1},
+                {signal=knownsignals.blueprint,count=7}
+                },
+            [35]={
+                {signal=knownsignals.O,count=1},
+                {signal=knownsignals.X,count=-1},
+                {signal=knownsignals.Y,count=-2},
+                {signal=knownsignals.grey,count=7},
+                {signal={type="item",name="arithmetic-combinator"},count=1},
+                {signal=knownsignals.blueprint,count=7}
+                },
+            [36]={
+                {signal={type="virtual",name="signal-0"},count=1},
+                {signal={type="virtual",name="signal-1"},count=2},
+                {signal={type="virtual",name="signal-2"},count=4}
+                },
+            [37]={
+                {signal=knownsignals.X,count=1},
+                {signal=knownsignals.Y,count=1},
+                {signal=knownsignals.Z,count=1},
+                {signal=knownsignals.white,count=4},
+                {signal=knownsignals.grey,count=7},
+                {signal=knownsignals.redwire,count=1},
+                {signal=knownsignals.blueprint,count=9}
+                },
+            [39]={
+                {signal=knownsignals.X,count=2},
+                {signal=knownsignals.Y,count=1},
+                {signal=knownsignals.Z,count=1},
+                {signal=knownsignals.white,count=6},
+                {signal=knownsignals.grey,count=7},
+                {signal=knownsignals.redwire,count=1},
+                {signal=knownsignals.blueprint,count=9}
+                },
+            [41]={
+                {signal=knownsignals.X,count=1},
+                {signal=knownsignals.Y,count=1},
+                {signal=knownsignals.Z,count=2},
+                {signal=knownsignals.white,count=4},
+                {signal=knownsignals.grey,count=7},
+                {signal=knownsignals.redwire,count=1},
+                {signal=knownsignals.blueprint,count=9}
+                },
+            [43]={
+                {signal=knownsignals.X,count=2},
+                {signal=knownsignals.Y,count=2},
+                {signal=knownsignals.Z,count=2},
+                {signal=knownsignals.white,count=6},
+                {signal=knownsignals.grey,count=7},
+                {signal=knownsignals.redwire,count=1},
+                {signal=knownsignals.blueprint,count=9}
+                },
+            [45]={
+                {signal=knownsignals.X,count=-2},
+                {signal=knownsignals.grey,count=8},
+                {signal={type="item",name="rail"},count=1},
+                {signal=knownsignals.blueprint,count=7}
+                },
+            [47]={
+                {signal=knownsignals.X,count=-2},
+                {signal=knownsignals.Y,count=2},
+                {signal=knownsignals.grey,count=9},
+                {signal={type="item",name="rail"},count=1},
+                {signal=knownsignals.blueprint,count=7}
+                },
+            [49]={
+                {signal=knownsignals.X,count=-2},
+                {signal=knownsignals.Y,count=4},
+                {signal=knownsignals.grey,count=10},
+                {signal={type="item",name="rail"},count=1},
+                {signal=knownsignals.blueprint,count=7}
+                }
+            },outsignals)
+    end
 }
 
 local states = {
@@ -1851,8 +3281,11 @@ local states = {
 }
 
 
-script.on_init(function()
-    game.print("init")
+script.on_event(defines.events.on_game_created_from_scenario,function()
+    log("init")
+    if remote.call("conman","hasProfiler") then remote.call("conman","startProfile") end
+    if remote.interfaces["coverage"] then remote.call("coverage","start","conman_tests") end
+    global.profilecount = 0
     game.autosave_enabled = false
     game.speed = 1000
     global = {
@@ -1888,7 +3321,8 @@ end
 
 script.on_event(defines.events.on_tick, function()
     if global.state == states.prepare then
-        game.print("prepare " .. global.testid)
+        log("prepare " .. global.testid)
+        if remote.interfaces["coverage"] then remote.call("coverage","start",global.testid) end
         global.outsignals = {}
         if global.test.prepare then
             global.test.prepare()
@@ -1900,14 +3334,14 @@ script.on_event(defines.events.on_tick, function()
             global.state = states.feed
         end
     elseif global.state == states.feed then
-        game.print("feed " .. global.testid)
+        log("feed " .. global.testid)
         -- feed cc1/cc2 data
         writeInput(global.test.cc1, global.test.cc1string, global.testprobe1)
         writeInput(global.test.cc2, global.test.cc2string, global.testprobe2)
         global.outsignals[1] = global.testprobe2out.get_merged_signals()
         global.state = states.clear
     elseif global.state == states.multifeed then
-        game.print("multifeed " .. global.testid .. " " .. global.nextfeed)
+        log("multifeed " .. global.testid .. " " .. global.nextfeed)
         -- feed cc1/cc2 data
         local nextdata = global.test.multifeed[global.nextfeed]
         writeInput(nextdata.cc1, nextdata.cc1string, global.testprobe1)
@@ -1921,7 +3355,7 @@ script.on_event(defines.events.on_tick, function()
             global.state = states.clear
         end
     elseif global.state == states.clear then
-        game.print("clear " .. global.testid)
+        log("clear " .. global.testid)
         -- clear cc1/cc2 data
         writeInput(nil,nil, global.testprobe1)
         writeInput(nil,nil, global.testprobe2)
@@ -1930,7 +3364,7 @@ script.on_event(defines.events.on_tick, function()
         global.outsignals[#global.outsignals+1] = global.testprobe2out.get_merged_signals()
         global.state = states.verify
     elseif global.state == states.verify then
-        game.print("verify " .. global.testid)
+        log("verify " .. global.testid)
     
         if global.test.verify then
             global.outsignals[#global.outsignals+1] = global.testprobe2out.get_merged_signals()
@@ -1938,8 +3372,9 @@ script.on_event(defines.events.on_tick, function()
                 --game.set_game_state{ game_finished=true, player_won=false, can_continue=true }    
                 global.state = states.finished
                 game.speed = 1
-                game.print("test failed")
-                remote.call("conman","stopProfile")
+                log("test failed")
+                if remote.call("conman","hasProfiler") then remote.call("conman","stopProfile") end
+                if remote.interfaces["coverage"] then remote.call("coverage","report") end
                 return
             end
         end
@@ -1949,9 +3384,17 @@ script.on_event(defines.events.on_tick, function()
         if global.testid then
             global.state = states.prepare
         else
-            global.state = states.finished
-            game.speed = 1
-            --game.set_game_state{ game_finished=true, player_won=true, can_continue=false }
+            --global.profilecount = global.profilecount + 1
+            --if global.profilecount ~= 50 then
+            --    global.testid,global.test = next(tests)
+            --    global.state = states.prepare
+            --else
+                global.state = states.finished
+                game.speed = 1
+                if remote.call("conman","hasProfiler") then remote.call("conman","stopProfile") end
+                if remote.interfaces["coverage"] then remote.call("coverage","report") end
+                --game.set_game_state{ game_finished=true, player_won=true, can_continue=false }
+            --end
         end
     end
 end)

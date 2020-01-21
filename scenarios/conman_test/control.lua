@@ -103,7 +103,7 @@ local tests = {
                 return false
             end
 
-            if ghost.get_inventory(defines.inventory.chest).getbar() == 4 then
+            if ghost.get_inventory(defines.inventory.chest).get_bar() == 4 then
                 ghost.destroy()
             else
                 return false
@@ -1333,7 +1333,7 @@ local tests = {
 
             local inv = ghost.get_inventory(defines.inventory.chest)
 
-            if not (inv.getbar() == 4 and 
+            if not (inv.get_bar() == 4 and 
                 inv.get_filter(1) == knownsignals.redwire.name and
                 inv.get_filter(2) == knownsignals.greenwire.name and
                 inv.get_filter(3) == nil and 

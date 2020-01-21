@@ -1,11 +1,9 @@
 No_Profiler_Commands = true
-local ProfilerLoaded,Profiler = pcall(require,'__profiler__/profiler.lua')
-if not ProfilerLoaded then Profiler=nil end
+local Profiler = script.active_mods["profiler"] and require('__profiler__/profiler.lua')
 No_Profiler_Commands = nil
-ProfilerLoaded = nil
 
-pcall(require,'__coverage__/coverage.lua')
-pcall(require,'__debugadapter__/debugadapter.lua')
+if script.active_mods["coverage"] then require('__coverage__/coverage.lua') end
+if script.active_mods["debugadapter"] then require('__debugadapter__/debugadapter.lua') end
 
 function get_signal_from_set(signal,set)
   for _,sig in pairs(set) do
@@ -2164,7 +2162,7 @@ local function onTickManager(manager)
           manager.preloadcolor = nil
         end
       else
-        if game.active_mods["stringy-train-stop"] then
+        if script.active_mods["stringy-train-stop"] then
           local sigsched = get_signal_from_set(knownsignals.schedule,signals1)
           if sigsched == 1 or (sigsched > 0 and manager.schedule and sigsched <= #manager.schedule+1) then
             if not manager.schedule then manager.schedule = {} end

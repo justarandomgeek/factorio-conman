@@ -761,6 +761,7 @@ local function ConstructionOrder(manager,signals1,signals2,forblueprint)
             ghost.item_requests = ReadItems(signals2)
           end
         end
+        script.raise_event(defines.events.script_raised_built, {entity=ghost})
       end
     elseif createorder.name == "entity-ghost" then --and forblueprint
       local controltype = EntityTypeToControlBehavior[createorder.ghost_prototype.type]
@@ -846,13 +847,16 @@ local function DeployBlueprint(manager,signals1,signals2)
 
     local force_build = get_signal_from_set(knownsignals.F,signals1)==1
 
-    bp.build_blueprint{
+    for _, ent in pairs(bp.build_blueprint{
       surface=manager.ent.surface,
       force=manager.ent.force,
       position=ReadPosition(signals1),
       direction = get_signal_from_set(knownsignals.D,signals1),
       force_build= force_build,
-    }
+    }) do
+      --TODO: move this to a raise_event flag on build_blueprint when possible!
+      script.raise_event(defines.events.script_raised_built,{entity=ent})
+    end
   end
 end
 
@@ -2233,8 +2237,7 @@ local function CreateControl(manager,position)
   return ent
 end
 
-local function onBuilt(event)
-  local ent = event.created_entity
+local function onBuilt(ent)
   if ent.name == "conman" then
 
     ent.set_recipe("conman-process")
@@ -2282,7 +2285,7 @@ script.on_init(function()
   -- Scan for pre-built ConMan in the world already...
   for _,surface in pairs(game.surfaces) do
     for _,entity in pairs(surface.find_entities_filtered{name="conman"}) do
-      onBuilt({created_entity=entity})
+      onBuilt(entity)
     end
   end
 end
@@ -2292,14 +2295,16 @@ script.on_configuration_changed(function(data)
   -- when any mods change, reindex
   reindex_remotes()
   reindex_rocks()
-  
 end
 )
 
 
 script.on_event(defines.events.on_tick, onTick)
-script.on_event(defines.events.on_built_entity, onBuilt)
-script.on_event(defines.events.on_robot_built_entity, onBuilt)
+script.on_event(defines.events.on_built_entity, function(event) onBuilt(event.created_entity) end)
+script.on_event(defines.events.on_robot_built_entity, function(event) onBuilt(event.created_entity) end)
+script.on_event(defines.events.on_entity_cloned, function(event) onBuilt(event.destination) end)
+script.on_event(defines.events.script_raised_built, function(event) onBuilt(event.entity) end)
+script.on_event(defines.events.script_raised_revive, function(event) onBuilt(event.entity) end)
 
 remote.add_interface('conman',{
   --TODO: call to register items for custom decoding into ghost tags?

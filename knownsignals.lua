@@ -14,6 +14,7 @@ return {
     J = {name="signal-J",type="virtual"}, -- combinator first constant
                                           -- speaker pitch
     K = {name="signal-K",type="virtual"}, -- second constant
+    L = {name="signal-L",type="virtual"}, -- roboport report lognet
     M = {name="signal-M",type="virtual"}, -- show on map
     O = {name="signal-O",type="virtual"}, -- combinator operation
     P = {name="signal-P",type="virtual"}, -- allow polyphony

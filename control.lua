@@ -3,7 +3,6 @@ local Profiler = script.active_mods["profiler"] and require('__profiler__/profil
 No_Profiler_Commands = nil
 
 if script.active_mods["coverage"] then require('__coverage__/coverage.lua') end
-if script.active_mods["debugadapter"] then require('__debugadapter__/debugadapter.lua') end
 
 function get_signal_from_set(signal,set)
   for _,sig in pairs(set) do
@@ -506,20 +505,9 @@ local ConstructionOrderControlBehavior =
       siglist = ReadSignalList(signals2)
     end
 
-    if forblueprint then
-      if get_signal_from_set(knownsignals.R,signals1) ~= 0 then
-        control.circuit_mode_of_operation = defines.control_behavior.roboport.circuit_mode_of_operation.read_robot_stats	
-      else
-        control.circuit_mode_of_operation = defines.control_behavior.roboport.circuit_mode_of_operation.read_logistics	
-      end
-    else
-      if get_signal_from_set(knownsignals.R,signals1) ~= 0 then
-        control.mode_of_operations = defines.control_behavior.roboport.circuit_mode_of_operation.read_robot_stats	
-      else
-        control.mode_of_operations = defines.control_behavior.roboport.circuit_mode_of_operation.read_logistics	
-      end
-    end
-    
+    control.read_logistics = get_signal_from_set(knownsignals.L,signals1) ~= 0
+    control.read_robot_stats = get_signal_from_set(knownsignals.R,signals1) ~= 0
+
     control.available_logistic_output_signal = siglist[1]
     control.total_logistic_output_signal = siglist[2]
     control.available_construction_output_signal = siglist[3]
@@ -1339,8 +1327,12 @@ local ReportControlBehavior = {
     end
   end,
   [defines.control_behavior.type.roboport] = function(control,cc1,cc2)
-    if control.circuit_mode_of_operation == defines.control_behavior.roboport.circuit_mode_of_operation.read_robot_stats then
+    if control.read_robot_stats then
       cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.R}
+    end
+
+    if control.read_logistics then
+      cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.L}
     end
 
     if control.available_logistic_output_signal then

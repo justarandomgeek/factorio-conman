@@ -7,5 +7,5 @@
   "homepage": "",
   "contact": "justarandomgeek@gmail.com",
   "description": "ConMan allows ordering construction and deconstruction via circuit networks. Supports ordering individual constructions, or whole blueprints.",
-  "dependencies": ["base", "?recipeid", "?signalstrings", "?stringy-train-stop" ]
+  "dependencies": ["base >= 0.18.18", "?recipeid", "?signalstrings", "?stringy-train-stop" ]
 }

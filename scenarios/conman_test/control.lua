@@ -1,3 +1,4 @@
+if __DebugAdapter then __DebugAdapter.levelPath("conman","scenarios/conman_test/") end
 local knownsignals = require("__conman__/knownsignals.lua")
 require("util")
 
@@ -1214,7 +1215,7 @@ local tests = {
 
             local control = ghost.get_or_create_control_behavior()
             if not (
-                control.mode_of_operations == defines.control_behavior.roboport.circuit_mode_of_operation.read_robot_stats and
+                control.read_robot_stats and (not control.read_logistics) and
                 control.available_logistic_output_signal.name == knownsignals.A.name and
                 control.total_logistic_output_signal.name == knownsignals.B.name and
                 control.available_construction_output_signal.name == knownsignals.C.name and
@@ -3393,7 +3394,7 @@ script.on_event(defines.events.on_tick, function()
                 game.speed = 1
                 if remote.call("conman","hasProfiler") then remote.call("conman","stopProfile") end
                 if remote.interfaces["coverage"] then remote.call("coverage","report") end
-                --game.set_game_state{ game_finished=true, player_won=true, can_continue=false }
+                game.set_game_state{ game_finished=true, player_won=true, can_continue=false }
             --end
         end
     end

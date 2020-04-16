@@ -135,13 +135,16 @@ local tests = {
             else
                 return false
             end
-            local recipe = ghost.get_recipe()
-            if recipe and recipe.name == "inserter" then
-                ghost.destroy()
+            if remote.interfaces["recipeid"] then
+                local recipe = ghost.get_recipe()
+                if recipe and recipe.name == "inserter" then
+                    ghost.destroy()
+                else
+                    return false
+                end
             else
-                return false
+                ghost.destroy()
             end
-            
             return true
         end
     },
@@ -1107,12 +1110,12 @@ local tests = {
             local control = ghost.get_or_create_control_behavior()
             if not ( control.circuit_parameters.signal_value_is_pitch and
                 control.circuit_parameters.instrument_id == 3 and
-                control.circuit_condition.condition.first_signal.name == knownsignals.A.name and 
+                control.circuit_condition.condition.first_signal.name == knownsignals.A.name and
                 ghost.alert_parameters.show_alert and
                 ghost.alert_parameters.show_on_map and
                 ghost.alert_parameters.icon_signal_id.name == knownsignals.B.name and
-                ghost.alert_parameters.alert_message == "ALERT" and 
-                ghost.parameters.playback_volume == 0.42 and 
+                (ghost.alert_parameters.alert_message == "ALERT" or not remote.interfaces["signalstrings"]) and
+                ghost.parameters.playback_volume == 0.42 and
                 ghost.parameters.playback_globally and
                 ghost.parameters.allow_polyphony
                 ) then return false end
@@ -1400,6 +1403,7 @@ local tests = {
     },
 
     ["schedule"] = {
+        dependsOnMod = {"stringy-train-stop"},
         prepare = function()
             global.rails={
                 global.surface.create_entity{name="straight-rail",position={-3,-1}},
@@ -1865,7 +1869,9 @@ local tests = {
             local tiles = bp.get_blueprint_tiles()
             if tiles then return false end
             for _,ent in pairs(global.entities) do ent.destroy() end
-            if bp.label ~= "CAPTURE" then return false end
+            if remote.interfaces["signalstrings"] then
+                if bp.label ~= "CAPTURE" then return false end
+            end
             bp.clear()
             return true
         end
@@ -1911,7 +1917,9 @@ local tests = {
             local tiles = bp.get_blueprint_tiles()
             if tiles and #tiles ~= 9 then return false end
             for _,ent in pairs(global.entities) do ent.destroy() end
-            if bp.label ~= "CAPTURE" then return false end
+            if remote.interfaces["signalstrings"] then
+                if bp.label ~= "CAPTURE" then return false end
+            end
             local color = bp.label_color
             for _,v in pairs(color) do if v~=1 then return false end end
             bp.clear()
@@ -1948,8 +1956,10 @@ local tests = {
         verify = function(outsignals)
             if not outsignals or #outsignals ~= 1 then return false end
             local signals = outsignals[1]
-            local string = remote.call('signalstrings', 'signals_to_string', signals)
-            if string ~= "TEST" then return false end
+            if remote.interfaces["signalstrings"] then
+                local string = remote.call('signalstrings', 'signals_to_string', signals)
+                if string ~= "TEST" then return false end
+            end
             return expect_signals({
                 r = knownsignals.red,
                 g = knownsignals.green,
@@ -1979,7 +1989,7 @@ local tests = {
             {signal = knownsignals.white, count = 78},
         },
         verify = function(outsignals)
-            if global.bp.label ~= "TEST" then return false end
+            if remote.interfaces["signalstrings"] and global.bp.label ~= "TEST" then return false end
             local color = global.bp.label_color
             global.bp = nil
             return --factorio returns colors as float values 0-1, but they're not exactly n/255 or n/256, so just make sure the difference is small...
@@ -2092,8 +2102,10 @@ local tests = {
         verify = function(outsignals)
             if not outsignals or #outsignals ~= 1 then return false end
             local signals = outsignals[1]
-            local string = remote.call('signalstrings', 'signals_to_string', signals)
-            if string ~= "TEST" then return false end
+            if remote.interfaces["signalstrings"] then
+                local string = remote.call('signalstrings', 'signals_to_string', signals)
+                if string ~= "TEST" then return false end
+            end
             global.book.clear()
             global.book = nil
             return expect_signals({
@@ -2124,7 +2136,7 @@ local tests = {
             {signal = knownsignals.white, count = 78},
         },
         verify = function(outsignals)
-            if global.book.label ~= "TEST" then return false end
+            if remote.interfaces["signalstrings"] and global.book.label ~= "TEST" then return false end
             local color = global.book.label_color
             global.book.clear()
             global.book = nil
@@ -2337,7 +2349,7 @@ end
 
 replayOneCommandEntityTest("replaycraftingmachine",{
     {signal = {type = "item", name = "assembling-machine-3"}, count = 1},
-    {signal = knownsignals.R, count = -126192623}, -- "inserter"
+    remote.interfaces["recipeid"] and {signal = knownsignals.R, count = -126192623}, -- "inserter"
     {signal = knownsignals.X, count = -3},
     {signal = knownsignals.Y, count = -3},
 })
@@ -2725,10 +2737,15 @@ local function replayTwoCommandEntityTest(name,command,data,preload)
             {cc1 = {{signal = knownsignals.blueprint, count = -3},},}, -- destroy the print
         },
         verify = function(outsignals)
-            if not outsignals[6] and expect_signals({i=knownsignals.info},{i=1},outsignals[6]) then return false end
-            if not outsignals[7] and remote.call('signalstrings', 'signals_to_string', outsignals[7]) == "TEST" then return false end
-            if not outsignals[8] and expect_signals(expectsignals,expectvalues,outsignals[8]) then return false end
-            if not ((not data and not outsignals[9]) or (outsignals[9] and expect_signals(expectdatasignals,expectdatavalues,outsignals[9]))) then return false end
+            if remote.interfaces["signalstrings"] then
+                if not outsignals[6] and expect_signals({i=knownsignals.info},{i=1},outsignals[6]) then return false end
+                if not outsignals[7] and remote.call('signalstrings', 'signals_to_string', outsignals[7]) == preload then return false end
+                if not outsignals[8] and expect_signals(expectsignals,expectvalues,outsignals[8]) then return false end
+                if not ((not data and not outsignals[9]) or (outsignals[9] and expect_signals(expectdatasignals,expectdatavalues,outsignals[9]))) then return false end
+            else
+                if not outsignals[6] and expect_signals(expectsignals,expectvalues,outsignals[6]) then return false end
+                if not ((not data and not outsignals[7]) or (outsignals[7] and expect_signals(expectdatasignals,expectdatavalues,outsignals[7]))) then return false end
+            end
             return true
         end,
     }
@@ -2974,6 +2991,7 @@ tests["replaceentitywithconnectionsitems"] = {
 }
 
 tests["replayschedule"] = {
+    dependsOnMod = {"stringy-train-stop"},
     prepare = function()
         --bp string of loco
         global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].import_stack("0eNptjsEKgzAQRP9lzjloLYj5lVKK2qUsmF1JolQk/26ilx56WZjdmbezY5gWmj1LhN3Bo0qAfewI/JF+Kru4zQQLjuRgIL0ratJRnUZeCcmA5U1f2Do9DUgiR6aLcortJYsbyGfDv7zBrCFHVMq3jKkMtjwzVz1nQn/dqkI/W9if0gYr+XAa2rapuntdN7cupQOvq0ix")
@@ -3071,6 +3089,7 @@ tests["replayschedule"] = {
 }
 
 tests["dump"] = {
+    dependsOnMod = {"stringy-train-stop"},
     prepare = function()
         --bp string of a print with a little of everything to dump
         global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].import_stack("0eNq9Vk2vmzAQ/C97bKEC8vWSY9VrpR7a01OEHNgkq4CNbJM2ivjvXUMSEM9Vw6vUS4KxZ+yd8e5yhV1RY6VJWthcgTIlDWxer2DoIEXh3tlLhbABslhCAFKUbqQFFdAEQDLHX7CJm+CvkEJlqlSWzjgAJl7gmbSt+c0D260IsyNmpwF6NglNcq8G4HmzDQClJUvYxdwOLqmsyx1qDqonsBzv4WjDNuwAKmUYpaTblJnCJIAL/y0bd54RS+IT4I8ULCQoTcwhutkoaGU0bl2mXJyLyLfNbOph5z6W+YPFkcjQWFW9pYjuDAEfSVqtinSHR3EmpVsbHDR10Arz9Gl7vkPTEUrM3GZtyLH70ZgP/SEerXgl6awm2w7jQSye6aTZOm5zFxU+19kJtUTS4FFhMVXLxKfl8sEiNNljiZaykG/AjqSwrNRbWT8t7nR+YXuelKdzeqi0J23s80qjyI4uEQw6GsfFyrgCwMaqCvVdpY+MVLWt6snc/+LklrHJc4tbXz3Sr6ZKH/437aOB8E+DYgcaOvPhHc4kk2yZjzJqOcWm5dimYMTtt+1lYt55C+F6Iok3d+NoIgtXU+4mhhtUXhe3dtLXezdOBvNdh/VVowB+ClZteMVeXeEvK6ExvTnc3uDbs6XStRO+lydeG79EkQtnBBAy7xGVMAblAXVaaeQnC2zH1h3f0v3ooyDjLjdWTd//cU8Sc04qmWm02JZRP2o5DZW8a6/kib22XSvluf6bJ4BC7JDTB778+PqNh2fUpqVdrWbReh7Hs2TdNL8BFccYSA==")
@@ -3308,7 +3327,7 @@ end)
 
 local function writeInput(signals,string,entity)
     local outframe = {}
-    if string then 
+    if string and remote.interfaces['signalstrings'] then 
         signals = remote.call('signalstrings', 'string_to_signals', string, signals)
     end
 
@@ -3381,8 +3400,17 @@ script.on_event(defines.events.on_tick, function()
         end
         
         -- set up for next test
+        ::nexttest::
         global.testid,global.test = next(tests,global.testid)
         if global.testid then
+            if global.test.dependsOnMod then
+                for _,mod in pairs(global.test.dependsOnMod) do
+                    if not script.active_mods[mod] then
+                        log("skipped "..global.testid.." due to missing dependancy "..mod)
+                        goto nexttest
+                    end
+                end
+            end
             global.state = states.prepare
         else
             --global.profilecount = global.profilecount + 1

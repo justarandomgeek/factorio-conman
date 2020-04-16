@@ -871,9 +871,13 @@ local function CaptureBlueprint(manager,signals1,signals2)
     if not capture_entities and bp.get_blueprint_entities() then 
       bp.set_blueprint_entities(nil)
     end
-    -- set or clear label and color from cc2
-    if remote.interfaces['signalstrings'] and signals2 then
-      bp.label = remote.call('signalstrings','signals_to_string',signals2,true)
+    if signals2 then
+      -- set or clear label and color from cc2
+      if remote.interfaces['signalstrings'] then
+        bp.label = remote.call('signalstrings','signals_to_string',signals2,true)
+      else
+        bp.label = ''
+      end
 
       local a = get_signal_from_set(knownsignals.white,signals2)
       if a > 0 and a <= 255 then
@@ -883,9 +887,6 @@ local function CaptureBlueprint(manager,signals1,signals2)
       else
         bp.label_color = { r=1, g=1, b=1, a=1 }
       end
-    else
-      bp.label = ''
-      bp.label_color = { r=1, g=1, b=1, a=1 }
     end
   end
 end
@@ -963,16 +964,15 @@ local function UpdateItemLabel(item,signals2)
   -- set or clear label and color from cc2
   if remote.interfaces['signalstrings'] and signals2 then
     item.label = remote.call('signalstrings','signals_to_string',signals2,true)
-    local a = get_signal_from_set(knownsignals.white,signals2)
-    if a > 0 and a <= 255 then
-      local color = ReadColor(signals2)
-      color.a = a
-      item.label_color = color
-    else
-      item.label_color = { r=1, g=1, b=1, a=1 }
-    end
   else
     item.label = ''
+  end
+  local a = get_signal_from_set(knownsignals.white,signals2)
+  if a > 0 and a <= 255 then
+    local color = ReadColor(signals2)
+    color.a = a
+    item.label_color = color
+  else
     item.label_color = { r=1, g=1, b=1, a=1 }
   end
 end

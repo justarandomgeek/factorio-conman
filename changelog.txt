@@ -2,6 +2,7 @@
 Version: 0.18.3
 Date: ????
   Changes:
+    - Tests run correctly without optional dependancy mods
 ---------------------------------------------------------------------------------------------------
 Version: 0.18.2
 Date: 2020-04-12

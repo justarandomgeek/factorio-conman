@@ -2073,15 +2073,15 @@ local tests = {
             {signal = knownsignals.blueprint, count = 6},
             {signal = knownsignals.T, count = 1},
             {signal = knownsignals.W, count = 1},
-            {signal = knownsignals.X, count = 1},
-            {signal = knownsignals.Y, count = 1},
+            {signal = knownsignals.X, count = 0},
+            {signal = knownsignals.Y, count = 0},
             {signal = {type="item",name="concrete"}, count = 1},
         },
         verify = function(outsignals)
             local tiles = global.bp.get_blueprint_tiles()
             if not tiles or #tiles ~= 1 then return false end
             local tile = tiles[1]
-            if not ( tile.name == "concrete" and tile.position.x == 1 and tile.position.y == 1 ) then return false end
+            if not ( tile.name == "concrete" and tile.position.x == 0 and tile.position.y == 0 ) then return false end
             return true
         end
     },

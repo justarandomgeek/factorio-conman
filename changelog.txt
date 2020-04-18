@@ -3,6 +3,7 @@ Version: 0.18.3
 Date: ????
   Changes:
     - Tests run correctly without optional dependancy mods
+    - Correctly handle positions of (0,0)
 ---------------------------------------------------------------------------------------------------
 Version: 0.18.2
 Date: 2020-04-12

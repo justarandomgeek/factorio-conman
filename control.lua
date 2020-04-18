@@ -52,21 +52,16 @@ local signalsets = {
 
 
 local function ReadPosition(signals,secondary,offset)
-  if not secondary then
-    local p = get_signals_filtered(signalsets.position1,signals)
-    if offset then
-      p.x = (p.x or 0)+offset.x
-      p.y = (p.y or 0)+offset.y
-    end
-    return p
-  else
-    local p = get_signals_filtered(signalsets.position2,signals)
-    if offset then
-      p.x = (p.x or 0)+offset.x
-      p.y = (p.y or 0)+offset.y
+  local set = secondary and signalsets.position2 or signalsets.position1
+  local p = get_signals_filtered(set,signals)
+  local x,y = (p.x or 0),(p.y or 0)
+  if offset then
+    x = x+offset.x
+    y = y+offset.y
   end
-    return p
-end
+  p.x = x
+  p.y = y
+  return p
 end
 
 local function ReadColor(signals)

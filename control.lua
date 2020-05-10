@@ -1,7 +1,3 @@
-No_Profiler_Commands = true
-local Profiler = script.active_mods["profiler"] and require('__profiler__/profiler.lua')
-No_Profiler_Commands = nil
-
 if script.active_mods["coverage"] then require('__coverage__/coverage.lua') end
 
 function get_signal_from_set(signal,set)
@@ -2312,16 +2308,5 @@ remote.add_interface('conman',{
     if global.managers[manager_id] then
       global.managers[manager_id].preloadcolor = color
     end
-  end,
-  
-  -- These functions are intended for use by the test scenario to activate various instrumentation
-  hasProfiler = function() 
-    return Profiler ~= nil 
-  end,
-  startProfile = function()
-    if Profiler then Profiler.Start() end
-  end,
-  stopProfile = function()
-    if Profiler then Profiler.Stop() end
   end,
 })

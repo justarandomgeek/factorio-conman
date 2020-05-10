@@ -1,4 +1,4 @@
-if __DebugAdapter then __DebugAdapter.levelPath("conman","scenarios/conman_test/") end
+if (__DebugAdapter or __Profiler) then (__DebugAdapter or __Profiler).levelPath("conman","scenarios/conman_test/") end
 local knownsignals = require("__conman__/knownsignals.lua")
 require("util")
 
@@ -3303,9 +3303,8 @@ local states = {
 
 script.on_event(defines.events.on_game_created_from_scenario,function()
     log("init")
-    if remote.call("conman","hasProfiler") then remote.call("conman","startProfile") end
+    if __Profiler then __Profiler.set_refresh_rate(600) end
     if remote.interfaces["coverage"] then remote.call("coverage","start","conman_tests") end
-    global.profilecount = 0
     game.autosave_enabled = false
     game.speed = 1000
     global = {
@@ -3393,8 +3392,8 @@ script.on_event(defines.events.on_tick, function()
                 global.state = states.finished
                 game.speed = 1
                 log("test failed")
-                if remote.call("conman","hasProfiler") then remote.call("conman","stopProfile") end
                 if remote.interfaces["coverage"] then remote.call("coverage","report") end
+                if __Profiler then __Profiler.dump() end
                 return
             end
         end
@@ -3413,17 +3412,17 @@ script.on_event(defines.events.on_tick, function()
             end
             global.state = states.prepare
         else
-            --global.profilecount = global.profilecount + 1
-            --if global.profilecount ~= 50 then
-            --    global.testid,global.test = next(tests)
-            --    global.state = states.prepare
-            --else
+            global.profilecount = (global.profilecount or 0) + 1
+            if __Profiler and global.profilecount < 30 then
+                global.testid,global.test = next(tests)
+                global.state = states.prepare
+            else
                 global.state = states.finished
                 game.speed = 1
-                if remote.call("conman","hasProfiler") then remote.call("conman","stopProfile") end
                 if remote.interfaces["coverage"] then remote.call("coverage","report") end
+                if __Profiler then __Profiler.dump() end
                 game.set_game_state{ game_finished=true, player_won=true, can_continue=false }
-            --end
+            end
         end
     end
 end)

@@ -3303,7 +3303,6 @@ local states = {
 
 script.on_event(defines.events.on_game_created_from_scenario,function()
     log("init")
-    if __Profiler then __Profiler.set_refresh_rate(600) end
     if remote.interfaces["coverage"] then remote.call("coverage","start","conman_tests") end
     game.autosave_enabled = false
     game.speed = 1000
@@ -3394,7 +3393,6 @@ script.on_event(defines.events.on_tick, function()
                 game.speed = 1
                 log("test failed")
                 if remote.interfaces["coverage"] then remote.call("coverage","report") end
-                if __Profiler then __Profiler.dump() end
                 return
             end
         end
@@ -3421,7 +3419,6 @@ script.on_event(defines.events.on_tick, function()
                 global.state = states.finished
                 game.speed = 1
                 if remote.interfaces["coverage"] then remote.call("coverage","report") end
-                if __Profiler then __Profiler.dump() end
                 game.set_game_state{ game_finished=true, player_won=true, can_continue=false }
             end
         end

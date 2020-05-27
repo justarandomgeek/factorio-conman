@@ -3314,7 +3314,7 @@ script.on_event(defines.events.on_game_created_from_scenario,function()
     -- make sure things like high stacks on inserters are unlocked so setting them works
     game.forces.player.research_all_technologies()
     
-    global.testid,global.test = next(tests)
+    global.testid,_ = next(tests)
     global.state = states.prepare
     
     local tags = { "testprobe1", "testprobe2", "testprobe2out", "conman" }
@@ -3339,14 +3339,15 @@ local function writeInput(signals,string,entity)
 end
 
 script.on_event(defines.events.on_tick, function()
+    local test = tests[global.testid]
     if global.state == states.prepare then
         log("prepare " .. global.testid)
         if remote.interfaces["coverage"] then remote.call("coverage","start",global.testid) end
         global.outsignals = {}
-        if global.test.prepare then
-            global.test.prepare()
+        if test.prepare then
+            test.prepare()
         end
-        if global.test.multifeed then 
+        if test.multifeed then 
             global.nextfeed = 1
             global.state = states.multifeed
         else
@@ -3355,20 +3356,20 @@ script.on_event(defines.events.on_tick, function()
     elseif global.state == states.feed then
         log("feed " .. global.testid)
         -- feed cc1/cc2 data
-        writeInput(global.test.cc1, global.test.cc1string, global.testprobe1)
-        writeInput(global.test.cc2, global.test.cc2string, global.testprobe2)
+        writeInput(test.cc1, test.cc1string, global.testprobe1)
+        writeInput(test.cc2, test.cc2string, global.testprobe2)
         global.outsignals[1] = global.testprobe2out.get_merged_signals()
         global.state = states.clear
     elseif global.state == states.multifeed then
         log("multifeed " .. global.testid .. " " .. global.nextfeed)
         -- feed cc1/cc2 data
-        local nextdata = global.test.multifeed[global.nextfeed]
+        local nextdata = test.multifeed[global.nextfeed]
         writeInput(nextdata.cc1, nextdata.cc1string, global.testprobe1)
         writeInput(nextdata.cc2, nextdata.cc2string, global.testprobe2)
         
         global.outsignals[global.nextfeed] = global.testprobe2out.get_merged_signals()
         
-        if global.test.multifeed[global.nextfeed+1] then
+        if test.multifeed[global.nextfeed+1] then
             global.nextfeed = global.nextfeed + 1
         else
             global.state = states.clear
@@ -3385,9 +3386,9 @@ script.on_event(defines.events.on_tick, function()
     elseif global.state == states.verify then
         log("verify " .. global.testid)
     
-        if global.test.verify then
+        if test.verify then
             global.outsignals[#global.outsignals+1] = global.testprobe2out.get_merged_signals()
-            if not global.test.verify(global.outsignals) then
+            if not test.verify(global.outsignals) then
                 --game.set_game_state{ game_finished=true, player_won=false, can_continue=true }    
                 global.state = states.finished
                 game.speed = 1
@@ -3400,10 +3401,10 @@ script.on_event(defines.events.on_tick, function()
         
         -- set up for next test
         ::nexttest::
-        global.testid,global.test = next(tests,global.testid)
+        global.testid,test = next(tests,global.testid)
         if global.testid then
-            if global.test.dependsOnMod then
-                for _,mod in pairs(global.test.dependsOnMod) do
+            if test.dependsOnMod then
+                for _,mod in pairs(test.dependsOnMod) do
                     if not script.active_mods[mod] then
                         log("skipped "..global.testid.." due to missing dependancy "..mod)
                         goto nexttest
@@ -3414,7 +3415,7 @@ script.on_event(defines.events.on_tick, function()
         else
             global.profilecount = (global.profilecount or 0) + 1
             if __Profiler and global.profilecount < 30 then
-                global.testid,global.test = next(tests)
+                global.testid,test = next(tests)
                 global.state = states.prepare
             else
                 global.state = states.finished

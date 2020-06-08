@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.18.4
-Date: ????
+Date: 2020-06-08
   Changes:
     - Test scenario was incorrectly packaged without the saved world
     - Test scenario updated to new profiler API

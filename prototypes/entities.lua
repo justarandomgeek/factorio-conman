@@ -2,6 +2,7 @@
 local conmanent = table.deepcopy(data.raw["assembling-machine"]["assembling-machine-2"])
 conmanent.name="conman"
 conmanent.minable.result = "conman"
+conmanent.fixed_recipe = "conman-process"
 conmanent.fast_replaceable_group = nil
 conmanent.next_upgrade = nil
 conmanent.crafting_categories = {"conman"}

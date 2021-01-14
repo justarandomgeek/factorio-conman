@@ -384,10 +384,11 @@ local tests = {
             
             local control = ghost.get_or_create_control_behavior()
             if not control then return false end
-            if not (control.parameters.parameters.first_signal.name == "signal-A" and 
-                control.parameters.parameters.second_signal.name == "blueprint" and
-                control.parameters.parameters.output_signal.name == "signal-C" and
-                control.parameters.parameters.operation == "/") then return false end
+            local parameters = control.parameters
+            if not (parameters.first_signal.name == "signal-A" and 
+                parameters.second_signal.name == "blueprint" and
+                parameters.output_signal.name == "signal-C" and
+                parameters.operation == "/") then return false end
 
             ghost.destroy()
             return true
@@ -417,10 +418,10 @@ local tests = {
             
             local control = ghost.get_or_create_control_behavior()
             if not control then return false end
-            if not (control.parameters.parameters.first_signal.name == "signal-each" and 
-                control.parameters.parameters.second_signal.name == "signal-B" and
-                control.parameters.parameters.output_signal.name == "signal-each" and
-                control.parameters.parameters.operation == "+") then return false end
+            if not (control.parameters.first_signal.name == "signal-each" and 
+                control.parameters.second_signal.name == "signal-B" and
+                control.parameters.output_signal.name == "signal-each" and
+                control.parameters.operation == "+") then return false end
                 
             ghost.destroy()
             return true
@@ -451,10 +452,10 @@ local tests = {
             
             local control = ghost.get_or_create_control_behavior()
             if not control then return false end
-            if not (control.parameters.parameters.first_constant == 12 and 
-                control.parameters.parameters.second_constant == 34 and
-                control.parameters.parameters.output_signal.name == "signal-C" and
-                control.parameters.parameters.operation == "-") then return false end
+            if not (control.parameters.first_constant == 12 and 
+                control.parameters.second_constant == 34 and
+                control.parameters.output_signal.name == "signal-C" and
+                control.parameters.operation == "-") then return false end
 
             ghost.destroy()
             return true
@@ -485,10 +486,10 @@ local tests = {
             
             local control = ghost.get_or_create_control_behavior()
             if not control then return false end
-            if not (control.parameters.parameters.first_signal.name == "signal-A" and 
-                control.parameters.parameters.second_signal.name == "blueprint" and
-                control.parameters.parameters.output_signal.name == "signal-C" and
-                control.parameters.parameters.comparator == ">") then return false end
+            if not (control.parameters.first_signal.name == "signal-A" and 
+                control.parameters.second_signal.name == "blueprint" and
+                control.parameters.output_signal.name == "signal-C" and
+                control.parameters.comparator == ">") then return false end
 
             ghost.destroy()
             return true
@@ -518,10 +519,10 @@ local tests = {
             
             local control = ghost.get_or_create_control_behavior()
             if not control then return false end
-            if not (control.parameters.parameters.first_signal.name == "signal-each" and 
-                control.parameters.parameters.second_signal.name == "signal-B" and
-                control.parameters.parameters.output_signal.name == "signal-each" and
-                control.parameters.parameters.comparator == "=") then return false end
+            if not (control.parameters.first_signal.name == "signal-each" and 
+                control.parameters.second_signal.name == "signal-B" and
+                control.parameters.output_signal.name == "signal-each" and
+                control.parameters.comparator == "=") then return false end
                 
             ghost.destroy()
             return true
@@ -551,10 +552,10 @@ local tests = {
             
             local control = ghost.get_or_create_control_behavior()
             if not control then return false end
-            if not (control.parameters.parameters.first_signal.name == "signal-everything" and 
-                control.parameters.parameters.second_signal.name == "signal-B" and
-                control.parameters.parameters.output_signal.name == "signal-everything" and
-                control.parameters.parameters.comparator == "≥") then return false end
+            if not (control.parameters.first_signal.name == "signal-everything" and 
+                control.parameters.second_signal.name == "signal-B" and
+                control.parameters.output_signal.name == "signal-everything" and
+                control.parameters.comparator == "≥") then return false end
                 
             ghost.destroy()
             return true
@@ -586,11 +587,11 @@ local tests = {
             
             local control = ghost.get_or_create_control_behavior()
             if not control then return false end
-            if not (control.parameters.parameters.first_signal.name == "signal-anything" and 
-                control.parameters.parameters.constant == 34 and
-                control.parameters.parameters.output_signal.name == "signal-C" and
-                control.parameters.parameters.comparator == "≤" and 
-                control.parameters.parameters.copy_count_from_input == false) then return false end
+            if not (control.parameters.first_signal.name == "signal-anything" and 
+                control.parameters.constant == 34 and
+                control.parameters.output_signal.name == "signal-C" and
+                control.parameters.comparator == "≤" and 
+                control.parameters.copy_count_from_input == false) then return false end
 
             ghost.destroy()
             return true
@@ -1735,8 +1736,7 @@ local tests = {
         verify = function()
             local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
             if not stack.valid_for_read then return false end
-            local bp = stack.get_inventory(defines.inventory.item_main)[1]
-            if bp.valid_for_read then return false end
+            if stack.get_inventory(defines.inventory.item_main).get_item_count("blueprint") > 0 then return false end
             return true
         end
     },
@@ -3088,6 +3088,84 @@ tests["replayschedule"] = {
     end
 }
 
+tests["replayanchor"] = {
+    multifeed = {
+        {
+            cc1 = {
+                {signal = knownsignals.info, count = 2},
+                {signal = {name="wooden-chest",type="item"}, count = 1},
+                {signal = knownsignals.R, count = 1},
+                {signal = knownsignals.W, count = 1},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.info, count = 2},
+            },
+        },
+        {},
+        {
+            cc1 = {
+                {signal = knownsignals.info, count = 2},
+                {signal = {name="concrete",type="item"}, count = 1},
+                {signal = knownsignals.W, count = 1},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.info, count = 2},
+            },
+        },
+        {},
+        {
+            cc1 = {
+                {signal = knownsignals.info, count = 2},
+                {signal = {name="rail",type="item"}, count = 2},
+                {signal = knownsignals.W, count = 1},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.info, count = 2},
+            },
+        },
+        {},
+        {
+            cc1 = {
+                {signal = knownsignals.info, count = 2},
+                {signal = knownsignals.W, count = 1},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.info, count = 2},
+            },
+        },
+        {},
+        {},
+    },
+    verify = function(outsignals)
+        return expect_frames({
+            [4] = {
+                { count = 2, signal = knownsignals.info },
+                { count = 1, signal = knownsignals.R },
+                { count = 1, signal = {name="wooden-chest",type="item"} },
+            },
+            [7] = {
+                { count = 2, signal = knownsignals.info },
+                { count = 1, signal = {name="concrete",type="item"} },
+            },
+            [10] = {
+                { count = 2, signal = knownsignals.info },
+                { count = 2, signal = {name="rail",type="item"} },
+            },
+            [13] = {
+                { count = 2, signal = knownsignals.info },
+            }
+        },outsignals)
+    end
+}
+
 tests["dump"] = {
     dependsOnMod = {"stringy-train-stop"},
     prepare = function()
@@ -3300,7 +3378,6 @@ local states = {
     finished = -1,      -- testing stopped
 }
 
-
 script.on_event(defines.events.on_game_created_from_scenario,function()
     log("init")
     if remote.interfaces["coverage"] then remote.call("coverage","start","conman_tests") end
@@ -3334,7 +3411,7 @@ local function writeInput(signals,string,entity)
             outframe[#outframe+1] = {index=#outframe+1, count=signal.count, signal=signal.signal}
         end
     end
-    entity.get_or_create_control_behavior().parameters={parameters = outframe}
+    entity.get_or_create_control_behavior().parameters=outframe
 end
 
 script.on_event(defines.events.on_tick, function()

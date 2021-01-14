@@ -1,5 +1,3 @@
-if script.active_mods["coverage"] then require('__coverage__/coverage.lua') end
-
 function get_signal_from_set(signal,set)
   for _,sig in pairs(set) do
     if sig.signal.type == signal.type and sig.signal.name == signal.name then
@@ -244,7 +242,6 @@ local ConstructionOrderEntitySpecific =
   ["roboport"] = nocc2,
   ["accumulator"] = nocc2,
   ["constant-combinator"] = nocc2,
-  ["constant-combinator"] = nocc2,
   ["arithmetic-combinator"] = nocc2,
   ["decider-combinator"] = nocc2,
 }
@@ -294,7 +291,7 @@ local ConstructionOrderControlBehavior =
       control.filters=filters 
       control.is_on = get_signal_from_set(knownsignals.O,signals1) == 0
     else
-      control.parameters={parameters=filters}
+      control.parameters=filters
       control.enabled = get_signal_from_set(knownsignals.O,signals1) == 0
     end
   end,
@@ -322,7 +319,7 @@ local ConstructionOrderControlBehavior =
     if forblueprint then
       control.arithmetic_conditions=config
     else
-      control.parameters={parameters = config}
+      control.parameters=config
     end
   end,
   [defines.control_behavior.type.decider_combinator] = function(ghost,control,manager,signals1,signals2,forblueprint)
@@ -361,7 +358,7 @@ local ConstructionOrderControlBehavior =
     if forblueprint then
       control.decider_conditions = config
     else
-      control.parameters={parameters = config}
+      control.parameters=config
     end
   end,
   [defines.control_behavior.type.generic_on_off] = ReadGenericOnOffControl,
@@ -798,12 +795,32 @@ local function GetBlueprint(manager, signals1)
   if not (page > 0) then return bp end
   local book = inInv[2]
   --check if there actually is a blueprint book.
-  if book.valid and book.valid_for_read then bp = book.get_inventory(defines.inventory.item_main)[page] end
+  if book.valid and book.valid_for_read then
+    local bookinv = book.get_inventory(defines.inventory.item_main)
+    if page <= #bookinv then
+      bp = bookinv[page]
+    end
+  end
   return bp
 end
 
 local function ClearOrCreateBlueprint(manager,signals1)
-  GetBlueprint(manager, signals1).set_stack("blueprint")
+  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
+  local page = get_signal_from_set(knownsignals.blueprint_book,signals1)
+  if not (page > 0) then
+    inInv[1].set_stack("blueprint")
+    return
+  end
+  local book = inInv[2]
+  --check if there actually is a blueprint book.
+  if book.valid and book.valid_for_read then
+    local bookinv = book.get_inventory(defines.inventory.item_main)
+    if page <= #bookinv then
+      bookinv[page].set_stack("blueprint")
+    elseif page == #bookinv+1 then
+      bookinv.insert("blueprint")
+    end
+  end
 end
 
 local function DestroyBlueprint(manager,signals1)
@@ -820,22 +837,64 @@ local function DestroyBlueprintBook(manager,signals1)
   inInv[2].clear()
 end
 
+local function AdjustBlueprintPosition(position,name,direction,searchlist)
+  if searchlist then
+    for _,ent in pairs(searchlist) do
+      if ent.name == name then
+        if __DebugAdapter then __DebugAdapter.print(ent) end
+        -- 0 = north => x,y = x,y
+        local x,y = ent.position.x,ent.position.y
+        if direction == 2 then
+          -- 2 = east
+          x,y = -y,x
+        elseif direction == 4 then
+          -- 4 = south
+          x,y = -x,-y
+        elseif direction == 6 then
+          -- 6 = west
+          x,y = y,-x
+        end
+        position.x = position.x - x
+        position.y = position.y - y
+        break
+      end
+    end
+  end
+end
+
 local function DeployBlueprint(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read and bp.is_blueprint_setup() then
 
     local force_build = get_signal_from_set(knownsignals.F,signals1)==1
+    local position = ReadPosition(signals1)
+    local direction = math.floor(get_signal_from_set(knownsignals.D,signals1)/2)*2
 
-    for _, ent in pairs(bp.build_blueprint{
+    if manager.anchor then
+      if not manager.anchor.valid then
+        manager.anchor = nil
+      else
+        local bpents = bp.get_blueprint_entities()
+        local name = manager.anchor.name
+        AdjustBlueprintPosition(position,name,direction,bpents)
+      end
+    elseif manager.anchor_tile then
+      if not manager.anchor_tile.valid then
+        manager.anchor_tile = nil
+      else
+        local bptiles = bp.get_blueprint_tiles()
+        local name = manager.anchor_tile.name
+        AdjustBlueprintPosition(position,name,direction,bptiles)
+      end
+    end
+    bp.build_blueprint{
       surface=manager.ent.surface,
       force=manager.ent.force,
-      position=ReadPosition(signals1),
-      direction = get_signal_from_set(knownsignals.D,signals1),
-      force_build= force_build,
-    }) do
-      --TODO: move this to a raise_event flag on build_blueprint when possible!
-      script.raise_event(defines.events.script_raised_built,{entity=ent})
-    end
+      position=position,
+      direction=direction,
+      force_build=force_build,
+      raise_built=true,
+    }
   end
 end
 
@@ -932,7 +991,7 @@ local function ReportLabel(manager,item,dumping)
     outsignals[#outsignals+1]={index=#outsignals+1,count=item.label_color.a*256,signal=knownsignals.white}
   end
   if dumping then return outsignals end
-  manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
+  manager.cc2.get_or_create_control_behavior().parameters=outsignals
   manager.clearcc2 = true
 end
 
@@ -991,7 +1050,7 @@ local function ReportBlueprintBookCount(manager,signals1,signals2)
     local outsignals = {
       {index=1,count=book.get_inventory(defines.inventory.item_main).get_item_count(), signal=knownsignals.info }
     }
-    manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
+    manager.cc2.get_or_create_control_behavior().parameters=outsignals
     manager.clearcc2 = true
   end
 end
@@ -1003,8 +1062,13 @@ local function InsertBlueprintToBook(manager,signals1,signals2)
   if not (page > 0) then return end
   local book = inInv[2]
   --check if there actually is a blueprint book and a print to insert
-  if bp.valid and bp.valid_for_read and book.valid and book.valid_for_read then 
-    book.get_inventory(defines.inventory.item_main)[page].set_stack(bp)
+  if bp.valid and bp.valid_for_read and book.valid and book.valid_for_read then
+    local bookInv = book.get_inventory(defines.inventory.item_main)
+    if page <= #bookInv then
+      bookInv[page].set_stack(bp)
+    elseif page == #bookInv+1 then
+      bookInv.insert(bp)
+    end
     bp.clear()
   end
 end
@@ -1032,7 +1096,7 @@ local function ReportBlueprintBoM(manager,signals1,signals2)
     for k,v in pairs(bp.cost_to_build) do
       outsignals[#outsignals+1]={index=#outsignals+1,count=v,signal={name=k,type="item"}}
     end
-    manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
+    manager.cc2.get_or_create_control_behavior().parameters=outsignals
     manager.clearcc2 = true
   end
 end
@@ -1048,7 +1112,7 @@ end
 local function ReportBlueprintIcons(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read then
-    manager.cc2.get_or_create_control_behavior().parameters={parameters=ReportBlueprintIconsInternal(bp)}
+    manager.cc2.get_or_create_control_behavior().parameters=ReportBlueprintIconsInternal(bp)
     manager.clearcc2 = true
   end
 end
@@ -1083,7 +1147,7 @@ local function ReportBlueprintTile(manager,signals1,signals2)
     local t = get_signal_from_set(knownsignals.T,signals1)
     if t > 0 and t <= #tiles then
       local tile = tiles[t]
-      manager.cc2.get_or_create_control_behavior().parameters={parameters=ReportBlueprintTileInternal(tile)}
+      manager.cc2.get_or_create_control_behavior().parameters=ReportBlueprintTileInternal(tile)
       manager.clearcc2 = true
     end
   end
@@ -1584,7 +1648,7 @@ local function ReportBlueprintEntity(manager,signals1,signals2)
     if i > 0 and i <= #entities then
       local entity = entities[i]
       local outframes = ReportBlueprintEntityInternal(entity,i)
-      manager.cc2.get_or_create_control_behavior().parameters={parameters=outframes[1]}
+      manager.cc2.get_or_create_control_behavior().parameters=outframes[1]
       outframes[1] = nil
       manager.morecc2 = outframes
       manager.clearcc2 = true
@@ -1646,7 +1710,7 @@ local function ReportBlueprintItemRequests(manager,signals1,signals2)
     local i = get_signal_from_set(knownsignals.grey,signals1)
     if i > 0 and i <= #entities then
       local outsignals = ReportBlueprintItemRequestsInternal(entities[i].items)
-      manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
+      manager.cc2.get_or_create_control_behavior().parameters=outsignals
       manager.clearcc2 = true
     end
   end
@@ -1710,7 +1774,7 @@ local function ReportBlueprintWire(manager,signals1,signals2)
       if connector and connection_index > 0 and connection_index <= #connector then
         local connection = connector[connection_index]
         local outsignals = ReportBlueprintWireInternal(i,connector_index,color,connection_index,connection)
-        manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
+        manager.cc2.get_or_create_control_behavior().parameters=outsignals
         manager.clearcc2 = true
       end
     end
@@ -1803,7 +1867,7 @@ local function ReportBlueprintSchedule(manager,signals1,signals2)
         local outsignals = remote.call("stringy-train-stop", "reportScheduleEntry", entity.schedule[schedule_index])[1]
         outsignals[#outsignals+1] = { index = #outsignals+1, signal = knownsignals.schedule, count = schedule_index}
         
-        manager.cc2.get_or_create_control_behavior().parameters={parameters=outsignals}
+        manager.cc2.get_or_create_control_behavior().parameters=outsignals
         manager.clearcc2 = true
       end
     end
@@ -1913,7 +1977,7 @@ local function DumpBlueprint(manager,signals1,signals2)
     end
 
     --write output...
-    manager.cc2.get_or_create_control_behavior().parameters={parameters=outframes[1]}
+    manager.cc2.get_or_create_control_behavior().parameters=outframes[1]
     outframes[1] = nil
     manager.morecc2 = outframes
     manager.clearcc2 = true
@@ -2026,11 +2090,92 @@ local function ArtilleryOrder(manager,signals1,signals2,flare)
   }
 end
 
+local function SetPreloadString(manager,signals1,signals2)
+  -- read string and color from signals2, store in manager.preloadstring and manager.preloadcolor
+  if remote.interfaces['signalstrings'] and signals2 then
+    manager.preloadstring = remote.call('signalstrings','signals_to_string',signals2,true)
+    local a = get_signal_from_set(knownsignals.white,signals2)
+    if a > 0 and a <= 255 then
+      local color = ReadColor(signals2)
+      color.a = a
+      manager.preloadcolor = color
+    else
+      manager.preloadcolor = nil
+    end
+  else
+    manager.preloadstring = nil
+    manager.preloadcolor = nil
+  end
+end
+
+local function SetBlueprintAnchor(manager,signals1,signals2)
+  -- read item and "relative to conman" flag
+  manager.relative = get_signal_from_set(knownsignals.R,signals1) ~= 0
+
+  manager.anchor = nil
+  manager.anchor_tile = nil
+  for _,signal in pairs(signals1) do
+    if signal.signal.type == "item" then
+      local itemproto = game.item_prototypes[signal.signal.name]
+      local entproto = itemproto.place_result
+      local tileresult = itemproto.place_as_tile_result
+
+      if itemproto.type == "rail-planner" then
+        if signal.count == 1 then
+          entproto = itemproto.straight_rail
+        elseif signal.count == 2 then
+          entproto = itemproto.curved_rail
+        end
+      end
+
+      if entproto then
+        manager.anchor = entproto
+        break -- once we're found one, get out of the loop, so we don't build multiple things.
+      elseif tileresult then
+        manager.anchor_tile = tileresult.result
+        break -- once we're found one, get out of the loop, so we don't build multiple things.
+      end
+    end
+  end
+end
+
+local function GetBlueprintAnchor(manager,signals1,signals2)
+  local outsignals = {
+    { index = 1, signal = knownsignals.info, count = 2}
+  }
+  if manager.relative then
+    outsignals[#outsignals+1] = { index = #outsignals+1, signal = knownsignals.R, count = 1}
+  end
+
+  if manager.anchor then
+    if not manager.anchor.valid then
+      manager.anchor = nil
+    else
+      local item = manager.anchor.items_to_place_this[1].name
+      local itemproto = game.item_prototypes[item]
+      local itemcount = 1
+      if itemproto.type == "rail-planner" and itemproto.curved_rail == manager.anchor then
+        itemcount = 2
+      end
+      outsignals[#outsignals+1]={index=#outsignals+1,count=itemcount,signal={type="item",name=item}}
+    end
+  elseif manager.anchor_tile then
+    if not manager.anchor_tile.valid then
+      manager.anchor_tile = nil
+    else
+      local item = manager.anchor_tile.items_to_place_this[1].name
+      outsignals[#outsignals+1]={index=#outsignals+1,count=1,signal={type="item",name=item}}
+    end
+  end
+  
+  manager.cc2.get_or_create_control_behavior().parameters=outsignals
+  manager.clearcc2 = true
+end
 
 local function ReadWrite(Report,Update)
   return function(manager,signals1,signals2)
     local write = get_signal_from_set(knownsignals.W,signals1)
-    if write == 1 then 
+    if write == 1 then
       return Update(manager,signals1,signals2)
     else
       return Report(manager,signals1,signals2)
@@ -2063,11 +2208,15 @@ local book_signal_functions = {
   [-3] = DestroyBlueprintBook,
   [-2] = ClearOrCreateBlueprintBook,
   [-1] = EjectBlueprintBook,
+}
 
+local info_signal_functions = {
+  [1] = SetPreloadString,
+  [2] = ReadWrite(GetBlueprintAnchor,SetBlueprintAnchor),
 }
 
 local function onTickManager(manager)
-  if manager.morecc2 then 
+  if manager.morecc2 then
     local i,nextframe = next(manager.morecc2)
     if nextframe then
       if i%2 == 0 then
@@ -2076,7 +2225,7 @@ local function onTickManager(manager)
           manager.empties = (manager.empties or 0) + 1
         end
       end
-      manager.cc2.get_or_create_control_behavior().parameters={parameters=nextframe}
+      manager.cc2.get_or_create_control_behavior().parameters=nextframe
       manager.morecc2[i] = nil
       return
     else
@@ -2090,92 +2239,85 @@ local function onTickManager(manager)
     manager.clearcc2 = nil
     manager.cc2.get_or_create_control_behavior().parameters=nil
   end
-  
 
   local signals1 = manager.cc1.get_merged_signals()
-  if signals1 then
-    local signals2 = manager.cc2.get_merged_signals()
-    
+  if not signals1 then return end
+  local signals2 = manager.cc2.get_merged_signals()
 
-    local bpsig = get_signal_from_set(knownsignals.blueprint,signals1)
-    local bpfunc = bp_signal_functions[bpsig] -- commands using blueprint item, indexed by command number
-    if bpfunc then      
-      bpfunc(manager,signals1,signals2)
-    else
-      local booksig = get_signal_from_set(knownsignals.blueprint_book,signals1)
-      local bookfunc = book_signal_functions[booksig] -- commands using blueprint book item, indexed by command number
-      if bookfunc then      
-        bookfunc(manager,signals1,signals2)
-      elseif get_signal_from_set(knownsignals.conbot,signals1) == 1 then
-        -- check for conbot=1, build a thing
-        ConstructionOrder(manager,signals1,signals2)
-      elseif get_signal_from_set(knownsignals.logbot,signals1) == 1 then
-        DeliveryOrder(manager,signals1,signals2)
+  local bpsig = get_signal_from_set(knownsignals.blueprint,signals1)
+  local bpfunc = bp_signal_functions[bpsig] -- commands using blueprint item, indexed by command number
+  if bpfunc then
+    return bpfunc(manager,signals1,signals2)
+  end
 
-      elseif get_signal_from_set(knownsignals.redprint,signals1) == 1 then
-        -- redprint=1, decon orders
-        DeconstructionOrder(manager,signals1,signals2)
-      elseif get_signal_from_set(knownsignals.redprint,signals1) == -1 then
-        -- redprint=-1, cancel decon orders
-        DeconstructionOrder(manager,signals1,signals2,true)
-
-      elseif get_signal_from_set(knownsignals.redwire,signals1) == 1 then
-        ConnectWire(manager,signals1,signals2,defines.wire_type.red)
-      elseif get_signal_from_set(knownsignals.greenwire,signals1) == 1 then
-        ConnectWire(manager,signals1,signals2,defines.wire_type.green)
-      elseif get_signal_from_set(knownsignals.coppercable,signals1) == 1 then
-        ConnectWire(manager,signals1,signals2)
-      elseif get_signal_from_set(knownsignals.redwire,signals1) == -1 then
-        ConnectWire(manager,signals1,signals2,defines.wire_type.red,true)
-      elseif get_signal_from_set(knownsignals.greenwire,signals1) == -1 then
-        ConnectWire(manager,signals1,signals2,defines.wire_type.green,true)
-      elseif get_signal_from_set(knownsignals.coppercable,signals1) == -1 then
-        ConnectWire(manager,signals1,signals2,nil,true)
-      elseif get_signal_from_set(knownsignals.info,signals1) == 1 then
-        -- read string and color from signals2, store in manager.preloadstring and manager.preloadcolor
-        if remote.interfaces['signalstrings'] and signals2 then
-          manager.preloadstring = remote.call('signalstrings','signals_to_string',signals2,true)
-    
-          local a = get_signal_from_set(knownsignals.white,signals2)
-          if a > 0 and a <= 255 then
-            local color = ReadColor(signals2)
-            color.a = a
-            manager.preloadcolor = color
-          else
-            manager.preloadcolor = nil
-          end
-        else
-          manager.preloadstring = nil
-          manager.preloadcolor = nil
-        end
-      else
-        if script.active_mods["stringy-train-stop"] then
-          local sigsched = get_signal_from_set(knownsignals.schedule,signals1)
-          if sigsched == 1 or (sigsched > 0 and manager.schedule and sigsched <= #manager.schedule+1) then
-            if not manager.schedule then manager.schedule = {} end
-            local schedule = remote.call("stringy-train-stop", "parseScheduleEntry", signals1, manager.ent.surface)
-            manager.schedule[sigsched] = schedule
-            return
-          elseif sigsched == -1 and manager.schedule then
-            local ent = manager.ent.surface.find_entities_filtered{
-              type={'locomotive','cargo-wagon','fluid-wagon','artillery-wagon'},
-              force=manager.ent.force,
-              position=ReadPosition(signals1)}[1]
-            if ent and ent.valid then
-              ent.train.manual_mode = true
-              ent.train.schedule = { current = 1, records = manager.schedule}
-              ent.train.manual_mode = false
-              manager.schedule = {}
-            end
-            return
-          end
-        end
-        for _,r in pairs(global.artyremotes) do
-          if get_signal_from_set(r.signal,signals1) == 1 then
-            ArtilleryOrder(manager,signals1,signals2,r.flare)
-          end
-        end
+  local booksig = get_signal_from_set(knownsignals.blueprint_book,signals1)
+  local bookfunc = book_signal_functions[booksig] -- commands using blueprint book item, indexed by command number
+  if bookfunc then
+    return bookfunc(manager,signals1,signals2)
+  end
+  if get_signal_from_set(knownsignals.conbot,signals1) == 1 then
+    -- check for conbot=1, build a thing
+    return ConstructionOrder(manager,signals1,signals2)
+  end
+  if get_signal_from_set(knownsignals.logbot,signals1) == 1 then
+    return DeliveryOrder(manager,signals1,signals2)
+  end
+  if get_signal_from_set(knownsignals.redprint,signals1) == 1 then
+    -- redprint=1, decon orders
+    return DeconstructionOrder(manager,signals1,signals2)
+  end
+  if get_signal_from_set(knownsignals.redprint,signals1) == -1 then
+    -- redprint=-1, cancel decon orders
+    return DeconstructionOrder(manager,signals1,signals2,true)
+  end
+  if get_signal_from_set(knownsignals.redwire,signals1) == 1 then
+    return ConnectWire(manager,signals1,signals2,defines.wire_type.red)
+  end
+  if get_signal_from_set(knownsignals.greenwire,signals1) == 1 then
+    return ConnectWire(manager,signals1,signals2,defines.wire_type.green)
+  end
+  if get_signal_from_set(knownsignals.coppercable,signals1) == 1 then
+    return ConnectWire(manager,signals1,signals2)
+  end
+  if get_signal_from_set(knownsignals.redwire,signals1) == -1 then
+    return ConnectWire(manager,signals1,signals2,defines.wire_type.red,true)
+  end
+  if get_signal_from_set(knownsignals.greenwire,signals1) == -1 then
+    return ConnectWire(manager,signals1,signals2,defines.wire_type.green,true)
+  end
+  if get_signal_from_set(knownsignals.coppercable,signals1) == -1 then
+    return ConnectWire(manager,signals1,signals2,nil,true)
+  end
+  local siginfo = get_signal_from_set(knownsignals.info,signals1)
+  local info_func = info_signal_functions[siginfo]
+  if info_func then
+    return info_func(manager,signals1,signals2)
+  end
+  if script.active_mods["stringy-train-stop"] then
+    local sigsched = get_signal_from_set(knownsignals.schedule,signals1)
+    if sigsched == 1 or (sigsched > 0 and manager.schedule and sigsched <= #manager.schedule+1) then
+      if not manager.schedule then manager.schedule = {} end
+      local schedule = remote.call("stringy-train-stop", "parseScheduleEntry", signals1, manager.ent.surface)
+      manager.schedule[sigsched] = schedule
+      return
+    elseif sigsched == -1 and manager.schedule then
+      local ent = manager.ent.surface.find_entities_filtered{
+        type={'locomotive','cargo-wagon','fluid-wagon','artillery-wagon'},
+        force=manager.ent.force,
+        position=ReadPosition(signals1)}[1]
+      if ent and ent.valid then
+        ent.train.manual_mode = true
+        ent.train.schedule = { current = 1, records = manager.schedule}
+        ent.train.manual_mode = false
+        manager.schedule = {}
       end
+      return
+    end
+  end
+
+  for _,r in pairs(global.artyremotes) do
+    if get_signal_from_set(r.signal,signals1) == 1 then
+      return ArtilleryOrder(manager,signals1,signals2,r.flare)
     end
   end
 end
@@ -2222,10 +2364,7 @@ end
 
 local function onBuilt(ent)
   if ent.name == "conman" then
-
-    ent.set_recipe("conman-process")
     ent.active = false
-    ent.operable = false
 
     local cc1 = CreateControl(ent, {x=ent.position.x-1,y=ent.position.y+1.5})
     local cc2 = CreateControl(ent, {x=ent.position.x+1,y=ent.position.y+1.5})

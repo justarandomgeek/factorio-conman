@@ -1,11 +1,11 @@
 {
   "name": "conman",
-  "version": "0.18.5",
-  "factorio_version": "0.18",
+  "version": "1.1.0",
+  "factorio_version": "1.1",
   "title": "ConMan Construction Manager",
   "author": "justarandomgeek",
   "homepage": "",
   "contact": "justarandomgeek@gmail.com",
   "description": "ConMan allows ordering construction and deconstruction via circuit networks. Supports ordering individual constructions, or whole blueprints.",
-  "dependencies": ["base >= 0.18.18", "?recipeid", "?signalstrings", "?stringy-train-stop" ]
+  "dependencies": ["base", "?recipeid", "?signalstrings", "?stringy-train-stop" ]
 }

@@ -194,6 +194,7 @@ local ConstructionOrderEntitySpecific =
     else
       createorder.type = "input"
     end
+    createorder.filters = ReadFilters(signals2,entproto.filter_count)
     createorder.usecc2items=false
   end,
   ["train-stop"] = function(createorder,entproto,signals1,signals2)
@@ -1542,6 +1543,10 @@ local function ReportBlueprintEntityInternal(entity,i)
       --need to do inserter filters differently, to free bits for condition...
       for _,filter in pairs(entity.filters) do
         cc2[#cc2+1]={index=#cc2+1,count=bit32.lshift(1,filter.index + 2) ,signal={type="item",name=filter.name}}
+      end
+    elseif entproto.type == "loader" then
+      for _,filter in pairs(entity.filters) do
+        cc2[#cc2+1]={index=#cc2+1,count=1 ,signal={type="item",name=filter.name}}
       end
     end
   end

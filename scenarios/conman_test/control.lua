@@ -877,6 +877,7 @@ local tests = {
             {signal = knownsignals.Y, count = -3},
         },
         cc2 = {
+            {signal = knownsignals.coppercable, count = 1},
         },
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
@@ -887,9 +888,8 @@ local tests = {
                 return false
             end
 
-            if not ( ghost.loader_type == "input") then return false end
-            
-            
+            if not ( ghost.loader_type == "input" and ghost.get_filter(1) == knownsignals.coppercable.name) then return false end
+
             ghost.destroy()
             return true
         end
@@ -2663,6 +2663,10 @@ replayOneCommandEntityTest("replayloader",{
     {signal = knownsignals.X, count = -3},
     {signal = knownsignals.Y, count = -3},
     {signal = knownsignals.U, count = 1},
+},{
+    {signal = knownsignals.redwire, count = 1},
+    {signal = knownsignals.greenwire, count = 1},
+    {signal = knownsignals.coppercable, count = 1},
 })
 
 replayOneCommandEntityTest("replaycargowagon",{

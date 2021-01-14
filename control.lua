@@ -307,6 +307,11 @@ local ConstructionOrderControlBehavior =
     elseif sigmode == 2 then
       siglist[1] = specials.each
       siglist[3] = specials.each
+    elseif sigmode == 8 then
+      siglist[2] = specials.each
+    elseif sigmode == 9 then
+      siglist[2] = specials.each
+      siglist[3] = specials.each
     end
 
     local config = {
@@ -1225,33 +1230,45 @@ local ReportControlBehavior = {
   [defines.control_behavior.type.arithmetic_combinator] = function(control,cc1,cc2)
     local condition = control.arithmetic_conditions
     if condition then
+      -- each can be first (=1) or second (=8) input, and possibly output if one of those (+1)
+      local special = 0
+      
       if condition.first_signal then 
         if condition.first_signal.name == "signal-each" then
-          if condition.output_signal and condition.output_signal.name == "signal-each" then
-            cc1[#cc1+1]={index=#cc1+1,count=2,signal=knownsignals.S}
-          else
-            cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.S}
-            if condition.output_signal then
-              cc2[#cc2+1]={index=#cc2+1,count=4,signal=condition.output_signal}
-            end
-          end
+          special = 1 
         else -- first signal not nil and not each
           cc2[#cc2+1]={index=#cc2+1,count=1,signal=condition.first_signal}
-          if condition.output_signal then
-            cc2[#cc2+1]={index=#cc2+1,count=4,signal=condition.output_signal}
-          end
         end
       elseif condition.first_constant then
         cc1[#cc1+1]={index=#cc1+1,count=condition.first_constant,signal=knownsignals.J}
-        if condition.output_signal then
-          cc2[#cc2+1]={index=#cc2+1,count=4,signal=condition.output_signal}
-        end
       end
+
       if condition.second_signal then 
-        cc2[#cc2+1]={index=#cc2+1,count=2,signal=condition.second_signal}
+        if condition.second_signal.name == "signal-each" then
+          special = 8
+        else -- second signal not nil and not each
+          cc2[#cc2+1]={index=#cc2+1,count=2,signal=condition.second_signal}
+        end
       elseif condition.second_constant then
         cc1[#cc1+1]={index=#cc1+1,count=condition.second_constant,signal=knownsignals.K}
       end
+
+      if condition.output_signal then
+        if special ~= 0 then
+          if condition.output_signal.name == "signal-each" then
+            special = special + 1
+          else
+            cc2[#cc2+1]={index=#cc2+1,count=4,signal=condition.output_signal}
+          end
+        else
+          cc2[#cc2+1]={index=#cc2+1,count=4,signal=condition.output_signal}
+        end
+      end
+
+      if special ~= 0 then
+        cc1[#cc1+1]={index=#cc1+1,count=special,signal=knownsignals.S}
+      end
+
       if condition.operation  then
         for i,op in pairs(arithop) do
           if condition.operation == op then

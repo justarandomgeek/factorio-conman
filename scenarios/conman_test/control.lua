@@ -2444,6 +2444,27 @@ replayOneCommandEntityTest("replayarith4",{
     {signal = knownsignals.C, count = 4},
 })
 
+replayOneCommandEntityTest("replayarith5",{
+    {signal = {type = "item", name = "arithmetic-combinator"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.O, count = 3},
+    {signal = knownsignals.S, count = 8},
+},{
+    {signal = knownsignals.B, count = 1},
+    {signal = knownsignals.C, count = 4},
+})
+
+replayOneCommandEntityTest("replayarith6",{
+    {signal = {type = "item", name = "arithmetic-combinator"}, count = 1},
+    {signal = knownsignals.X, count = -3},
+    {signal = knownsignals.Y, count = -3},
+    {signal = knownsignals.O, count = 3},
+    {signal = knownsignals.S, count = 9},
+},{
+    {signal = knownsignals.B, count = 1},
+})
+
 replayOneCommandEntityTest("replaydecider",{
     {signal = {type = "item", name = "decider-combinator"}, count = 1},
     {signal = knownsignals.X, count = -3},

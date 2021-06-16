@@ -2,24 +2,31 @@ local knownsignals = require("__conman__/knownsignals.lua")
 local inv_index = require("__conman__/defines.lua").inv_index
 require("util")
 
+---@generic T
+---@param filters table<T,SignalID>
+---@param signals Signal[]
+---@return table<T,number>
 function get_signals_filtered(filters,signals)
-    --   filters = {
-    --  SignalID,
-    --  }
+    ---@type table<any,number>
     local results = {}
     local count = 0
     for _,sig in pairs(signals) do
-      for i,f in pairs(filters) do
+        for i,f in pairs(filters) do
         if f.name and sig.signal.type == f.type and sig.signal.name == f.name then
-          results[i] = sig.count
-          count = count + 1
-          if count == #filters then return results end
+            results[i] = sig.count
+            count = count + 1
+            if count == #filters then return results end
         end
-      end
+        end
     end
     return results
 end
 
+---@generic T : string|number|boolean
+---@param name string
+---@param expected T
+---@param got T
+---@return boolean
 function expect(name,expected,got)
     if expected == got then return true end
     log(("expected %s = %s got %s"):format(name,serpent.line(expected),serpent.line(got)))
@@ -3137,15 +3144,131 @@ tests["replayschedule"] = {
 -- > upgrade planner wooden chest -> iron chest
 local testbook = "0eNq9k01PwzAMhv+Lzylau8JG7xy4DAnBCaEqbb0S0SZV4g6mqf+dJN0nbNM2BJemSe3XzxvXC8iqFhstJKWZUu+QLDYnBpKXxRkB7puRvAlIBaUWhdt/QhIymNtnx4BnRlUtYeCiGiFLSEi3yEDkSvZiRpSSVy6T5g1CAoKwBgaS136nlQzyNzQEVk/IAl2B7pUBShIksFfxm3kq2zpD7Ql+5jNolLEpSi45B1fXntSunVP0lZMtewxmqI1PiMZhPLqNRlF8Ew/H8YZlsC8z8DfHoOIZWm9wP5ncPcJR2zOhqbUna/I+Ioi+++Y5iRmmq/KnMbL/7dqHUgX+qm87Cn/TudDdSoHOk7WXO/m0qbiUjsRaRCLr3bj3JeZUVGRlPfl+zu2fgkSFqcEKe+naBlqabk27WzpYlT4FPXLobVNqXuAh5tr2bgU71arealZv53C7SB0J3juR1vDG2BLsLEfDU8bo4fnp0jEKLx+j7gvwgrla"
 
+tests["listbook"] = {
+    prepare = function()
+        global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.book].import_stack(testbook)
+    end,
+    multifeed = {
+        {   
+            -- list root book
+            cc1 = {
+                {signal = knownsignals.blueprint_book, count = -5},
+            },
+        },
+        {},
+        {
+            -- list root from offset
+            cc1 = {
+                {signal = knownsignals.blueprint_book, count = -5},
+                {signal = knownsignals.grey, count = 2},
+            },
+        },
+        {},
+        {
+            -- enter book in slot 1
+            cc1 = {
+                {signal = knownsignals.blueprint_book, count = -6},
+                {signal = knownsignals.grey, count = 1},
+            },
+        },
+        {
+            -- list inner book
+            cc1 = {
+                {signal = knownsignals.blueprint_book, count = -5},
+            },
+        },
+        {},
+        {
+            -- return to root
+            cc1 = {
+                {signal = knownsignals.blueprint_book, count = -6},
+                {signal = knownsignals.grey, count = -1},
+            },
+        },
+        {
+            -- list root
+            cc1 = {
+                {signal = knownsignals.blueprint_book, count = -5},
+            },
+        },
+        {},
+        {
+            -- create and enter book in slot 5
+            cc1 = {
+                {signal = knownsignals.blueprint_book, count = -6},
+                {signal = knownsignals.grey, count = 5},
+                {signal = knownsignals.white, count = 1},
+            },
+        },
+        {
+            -- list new book (empty)
+            cc1 = {
+                {signal = knownsignals.blueprint_book, count = -5},
+            },
+        },
+        {},
+        {
+            -- return to root
+            cc1 = {
+                {signal = knownsignals.blueprint_book, count = -6},
+                {signal = knownsignals.grey, count = -1},
+            },
+        },
+        {
+            -- list root again
+            cc1 = {
+                {signal = knownsignals.blueprint_book, count = -5},
+            },
+        },
+        {},
+        {},
+    },
+    verify = function(outsignals)
+        return expect_frames({
+            [3] = {
+                {signal = knownsignals.grey, count = 4},
+                {signal = knownsignals.blueprint_book, count = 1},
+                {signal = knownsignals.blueprint, count = 2},
+                {signal = knownsignals.redprint, count = 4},
+                {signal = knownsignals.upgrade, count = 8},
+            },
+            [5] = {
+                {signal = knownsignals.grey, count = 4},
+                {signal = knownsignals.blueprint, count = 1},
+                {signal = knownsignals.redprint, count = 2},
+                {signal = knownsignals.upgrade, count = 4},
+            },
+            [8] = {
+                {signal = knownsignals.grey, count = 1},
+                {signal = knownsignals.blueprint, count = 1},
+            },
+            [11] = {
+                {signal = knownsignals.grey, count = 4},
+                {signal = knownsignals.blueprint_book, count = 1},
+                {signal = knownsignals.blueprint, count = 2},
+                {signal = knownsignals.redprint, count = 4},
+                {signal = knownsignals.upgrade, count = 8},
+            },
+            --[11] = {},
+            [17] = {
+                {signal = knownsignals.grey, count = 4},
+                {signal = knownsignals.blueprint_book, count = 17},
+                {signal = knownsignals.blueprint, count = 2},
+                {signal = knownsignals.redprint, count = 4},
+                {signal = knownsignals.upgrade, count = 8},
+            }
+          }
+          ,outsignals)
+    end
+}
 
 
 
-tests["replayanchor"] = {
+tests["replaymode"] = {
     multifeed = {
         {
             cc1 = {
                 {signal = knownsignals.info, count = 2},
-                {signal = {name="wooden-chest",type="item"}, count = 1},
                 {signal = knownsignals.R, count = 1},
                 {signal = knownsignals.W, count = 1},
             },
@@ -3159,21 +3282,9 @@ tests["replayanchor"] = {
         {
             cc1 = {
                 {signal = knownsignals.info, count = 2},
-                {signal = {name="concrete",type="item"}, count = 1},
                 {signal = knownsignals.W, count = 1},
-            },
-        },
-        {
-            cc1 = {
-                {signal = knownsignals.info, count = 2},
-            },
-        },
-        {},
-        {
-            cc1 = {
-                {signal = knownsignals.info, count = 2},
-                {signal = {name="rail",type="item"}, count = 2},
-                {signal = knownsignals.W, count = 1},
+                {signal = knownsignals.X, count = 1},
+                {signal = knownsignals.Y, count = 1},
             },
         },
         {
@@ -3188,32 +3299,18 @@ tests["replayanchor"] = {
                 {signal = knownsignals.W, count = 1},
             },
         },
-        {
-            cc1 = {
-                {signal = knownsignals.info, count = 2},
-            },
-        },
-        {},
-        {},
     },
     verify = function(outsignals)
         return expect_frames({
             [4] = {
                 { count = 2, signal = knownsignals.info },
                 { count = 1, signal = knownsignals.R },
-                { count = 1, signal = {name="wooden-chest",type="item"} },
             },
             [7] = {
                 { count = 2, signal = knownsignals.info },
-                { count = 1, signal = {name="concrete",type="item"} },
+                { count = 1, signal = knownsignals.X },
+                { count = 1, signal = knownsignals.Y },
             },
-            [10] = {
-                { count = 2, signal = knownsignals.info },
-                { count = 2, signal = {name="rail",type="item"} },
-            },
-            [13] = {
-                { count = 2, signal = knownsignals.info },
-            }
         },outsignals)
     end
 }

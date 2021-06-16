@@ -796,7 +796,7 @@ local function EjectBlueprintBook(manager)
   end
 end
 
-local function GetActiveBook(manager,signals1)
+local function GetActiveBook(manager,signals1,allow_empty)
   -- if this manager has an "active" book, select that, else take the book slot of input inventory
   local active_book = manager.active_book
   if active_book and active_book.valid_for_read and active_book.name == "blueprint-book" then
@@ -804,7 +804,7 @@ local function GetActiveBook(manager,signals1)
   else
     local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
     local book = inInv[inv_index.book]
-    if book.valid_for_read then
+    if allow_empty or book.valid_for_read then
       return book
     end
   end
@@ -815,9 +815,9 @@ local function GetBlueprint(manager, signals1)
   local bp = inInv[inv_index.bp]
   local page = get_signal_from_set(knownsignals.blueprint_book,signals1)
   if not (page > 0) then return bp end
-  local book = inInv[inv_index.book]
+  local book = GetActiveBook(manager,signals1)
   --check if there actually is a blueprint book.
-  if book.valid and book.valid_for_read then
+  if book then
     local bookinv = book.get_inventory(defines.inventory.item_main)
     if page <= #bookinv then
       --TODO: make sure it's really a blueprint
@@ -834,9 +834,9 @@ local function ClearOrCreateBlueprint(manager,signals1)
     inInv[inv_index.bp].set_stack("blueprint")
     return
   end
-  local book = inInv[inv_index.book]
+  local book = GetActiveBook(manager,signals1)
   --check if there actually is a blueprint book.
-  if book.valid and book.valid_for_read then
+  if book then
     local bookinv = book.get_inventory(defines.inventory.item_main)
     if page <= #bookinv then
       bookinv[page].set_stack("blueprint")
@@ -851,13 +851,17 @@ local function DestroyBlueprint(manager,signals1)
 end
 
 local function ClearOrCreateBlueprintBook(manager,signals1)
-  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
-  inInv[inv_index.book].set_stack("blueprint-book")
+  local book = GetActiveBook(manager,signals1,true)
+  if book then
+    book.set_stack("blueprint-book")
+  end
 end
 
 local function DestroyBlueprintBook(manager,signals1)
-  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
-  inInv[inv_index.book].clear()
+  local book = GetActiveBook(manager,signals1)
+  if book then
+    book.clear()
+  end
 end
 
 local function AdjustBlueprintPosition(position,name,direction,searchlist)
@@ -1026,9 +1030,8 @@ local function ReportBlueprintLabel(manager,signals1,signals2)
 end
 
 local function ReportBlueprintBookLabel(manager,signals1,signals2)
-  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
-  local book = inInv[inv_index.book]
-  if book.valid and book.valid_for_read then 
+  local book = GetActiveBook(manager,signals1)
+  if book then
     ReportLabel(manager,book)
   end
 end
@@ -1059,28 +1062,64 @@ local function UpdateBlueprintLabel(manager,signals1,signals2)
 end
 
 local function UpdateBlueprintBookLabel(manager,signals1,signals2)
-  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
-  local book = inInv[inv_index.book]
-  if book.valid and book.valid_for_read then 
+  local book = GetActiveBook(manager,signals1)
+  if book then
     UpdateItemLabel(book,signals2)
   end
 end
 
-local function ChangeDirBlueprintBook(manager,singals1,signals2)
-
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
+local function ChangeDirBlueprintBook(manager,signals1,signals2)
+  ---@type LuaItemStack
+  local abook = GetActiveBook(manager,signals1)
+  if abook then
+    ---@type LuaInventory
+    local bookInv = abook.get_inventory(defines.inventory.item_main)
+    local size = #bookInv
+    local index = get_signal_from_set(knownsignals.grey,signals1)
+    local create = get_signal_from_set(knownsignals.grey,signals1)~=0
+    if index == -1 then
+      -- reset to root book
+      manager.active_book = nil
+    elseif index > 0 and index <= size then
+      ---@type LuaItemStack
+      local item = bookInv[index]
+      if item.is_blueprint_book then
+        manager.active_book = item
+      elseif not item.valid_for_read and create then
+        item.set_stack("blueprint-book")
+        manager.active_book = item
+      end
+    elseif create and (index==size+1) and bookInv.count_empty_stacks()==0 then
+      bookInv.insert("blueprint-book")
+      local newsize = #bookInv
+      if newsize == index then
+        manager.active_book = bookInv[index]
+      else
+        manager.active_book = nil
+      end
+    end
+  end
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function ListBlueprintBook(manager,signals1,signals2)
-  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
-  local book = inInv[inv_index.book]
-  if book.valid and book.valid_for_read then
+  ---@type LuaItemStack
+  local book = GetActiveBook(manager,signals1)
+  if book then
+    ---@type LuaInventory
     local bookInv = book.get_inventory(defines.inventory.item_main)
     local size = #bookInv
+    ---@type Signal[]
     local outsignals = {
       {index=1,count=size, signal=knownsignals.grey }
     }
-    local start = get_signal_from_set(knownsignals.grey,signals1) or 1
-    local items = {}
+    local start = get_signal_from_set(knownsignals.grey,signals1)
+    if start == 0 then start = 1 end
     if start > 0 and start <=size then
       for i = 0,31,1 do
         local j = start+i
@@ -1099,9 +1138,9 @@ local function InsertBlueprintToBook(manager,signals1,signals2)
   local bp = inInv[inv_index.bp]
   local page = get_signal_from_set(knownsignals.blueprint_book,signals1)
   if not (page > 0) then return end
-  local book = inInv[inv_index.book]
+  local book = GetActiveBook(manager,signals1)
   --check if there actually is a blueprint book and a print to insert
-  if bp.valid and bp.valid_for_read and book.valid and book.valid_for_read then
+  if bp.valid and bp.valid_for_read and book then
     local bookInv = book.get_inventory(defines.inventory.item_main)
     if page <= #bookInv then
       bookInv[page].set_stack(bp)
@@ -1117,9 +1156,9 @@ local function TakeBlueprintFromBook(manager,signals1,signals2)
   local bp = inInv[inv_index.bp]
   local page = get_signal_from_set(knownsignals.blueprint_book,signals1)
   if not (page > 0) then return end
-  local book = inInv[inv_index.book]
+  local book = GetActiveBook(manager,signals1)
   --check if there actually is a blueprint book, and the print slot is free
-  if bp.valid and not bp.valid_for_read and book.valid and book.valid_for_read then 
+  if bp.valid and not bp.valid_for_read and book then 
     local bookinv = book.get_inventory(defines.inventory.item_main)
     if page <= bookinv.get_item_count() then
       bp.transfer_stack(bookinv[page])

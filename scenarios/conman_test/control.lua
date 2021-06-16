@@ -1,5 +1,5 @@
-if (__DebugAdapter or __Profiler) then (__DebugAdapter or __Profiler).levelPath("conman","scenarios/conman_test/") end
 local knownsignals = require("__conman__/knownsignals.lua")
+local inv_index = require("__conman__/defines.lua").inv_index
 require("util")
 
 function get_signals_filtered(filters,signals)
@@ -1648,13 +1648,13 @@ local tests = {
 
     ["create"] = {
         prepare = function()
-            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].clear()
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp].clear()
         end,
         cc1 = {
             {signal = knownsignals.blueprint, count = -2},
         },
         verify = function()
-            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp]
             if not stack.valid_for_read then return false end
             
             stack.clear()
@@ -1664,13 +1664,13 @@ local tests = {
     },
     ["createbook"] = {
         prepare = function()
-            global.conman.get_inventory(defines.inventory.assembling_machine_input)[2].clear()
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.book].clear()
         end,
         cc1 = {
             {signal = knownsignals.blueprint_book, count = -2},
         },
         verify = function()
-            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.book]
             if not stack.valid_for_read then return false end
             
             stack.clear()
@@ -1680,16 +1680,16 @@ local tests = {
     },
     ["createinbook"] = {
         prepare = function()
-            global.conman.get_inventory(defines.inventory.assembling_machine_input)[2].set_stack("blueprint-book")
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.book].set_stack("blueprint-book")
         end,
         cc1 = {
             {signal = knownsignals.blueprint, count = -2},
             {signal = knownsignals.blueprint_book, count = 1},
         },
         verify = function()
-            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.book]
             if not stack.valid_for_read then return false end
-            local bp = stack.get_inventory(defines.inventory.item_main)[1]
+            local bp = stack.get_inventory(defines.inventory.item_main)[inv_index.bp]
             if not bp.valid_for_read then return false end
             stack.clear()
             return true
@@ -1698,34 +1698,34 @@ local tests = {
 
     ["destroy"] = {
         prepare = function()
-            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].set_stack("blueprint")
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp].set_stack("blueprint")
         end,
         cc1 = {
             {signal = knownsignals.blueprint, count = -3},
         },
         verify = function()
-            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp]
             if stack.valid_for_read then return false end
             return true
         end
     },
     ["destroybook"] = {
         prepare = function()
-            global.conman.get_inventory(defines.inventory.assembling_machine_input)[2].set_stack("blueprint-book")
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.book].set_stack("blueprint-book")
         end,
         cc1 = {
             {signal = knownsignals.blueprint_book, count = -3},
         },
         verify = function()
-            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.book]
             if stack.valid_for_read then return false end
             return true
         end
     },
     ["destroyinbook"] = {
         prepare = function()
-            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].clear()
-            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp].clear()
+            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.book]
             book.set_stack("blueprint-book")
             book.get_inventory(defines.inventory.item_main).insert{name="blueprint",count=1}
         end,
@@ -1734,7 +1734,7 @@ local tests = {
             {signal = knownsignals.blueprint_book, count = 1},
         },
         verify = function()
-            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.book]
             if not stack.valid_for_read then return false end
             if stack.get_inventory(defines.inventory.item_main).get_item_count("blueprint") > 0 then return false end
             return true
@@ -1744,8 +1744,8 @@ local tests = {
 
     ["takefrombook"] = {
         prepare = function()
-            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].clear()
-            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp].clear()
+            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.book]
             book.set_stack("blueprint-book")
             book.get_inventory(defines.inventory.item_main).insert{name="blueprint",count=1}
             
@@ -1755,10 +1755,10 @@ local tests = {
             {signal = knownsignals.blueprint_book, count = 1},
         },
         verify = function()
-            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp]
             if not bp.valid_for_read then return false end
             bp.clear()
-            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.book]
             if book.get_inventory(defines.inventory.item_main).get_item_count() ~= 0 then return false end
             book.clear()
             return true
@@ -1766,17 +1766,17 @@ local tests = {
     },
     ["inserttobook"] = {
         prepare = function()
-            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].set_stack("blueprint")
-            global.conman.get_inventory(defines.inventory.assembling_machine_input)[2].set_stack("blueprint-book")            
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp].set_stack("blueprint")
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.book].set_stack("blueprint-book")            
         end,
         cc1 = {
             {signal = knownsignals.blueprint, count = -5},
             {signal = knownsignals.blueprint_book, count = 1},
         },
         verify = function()
-            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp]
             if bp.valid_for_read then return false end            
-            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.book]
             if book.get_inventory(defines.inventory.item_main).get_item_count() ~= 1 then return false end
             book.clear()
             return true
@@ -1785,13 +1785,13 @@ local tests = {
 
     ["eject"] = {
         prepare = function()
-            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].set_stack("blueprint")
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp].set_stack("blueprint")
         end,
         cc1 = {
             {signal = knownsignals.blueprint, count = -1},
         },
         verify = function()
-            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_output)[1]
+            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_output)[inv_index.bp]
             if not (stack.valid_for_read and stack.name == "blueprint") then return false end
             
             stack.clear()
@@ -1801,13 +1801,13 @@ local tests = {
     },
     ["ejectbook"] = {
         prepare = function()
-            global.conman.get_inventory(defines.inventory.assembling_machine_input)[2].set_stack("blueprint-book")
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.book].set_stack("blueprint-book")
         end,
         cc1 = {
             {signal = knownsignals.blueprint_book, count = -1},
         },
         verify = function()
-            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_output)[2]
+            local stack = global.conman.get_inventory(defines.inventory.assembling_machine_output)[inv_index.book]
             if not (stack.valid_for_read and stack.name == "blueprint-book") then return false end
             
             stack.clear()
@@ -1819,7 +1819,7 @@ local tests = {
     ["deploy"] = {
         prepare = function()
             --bp string of a single wooden chest
-            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp].import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
         end,
         cc1 = {
             {signal = knownsignals.blueprint, count = 1},
@@ -1830,7 +1830,7 @@ local tests = {
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             if not ghost then return false end
             ghost.destroy()
-            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].clear()
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp].clear()
             return true
         end
     },
@@ -1851,7 +1851,7 @@ local tests = {
                 end
             end
             global.surface.set_tiles(tiles)
-            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].set_stack("blueprint")            
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp].set_stack("blueprint")            
         end,
         cc1 = {
             {signal = knownsignals.blueprint, count = 2},
@@ -1863,7 +1863,7 @@ local tests = {
         },
         cc2string ="CAPTURE",
         verify = function()
-            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp]
             local ents = bp.get_blueprint_entities()
             if ents and #ents ~= 4 then return false end
             local tiles = bp.get_blueprint_tiles()
@@ -1893,7 +1893,7 @@ local tests = {
                 end
             end
             global.surface.set_tiles(tiles)
-            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].set_stack("blueprint")
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp].set_stack("blueprint")
         end,
         cc1 = {
             {signal = knownsignals.blueprint, count = 2},
@@ -1911,7 +1911,7 @@ local tests = {
             {signal = knownsignals.white, count = 255},
         },
         verify = function()
-            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp]
             local ents = bp.get_blueprint_entities()
             if ents then return false end
             local tiles = bp.get_blueprint_tiles()
@@ -1929,7 +1929,7 @@ local tests = {
     ["bom"] = {
         prepare = function()
             --bp string of a single wooden chest
-            global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
+            global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp].import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
         end,
         cc1 = {
             {signal = knownsignals.blueprint, count = 3},
@@ -1944,7 +1944,7 @@ local tests = {
     ["readlabel"] = {
         prepare = function()
             --bp string of a single wooden chest
-            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp]
             bp.import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
             bp.label = "TEST"
             bp.label_color = {r=12,g=34,b=56,a=78}
@@ -1973,7 +1973,7 @@ local tests = {
     ["writelabel"] = {
         prepare = function()
             --bp string of a single wooden chest
-            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp]
             global.bp = bp
             bp.import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
         end,
@@ -2003,7 +2003,7 @@ local tests = {
     ["readicons"] = {
         prepare = function()
             --bp string of a single wooden chest
-            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp]
             bp.import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
         end,
         cc1 = {
@@ -2018,7 +2018,7 @@ local tests = {
     ["writeicons"] = {
         prepare = function()
             --bp string of a single wooden chest
-            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp]
             global.bp = bp
             bp.import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
         end,
@@ -2045,7 +2045,7 @@ local tests = {
     ["readtile"] = {
         prepare = function()
             --bp string of a single wooden chest
-            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp]
             bp.import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
             bp.set_blueprint_tiles({{name="concrete",position={1,1}}})
         end,
@@ -2065,7 +2065,7 @@ local tests = {
     ["writetile"] = {
         prepare = function()
             --bp string of a single wooden chest
-            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+            local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp]
             global.bp = bp
             bp.import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
         end,
@@ -2090,7 +2090,7 @@ local tests = {
     
     ["readbooklabel"] = {
         prepare = function()
-            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.book]
             book.set_stack("blueprint-book")
             book.label = "TEST"
             book.label_color = {r=12,g=34,b=56,a=78}
@@ -2120,7 +2120,7 @@ local tests = {
 
     ["writebooklabel"] = {
         prepare = function()
-            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.book]
             book.set_stack("blueprint-book")
             global.book = book
         end,
@@ -2148,15 +2148,21 @@ local tests = {
         end
     },
 
-    ["readbookcount"] = {
+    ["listbook"] = {
         prepare = function()
-            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[2]
+            local book = global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.book]
             book.set_stack("blueprint-book")
             book.get_inventory(defines.inventory.item_main).insert{name="blueprint",count=3}
+            book.get_inventory(defines.inventory.item_main).insert{name="upgrade-planner",count=1}
+            book.get_inventory(defines.inventory.item_main).insert{name="deconstruction-planner",count=1}
+            book.get_inventory(defines.inventory.item_main).insert{name="blueprint",count=1}
+            book.get_inventory(defines.inventory.item_main).insert{name="upgrade-planner",count=2}
+            book.get_inventory(defines.inventory.item_main).insert{name="blueprint-book",count=1}
             global.book = book
         end,
         cc1 = {
             {signal = knownsignals.blueprint_book, count = -5},
+            {signal = knownsignals.grey, count = 3},
         },
         verify = function(outsignals)
             if not outsignals or #outsignals ~= 1 then return false end
@@ -2164,8 +2170,18 @@ local tests = {
             global.book.clear()
             global.book = nil
             return expect_signals({
-                count = knownsignals.info,
-            }, {count = 3} , signals)
+                count = knownsignals.grey,
+                blueprint = knownsignals.blueprint,
+                decon = knownsignals.redprint,
+                upgrade = knownsignals.upgrade,
+                book = knownsignals.blueprint_book,
+            }, {
+                count = 9,
+                blueprint = 0x9,
+                decon = 0x4,
+                upgrade = 0x32,
+                book = 0x40,
+            } , signals)
             
         end
     },
@@ -2826,7 +2842,7 @@ local replayitemrequestitems = {
 tests["replayitemrequests"] = {
     prepare = function()
         --bp string of a single wooden chest
-        global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
+        global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp].import_stack("0eNptjt0KwjAMhd/lXFfYmOLsq4jIfoIGtnSs2XSMvrttvfHCm8AJX76THe2w0DSzKOwO7px42OsOzw9phrTTbSJYsNIIA2nGlF7O9SSH7kleEQxYenrDluFmQKKsTF9PDttdlrGlOQL/DQaT8/HISWqMosJgizMkX262P48arDT7DJ+roqzr6ng5RfYDM+FESw==")
     end,
     multifeed = {
         {
@@ -2859,7 +2875,7 @@ tests["replayitemrequests"] = {
 tests["replaywires"] = {
     prepare = function()
         --bp string of two combinators (arith/decider)
-        global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].import_stack("0eNqFkttqwzAMht9Fl8MdSdpRavYmYwQn0VZBfMBWykLwu09OC9u6sVwZHf5fn2wv0I0ThkiOQS9AvXcJ9MsCid6dGUuO54CggRgtKHDGlshE4rNFpn7Xe9uRM+wjZAXkBvwAXWe16TFgTwPGvw2a/KoAHRMTXonWYG7dZDuMMmGDRUHwSdTeFQBx3IlilqN6fJIxsihHP7Ydns2FpF+avoxaKQ+rOJVCwhKXZGJTbqpS4ANGc7WHB8i5LHyH2Py36i++agvvZnLH9gNK/IOJq7+GZyiJMItgcty+RW9bcmGSVo4TCrJc8fok+tsvUHDBmFas43FfnQ51vW9OOX8CaoC//g==")
+        global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp].import_stack("0eNqFkttqwzAMht9Fl8MdSdpRavYmYwQn0VZBfMBWykLwu09OC9u6sVwZHf5fn2wv0I0ThkiOQS9AvXcJ9MsCid6dGUuO54CggRgtKHDGlshE4rNFpn7Xe9uRM+wjZAXkBvwAXWe16TFgTwPGvw2a/KoAHRMTXonWYG7dZDuMMmGDRUHwSdTeFQBx3IlilqN6fJIxsihHP7Ydns2FpF+avoxaKQ+rOJVCwhKXZGJTbqpS4ANGc7WHB8i5LHyH2Py36i++agvvZnLH9gNK/IOJq7+GZyiJMItgcty+RW9bcmGSVo4TCrJc8fok+tsvUHDBmFas43FfnQ51vW9OOX8CaoC//g==")
     end,
     multifeed = {
         {
@@ -2991,7 +3007,7 @@ tests["replaywires"] = {
 tests["replaceentitywithconnectionsitems"] = {
     prepare = function()
         --bp string of wired combinator with irp and chest
-        global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].import_stack("0eNqdUu1ugzAMfBf/nMIEdFNVXmWqUAjesFQSlJhuCPHuc4K20bVSp/0h8sedz4dnaE4jDp4sQzUDGWcDVC8zBHqz+hRzPA0IFRBjDwqs7mOkPXHXI5PJjOsbspqdh0UB2RY/oCoWdZfj3bkWbWY6DLyBlstRAVomJly1pGCq7dg36IX7jgoFgwuCdjaOFsZMEJM8+eOzjJEV2btT3WCnzyT90vRDVEu5TeAQC6/kA8dcYB0tyhUEjC2XOTeg1+tEeIBlnWLRfPMU8eOx3e5DbdrFkDcjcQrLaNumLF4IV/k3cHEDHG0V05OGC7+le9P+ZW15++dcOZonQ/N/7/lb6pUNojyeQTqYanOjCs7oQxKy3+/yw1NR7MrDsnwCXCry2w==")
+        global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp].import_stack("0eNqdUu1ugzAMfBf/nMIEdFNVXmWqUAjesFQSlJhuCPHuc4K20bVSp/0h8sedz4dnaE4jDp4sQzUDGWcDVC8zBHqz+hRzPA0IFRBjDwqs7mOkPXHXI5PJjOsbspqdh0UB2RY/oCoWdZfj3bkWbWY6DLyBlstRAVomJly1pGCq7dg36IX7jgoFgwuCdjaOFsZMEJM8+eOzjJEV2btT3WCnzyT90vRDVEu5TeAQC6/kA8dcYB0tyhUEjC2XOTeg1+tEeIBlnWLRfPMU8eOx3e5DbdrFkDcjcQrLaNumLF4IV/k3cHEDHG0V05OGC7+le9P+ZW15++dcOZonQ/N/7/lb6pUNojyeQTqYanOjCs7oQxKy3+/yw1NR7MrDsnwCXCry2w==")
     end,
     multifeed = {
         {
@@ -3006,7 +3022,7 @@ tests["replaceentitywithconnectionsitems"] = {
         },
     },
     verify = function(outsignals)
-        local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[1]
+        local bp = global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp]
         local entities = bp.get_blueprint_entities()
         if not expect("name","steel-chest",entities[1].name) then return false end
         if not entities[1].connections then return false end
@@ -3019,7 +3035,7 @@ tests["replayschedule"] = {
     dependsOnMod = {"stringy-train-stop"},
     prepare = function()
         --bp string of loco
-        global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].import_stack("0eNptjsEKgzAQRP9lzjloLYj5lVKK2qUsmF1JolQk/26ilx56WZjdmbezY5gWmj1LhN3Bo0qAfewI/JF+Kru4zQQLjuRgIL0ratJRnUZeCcmA5U1f2Do9DUgiR6aLcortJYsbyGfDv7zBrCFHVMq3jKkMtjwzVz1nQn/dqkI/W9if0gYr+XAa2rapuntdN7cupQOvq0ix")
+        global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp].import_stack("0eNptjsEKgzAQRP9lzjloLYj5lVKK2qUsmF1JolQk/26ilx56WZjdmbezY5gWmj1LhN3Bo0qAfewI/JF+Kru4zQQLjuRgIL0ratJRnUZeCcmA5U1f2Do9DUgiR6aLcortJYsbyGfDv7zBrCFHVMq3jKkMtjwzVz1nQn/dqkI/W9if0gYr+XAa2rapuntdN7cupQOvq0ix")
     end,
     multifeed = {
         {
@@ -3113,6 +3129,17 @@ tests["replayschedule"] = {
     end
 }
 
+-- blueprint book, label = "OUTER", icon= signal-1
+-- > blueprint book, label = "INNER", icon= signal-2
+-- >> blueprint of single iron chest
+-- > blueprint of single wooden chest
+-- > decon planner filtered to wooden chest
+-- > upgrade planner wooden chest -> iron chest
+local testbook = "0eNq9k01PwzAMhv+Lzylau8JG7xy4DAnBCaEqbb0S0SZV4g6mqf+dJN0nbNM2BJemSe3XzxvXC8iqFhstJKWZUu+QLDYnBpKXxRkB7puRvAlIBaUWhdt/QhIymNtnx4BnRlUtYeCiGiFLSEi3yEDkSvZiRpSSVy6T5g1CAoKwBgaS136nlQzyNzQEVk/IAl2B7pUBShIksFfxm3kq2zpD7Ql+5jNolLEpSi45B1fXntSunVP0lZMtewxmqI1PiMZhPLqNRlF8Ew/H8YZlsC8z8DfHoOIZWm9wP5ncPcJR2zOhqbUna/I+Ioi+++Y5iRmmq/KnMbL/7dqHUgX+qm87Cn/TudDdSoHOk7WXO/m0qbiUjsRaRCLr3bj3JeZUVGRlPfl+zu2fgkSFqcEKe+naBlqabk27WzpYlT4FPXLobVNqXuAh5tr2bgU71arealZv53C7SB0J3juR1vDG2BLsLEfDU8bo4fnp0jEKLx+j7gvwgrla"
+
+
+
+
 tests["replayanchor"] = {
     multifeed = {
         {
@@ -3195,7 +3222,7 @@ tests["dump"] = {
     dependsOnMod = {"stringy-train-stop"},
     prepare = function()
         --bp string of a print with a little of everything to dump
-        global.conman.get_inventory(defines.inventory.assembling_machine_input)[1].import_stack("0eNq9Vk2vmzAQ/C97bKEC8vWSY9VrpR7a01OEHNgkq4CNbJM2ivjvXUMSEM9Vw6vUS4KxZ+yd8e5yhV1RY6VJWthcgTIlDWxer2DoIEXh3tlLhbABslhCAFKUbqQFFdAEQDLHX7CJm+CvkEJlqlSWzjgAJl7gmbSt+c0D260IsyNmpwF6NglNcq8G4HmzDQClJUvYxdwOLqmsyx1qDqonsBzv4WjDNuwAKmUYpaTblJnCJIAL/y0bd54RS+IT4I8ULCQoTcwhutkoaGU0bl2mXJyLyLfNbOph5z6W+YPFkcjQWFW9pYjuDAEfSVqtinSHR3EmpVsbHDR10Arz9Gl7vkPTEUrM3GZtyLH70ZgP/SEerXgl6awm2w7jQSye6aTZOm5zFxU+19kJtUTS4FFhMVXLxKfl8sEiNNljiZaykG/AjqSwrNRbWT8t7nR+YXuelKdzeqi0J23s80qjyI4uEQw6GsfFyrgCwMaqCvVdpY+MVLWt6snc/+LklrHJc4tbXz3Sr6ZKH/437aOB8E+DYgcaOvPhHc4kk2yZjzJqOcWm5dimYMTtt+1lYt55C+F6Iok3d+NoIgtXU+4mhhtUXhe3dtLXezdOBvNdh/VVowB+ClZteMVeXeEvK6ExvTnc3uDbs6XStRO+lydeG79EkQtnBBAy7xGVMAblAXVaaeQnC2zH1h3f0v3ooyDjLjdWTd//cU8Sc04qmWm02JZRP2o5DZW8a6/kib22XSvluf6bJ4BC7JDTB778+PqNh2fUpqVdrWbReh7Hs2TdNL8BFccYSA==")
+        global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp].import_stack("0eNq9Vk2vmzAQ/C97bKEC8vWSY9VrpR7a01OEHNgkq4CNbJM2ivjvXUMSEM9Vw6vUS4KxZ+yd8e5yhV1RY6VJWthcgTIlDWxer2DoIEXh3tlLhbABslhCAFKUbqQFFdAEQDLHX7CJm+CvkEJlqlSWzjgAJl7gmbSt+c0D260IsyNmpwF6NglNcq8G4HmzDQClJUvYxdwOLqmsyx1qDqonsBzv4WjDNuwAKmUYpaTblJnCJIAL/y0bd54RS+IT4I8ULCQoTcwhutkoaGU0bl2mXJyLyLfNbOph5z6W+YPFkcjQWFW9pYjuDAEfSVqtinSHR3EmpVsbHDR10Arz9Gl7vkPTEUrM3GZtyLH70ZgP/SEerXgl6awm2w7jQSye6aTZOm5zFxU+19kJtUTS4FFhMVXLxKfl8sEiNNljiZaykG/AjqSwrNRbWT8t7nR+YXuelKdzeqi0J23s80qjyI4uEQw6GsfFyrgCwMaqCvVdpY+MVLWt6snc/+LklrHJc4tbXz3Sr6ZKH/437aOB8E+DYgcaOvPhHc4kk2yZjzJqOcWm5dimYMTtt+1lYt55C+F6Iok3d+NoIgtXU+4mhhtUXhe3dtLXezdOBvNdh/VVowB+ClZteMVeXeEvK6ExvTnc3uDbs6XStRO+lydeG79EkQtnBBAy7xGVMAblAXVaaeQnC2zH1h3f0v3ooyDjLjdWTd//cU8Sc04qmWm02JZRP2o5DZW8a6/kib22XSvluf6bJ4BC7JDTB778+PqNh2fUpqVdrWbReh7Hs2TdNL8BFccYSA==")
     end,
     multifeed = {
         {

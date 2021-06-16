@@ -1,4 +1,5 @@
-function get_signal_from_set(signal,set)
+local inv_index = require("__conman__/defines.lua").inv_index
+local function get_signal_from_set(signal,set)
   for _,sig in pairs(set) do
     if sig.signal.type == signal.type and sig.signal.name == signal.name then
       return sig.count
@@ -7,7 +8,7 @@ function get_signal_from_set(signal,set)
   return 0
 end
 
-function get_signals_filtered(filters,signals)
+local function get_signals_filtered(filters,signals)
   --   filters = {
   --  SignalID,
   --  }
@@ -779,31 +780,47 @@ local function ConstructionOrder(manager,signals1,signals2,forblueprint)
 end
 
 local function EjectBlueprint(manager)
-  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)[1]
-  local outInv = manager.ent.get_inventory(defines.inventory.assembling_machine_output)[1]
+  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp]
+  local outInv = manager.ent.get_inventory(defines.inventory.assembling_machine_output)[inv_index.bp]
   if inInv.valid and inInv.valid_for_read and outInv.valid and not outInv.valid_for_read then
     outInv.transfer_stack(inInv)
   end
 end
 
 local function EjectBlueprintBook(manager)
-  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)[2]
-  local outInv = manager.ent.get_inventory(defines.inventory.assembling_machine_output)[2]
+  local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)[inv_index.book]
+  local outInv = manager.ent.get_inventory(defines.inventory.assembling_machine_output)[inv_index.book]
   if inInv.valid and inInv.valid_for_read and outInv.valid and not outInv.valid_for_read then
     outInv.transfer_stack(inInv)
+    manager.active_book = nil
+  end
+end
+
+local function GetActiveBook(manager,signals1)
+  -- if this manager has an "active" book, select that, else take the book slot of input inventory
+  local active_book = manager.active_book
+  if active_book and active_book.valid_for_read and active_book.name == "blueprint-book" then
+    return active_book
+  else
+    local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
+    local book = inInv[inv_index.book]
+    if book.valid_for_read then
+      return book
+    end
   end
 end
 
 local function GetBlueprint(manager, signals1)
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
-  local bp = inInv[1]
+  local bp = inInv[inv_index.bp]
   local page = get_signal_from_set(knownsignals.blueprint_book,signals1)
   if not (page > 0) then return bp end
-  local book = inInv[2]
+  local book = inInv[inv_index.book]
   --check if there actually is a blueprint book.
   if book.valid and book.valid_for_read then
     local bookinv = book.get_inventory(defines.inventory.item_main)
     if page <= #bookinv then
+      --TODO: make sure it's really a blueprint
       bp = bookinv[page]
     end
   end
@@ -814,10 +831,10 @@ local function ClearOrCreateBlueprint(manager,signals1)
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
   local page = get_signal_from_set(knownsignals.blueprint_book,signals1)
   if not (page > 0) then
-    inInv[1].set_stack("blueprint")
+    inInv[inv_index.bp].set_stack("blueprint")
     return
   end
-  local book = inInv[2]
+  local book = inInv[inv_index.book]
   --check if there actually is a blueprint book.
   if book.valid and book.valid_for_read then
     local bookinv = book.get_inventory(defines.inventory.item_main)
@@ -835,12 +852,12 @@ end
 
 local function ClearOrCreateBlueprintBook(manager,signals1)
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
-  inInv[2].set_stack("blueprint-book")
+  inInv[inv_index.book].set_stack("blueprint-book")
 end
 
 local function DestroyBlueprintBook(manager,signals1)
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
-  inInv[2].clear()
+  inInv[inv_index.book].clear()
 end
 
 local function AdjustBlueprintPosition(position,name,direction,searchlist)
@@ -1003,14 +1020,14 @@ end
 
 local function ReportBlueprintLabel(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
-  if bp.valid and bp.valid_for_read then
+  if bp.valid_for_read and bp.is_blueprint then
     ReportLabel(manager,bp)
   end
 end
 
 local function ReportBlueprintBookLabel(manager,signals1,signals2)
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
-  local book = inInv[2]
+  local book = inInv[inv_index.book]
   if book.valid and book.valid_for_read then 
     ReportLabel(manager,book)
   end
@@ -1043,19 +1060,35 @@ end
 
 local function UpdateBlueprintBookLabel(manager,signals1,signals2)
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
-  local book = inInv[2]
+  local book = inInv[inv_index.book]
   if book.valid and book.valid_for_read then 
     UpdateItemLabel(book,signals2)
   end
 end
 
-local function ReportBlueprintBookCount(manager,signals1,signals2)
+local function ChangeDirBlueprintBook(manager,singals1,signals2)
+
+end
+
+local function ListBlueprintBook(manager,signals1,signals2)
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
-  local book = inInv[2]
-  if book.valid and book.valid_for_read then 
+  local book = inInv[inv_index.book]
+  if book.valid and book.valid_for_read then
+    local bookInv = book.get_inventory(defines.inventory.item_main)
+    local size = #bookInv
     local outsignals = {
-      {index=1,count=book.get_inventory(defines.inventory.item_main).get_item_count(), signal=knownsignals.info }
+      {index=1,count=size, signal=knownsignals.grey }
     }
+    local start = get_signal_from_set(knownsignals.grey,signals1) or 1
+    local items = {}
+    if start > 0 and start <=size then
+      for i = 0,31,1 do
+        local j = start+i
+        if j > #bookInv then break end
+        local item = bookInv[j]
+        outsignals[#outsignals+1]={index=#outsignals+1,count=bit32.lshift(1,i),signal={type="item",name=item.name}}
+      end
+    end
     manager.cc2.get_or_create_control_behavior().parameters=outsignals
     manager.clearcc2 = true
   end
@@ -1063,10 +1096,10 @@ end
 
 local function InsertBlueprintToBook(manager,signals1,signals2)
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
-  local bp = inInv[1]
+  local bp = inInv[inv_index.bp]
   local page = get_signal_from_set(knownsignals.blueprint_book,signals1)
   if not (page > 0) then return end
-  local book = inInv[2]
+  local book = inInv[inv_index.book]
   --check if there actually is a blueprint book and a print to insert
   if bp.valid and bp.valid_for_read and book.valid and book.valid_for_read then
     local bookInv = book.get_inventory(defines.inventory.item_main)
@@ -1081,10 +1114,10 @@ end
 
 local function TakeBlueprintFromBook(manager,signals1,signals2)
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
-  local bp = inInv[1]
+  local bp = inInv[inv_index.bp]
   local page = get_signal_from_set(knownsignals.blueprint_book,signals1)
   if not (page > 0) then return end
-  local book = inInv[2]
+  local book = inInv[inv_index.book]
   --check if there actually is a blueprint book, and the print slot is free
   if bp.valid and not bp.valid_for_read and book.valid and book.valid_for_read then 
     local bookinv = book.get_inventory(defines.inventory.item_main)
@@ -2225,7 +2258,8 @@ local bp_signal_functions = {
 }
 
 local book_signal_functions = {
-  [-5] = ReportBlueprintBookCount,
+  [-6] = ChangeDirBlueprintBook,
+  [-5] = ListBlueprintBook,
   [-4] = ReadWrite(ReportBlueprintBookLabel,UpdateBlueprintBookLabel),
   [-3] = DestroyBlueprintBook,
   [-2] = ClearOrCreateBlueprintBook,
@@ -2397,28 +2431,24 @@ local function onBuilt(ent)
   end
 end
 
-function reindex_rocks()
+local function reindex_rocks()
   local rocks={}
-  
   for name,entproto in pairs(game.entity_prototypes) do
     if entproto.count_as_rock_for_filtered_deconstruction  then
       rocks[#rocks+1] = name
     end
   end
- 
   global.deconrocks = rocks
 end
 
-function reindex_remotes()
- local artyremotes={}
-
- for name,itemproto in pairs(game.item_prototypes) do
-   if itemproto.type == "capsule" and itemproto.capsule_action.type == "artillery-remote" then
-    artyremotes[name] = { signal = {name=name,type="item"}, flare = itemproto.capsule_action.flare }
-   end
- end
-
- global.artyremotes = artyremotes
+local function reindex_remotes()
+  local artyremotes={}
+  for name,itemproto in pairs(game.get_filtered_item_prototypes{{filter="type",type="capsule"}}) do
+    if itemproto.capsule_action.type == "artillery-remote" then
+      artyremotes[name] = { signal = {name=name,type="item"}, flare = itemproto.capsule_action.flare }
+    end
+  end
+  global.artyremotes = artyremotes
 end
 
 script.on_init(function()

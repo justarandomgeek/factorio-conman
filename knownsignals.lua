@@ -46,6 +46,7 @@ return {
     blueprint = {name="blueprint",type="item"},
     blueprint_book = {name= "blueprint-book", type= "item"},
     redprint = {name="deconstruction-planner",type="item"},
+    upgrade = {name="upgrade-planner",type="item"},
     conbot = {name="construction-robot",type="item"},
     logbot = {name="logistic-robot",type="item"},
   

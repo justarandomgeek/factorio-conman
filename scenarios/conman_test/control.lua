@@ -3136,6 +3136,66 @@ tests["replayschedule"] = {
     end
 }
 
+
+tests["replaysnapping"] = {
+    dependsOnMod = {"stringy-train-stop"},
+    prepare = function()
+        --bp string of loco
+        global.conman.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp].import_stack("0eNptjsEKgzAQRP9lzjloLYj5lVKK2qUsmF1JolQk/26ilx56WZjdmbezY5gWmj1LhN3Bo0qAfewI/JF+Kru4zQQLjuRgIL0ratJRnUZeCcmA5U1f2Do9DUgiR6aLcortJYsbyGfDv7zBrCFHVMq3jKkMtjwzVz1nQn/dqkI/W9if0gYr+XAa2rapuntdN7cupQOvq0ix")
+    end,
+    multifeed = {
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 12},
+            },
+        },
+        {},
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 12},
+                {signal = knownsignals.W, count = 1},
+                {signal = knownsignals.U, count = 10},
+                {signal = knownsignals.V, count = 20},
+                {signal = knownsignals.X, count = 6},
+                {signal = knownsignals.Y, count = 8},
+                {signal = knownsignals.Z, count = 1},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 12},
+            },
+        },
+        {},
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 12},
+                {signal = knownsignals.W, count = 1},
+            },
+        },
+        {
+            cc1 = {
+                {signal = knownsignals.blueprint, count = 12},
+            },
+        },
+        {},
+        {},
+        
+    },
+    verify = function(outsignals)
+        return expect_frames({
+            [6]={
+                {signal = knownsignals.U, count = 10},
+                {signal = knownsignals.V, count = 20},
+                {signal = knownsignals.X, count = 6},
+                {signal = knownsignals.Y, count = 8},
+                {signal = knownsignals.Z, count = 1},
+            },
+          },outsignals)
+    end
+}
+
+
 -- blueprint book, label = "OUTER", icon= signal-1
 -- > blueprint book, label = "INNER", icon= signal-2
 -- >> blueprint of single iron chest
@@ -3649,4 +3709,4 @@ script.on_event(defines.events.on_tick, function()
             end
         end
     end
-end)
+end) 

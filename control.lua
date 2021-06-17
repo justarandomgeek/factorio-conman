@@ -796,6 +796,10 @@ local function EjectBlueprintBook(manager)
   end
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param allow_empty? boolean
+---@return LuaItemStack
 local function GetActiveBook(manager,signals1,allow_empty)
   -- if this manager has an "active" book, select that, else take the book slot of input inventory
   local active_book = manager.active_book
@@ -810,6 +814,9 @@ local function GetActiveBook(manager,signals1,allow_empty)
   end
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@return LuaItemStack
 local function GetBlueprint(manager, signals1)
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
   local bp = inInv[inv_index.bp]
@@ -1994,6 +2001,68 @@ local function UpdateBlueprintSchedule(manager,signals1,signals2)
   end
 end
 
+---@param bp LuaItemStack
+local function ReportBlueprintSnappingInternal(bp)
+  local outsignals = {}
+  local snap = bp.blueprint_snap_to_grid
+  if snap then
+    outsignals[1]={index=1,count=snap.x,signal=knownsignals.U}
+    outsignals[2]={index=2,count=snap.y,signal=knownsignals.V}
+    local rel = bp.blueprint_position_relative_to_grid
+    if rel then
+      outsignals[3]={index=3,count=rel.x,signal=knownsignals.X}
+      outsignals[4]={index=4,count=rel.y,signal=knownsignals.Y}
+      outsignals[5]={index=5,count=1,signal=knownsignals.Z}
+    end
+  end
+  return outsignals
+end
+
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
+local function ReportBlueprintSnapping(manager,signals1,signals2)
+  local bp = GetBlueprint(manager,signals1)
+  if bp.valid and bp.valid_for_read then
+    manager.cc2.get_or_create_control_behavior().parameters=ReportBlueprintSnappingInternal(bp)
+    manager.clearcc2 = true
+  end
+end
+
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
+local function UpdateBlueprintSnapping(manager,signals1,signals2)
+  ---@type LuaItemStack
+  local bp = GetBlueprint(manager,signals1)
+  if bp.valid and bp.valid_for_read then
+    local signals = get_signals_filtered({
+        u = knownsignals.U,
+        v = knownsignals.V,
+        x = knownsignals.X,
+        y = knownsignals.Y,
+        z = knownsignals.Z,
+      },signals1)
+    local u,v,x,y,z = signals.u or 0,signals.v or 0,signals.x or 0,signals.y or 0,signals.z or 0
+
+    if u>0 and v>0 then
+      bp.blueprint_snap_to_grid = {u,v}
+      if z ~= 0 then
+        bp.blueprint_position_relative_to_grid = {x,y}
+      else
+        bp.blueprint_position_relative_to_grid = nil
+      end
+    else
+      bp.blueprint_snap_to_grid = nil
+    end
+
+
+  end
+end
+
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function DumpBlueprint(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read then
@@ -2294,6 +2363,7 @@ local bp_signal_functions = {
   [9] = ReadWrite(ReportBlueprintWire,UpdateBlueprintWire),
   [10] = ReadWrite(ReportBlueprintSchedule,UpdateBlueprintSchedule),
   [11] = DumpBlueprint,
+  [12] = ReadWrite(ReportBlueprintSnapping,UpdateBlueprintSnapping),
 }
 
 local book_signal_functions = {

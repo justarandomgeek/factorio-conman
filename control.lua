@@ -1,4 +1,25 @@
-local inv_index = require("__conman__/defines.lua").inv_index
+local cmdefines = require("__conman__/defines.lua")
+local inv_index = cmdefines.inv_index
+local arithop = cmdefines.arithop
+local deciderop = cmdefines.deciderop
+local specials = cmdefines.specials
+local knownsignals = require("knownsignals")
+local signal_util = require("signal_util")
+local get_signal_from_set = signal_util.get_signal_from_set
+local get_signals_filtered = signal_util.get_signals_filtered
+
+local signal_concepts = require("signal_concepts")
+local ReadPosition = signal_concepts.ReadPosition
+local ReadColor = signal_concepts.ReadColor
+local ReadBoundingBox = signal_concepts.ReadBoundingBox
+local ReadFilters = signal_concepts.ReadFilters
+local ReadInventoryFilters = signal_concepts.ReadInventoryFilters
+local ReadItems = signal_concepts.ReadItems
+local ReadSignalList = signal_concepts.ReadSignalList
+
+local ReadWrite = require("ReadWrite")
+
+local ConstructionOrderEntitySpecific = require("entity_construction_order")
 
 ---@class ConManManager
 ---@field ent LuaEntity
@@ -15,321 +36,8 @@ local inv_index = require("__conman__/defines.lua").inv_index
 
 
 
----@param signal SignalID
----@param set Signal[]
----@return number
-local function get_signal_from_set(signal,set)
-  for _,sig in pairs(set) do
-    if sig.signal.type == signal.type and sig.signal.name == signal.name then
-      return sig.count
-    end
-  end
-  return 0
-end
-
----@generic T
----@param filters table<T,SignalID>
----@param signals Signal[]
----@return table<T,number>
-local function get_signals_filtered(filters,signals)
-  local results = {}
-  local count = 0
-  for _,sig in pairs(signals) do
-    for i,f in pairs(filters) do
-      if f.name and sig.signal.type == f.type and sig.signal.name == f.name then
-        results[i] = sig.count
-        count = count + 1
-        if count == #filters then return results end
-      end
-    end
-  end
-  return results
-end
-
--- pre-built signal tables to save loads of table/string constructions
-local knownsignals = require("knownsignals")
-
-local signalsets = {
-  position1 = {
-    x = knownsignals.X,
-    y = knownsignals.Y,
-  },
-  position2 = {
-    x = knownsignals.U,
-    y = knownsignals.V,
-  },
-  color = {
-    r = knownsignals.red,
-    g = knownsignals.green,
-    b = knownsignals.blue,
-  }
-}
 
 
----@param signals Signal[]
----@param secondary? boolean
----@param offset? Position
----@return Position
-local function ReadPosition(signals,secondary,offset)
-  local set = secondary and signalsets.position2 or signalsets.position1
-  local p = get_signals_filtered(set,signals)
-  local x,y = (p.x or 0),(p.y or 0)
-  if offset then
-    x = x+offset.x
-    y = y+offset.y
-  end
-  p.x = x
-  p.y = y
-  return p
-end
-
----@param signals Signal[]
----@return Color
-local function ReadColor(signals)
-  local color = get_signals_filtered(signalsets.color,signals)
-  color.r =  math.min(math.max(color.r, 0), 255)
-  color.g =  math.min(math.max(color.g, 0), 255)
-  color.b =  math.min(math.max(color.b, 0), 255)
-  return color
-end
-
----@param signals Signal[]
----@return BoundingBox
-local function ReadBoundingBox(signals)
-  -- adjust offests to make *inclusive* selection
-  return {ReadPosition(signals,false,{x=0,y=0}),ReadPosition(signals,true,{x=1,y=1})}
-end
-
-
----@param signals Signal[]
----@param count? number
----@return LogisticFilter[]
-local function ReadFilters(signals,count)
-  local filters = {}
-  if signals then
-    for i,s in pairs(signals) do
-      if s.signal.type == "item" then
-        filters[#filters+1]={index = #filters+1, name = s.signal.name, count = s.count}
-        if count and #filters==count then break end
-      end
-    end
-  end
-  return filters
-end
-
----@param signals Signal[]
----@param count? number
----@return InventoryFilter[]
-local function ReadInventoryFilters(signals,count)
-  local filters = {}
-  local nfilters = 0
-  if signals then
-    for _,s in pairs(signals) do
-      if s.signal.type == "item" then
-        for b=0,31 do
-          local bit = bit32.extract(s.count,b)
-          if bit == 1 and not filters[b+1] then
-            filters[b+1]={index = b+1, name = s.signal.name}
-            nfilters = nfilters +1
-            if b == 31 and count > 31 then
-              for n=32,count do
-                filters[n]={index = n, name = s.signal.name}
-                nfilters = nfilters +1
-              end
-            end
-          end
-        end
-      end
-    end
-  end
-  return filters
-end
-
----@param signals Signal[]
----@param count? number
----@return table<string,number>
-local function ReadItems(signals,count)
-  local items = {}
-  if signals then
-    for i,s in pairs(signals) do
-      if s.signal.type == "item" then
-        local n = s.count
-        if n < 0 then n = n + 0x100000000 end
-        items[s.signal.name] = n
-        if count and #items==count then break end
-      end
-    end
-  end
-  return items
-end
-
---TODO use iconstrip reader from magiclamp
-
-
----@param signals Signal[]
----@param nbits? number
----@return SignalID[]
-local function ReadSignalList(signals,nbits)
-  local selected = {}
-  for i=0,(nbits or 31) do
-    for _,sig in pairs(signals) do
-      local sigbit = bit32.extract(sig.count,i)
-      if sigbit==1 then
-        selected[i+1] = sig.signal
-        break
-      end
-    end
-  end
-  return selected
-end
-
-local arithop = { "*", "/", "+", "-", "%", "^", "<<", ">>", "AND", "OR", "XOR" }
-local deciderop = { "<", ">", "=", "≥", "≤", "≠" }
-local specials = {
-  each  = {name="signal-each",       type="virtual"},
-  any   = {name="signal-anything",   type="virtual"},
-  every = {name="signal-everything", type="virtual"},
-}
-
-local splitterside = { "left", "right", }
-
----@param createorder LuaSurface.create_entity_param
----@param entproto LuaEntityPrototype
----@param signals1 Signal[]
----@param signals2 Signal[]
-local function nocc2(createorder,entproto,signals1,signals2)
-  createorder.usecc2items=false
-end
-local ConstructionOrderEntitySpecific =
-{
-  ---@param createorder LuaSurface.create_entity_param
-  ---@param entproto LuaEntityPrototype
-  ---@param signals1 Signal[]
-  ---@param signals2 Signal[]
-  ["assembling-machine"] = function(createorder,entproto,signals1,signals2)
-    --set recipe if recipeid lib available
-    if remote.interfaces['recipeid'] then
-      createorder.recipe = remote.call('recipeid','map_recipe', get_signal_from_set(knownsignals.R,signals1))
-    end
-  end,
-  ---@param createorder LuaSurface.create_entity_param
-  ---@param entproto LuaEntityPrototype
-  ---@param signals1 Signal[]
-  ---@param signals2 Signal[]
-  ["rocket-silo"] = function(createorder,entproto,signals1,signals2)
-    createorder.auto_launch = get_signal_from_set(knownsignals.A,signals1) == 1
-  end,
-  ---@param createorder LuaSurface.create_entity_param
-  ---@param entproto LuaEntityPrototype
-  ---@param signals1 Signal[]
-  ---@param signals2 Signal[]
-  ["logistic-container"] = function(createorder,entproto,signals1,signals2)
-    if entproto.logistic_mode == "buffer" or entproto.logistic_mode == "storage" then
-      createorder.request_filters = ReadFilters(signals2, entproto.filter_count)
-      createorder.usecc2items=false
-    elseif entproto.logistic_mode == "requester" then
-      createorder.request_filters = ReadFilters(signals2, entproto.filter_count)
-      createorder.usecc2items=false
-      createorder.request_from_buffers = get_signal_from_set(knownsignals.R,signals1) ~= 0
-    end
-  end,
-  ---@param createorder LuaSurface.create_entity_param
-  ---@param entproto LuaEntityPrototype
-  ---@param signals1 Signal[]
-  ---@param signals2 Signal[]
-  ["splitter"] = function(createorder,entproto,signals1,signals2)
-    createorder.input_priority = splitterside[get_signal_from_set(knownsignals.I,signals1)] or "none"
-    createorder.output_priority = splitterside[get_signal_from_set(knownsignals.O,signals1)] or "none"
-
-    createorder.filter = next(ReadItems(signals2,1))
-    createorder.usecc2items=false
-  end,
-  ---@param createorder LuaSurface.create_entity_param
-  ---@param entproto LuaEntityPrototype
-  ---@param signals1 Signal[]
-  ---@param signals2 Signal[]
-  ["underground-belt"] = function(createorder,entproto,signals1,signals2)
-    if get_signal_from_set(knownsignals.U,signals1) ~= 0 then 
-      createorder.type = "output"
-    else
-      createorder.type = "input"
-    end
-    createorder.usecc2items=false
-  end,
-  ---@param createorder LuaSurface.create_entity_param
-  ---@param entproto LuaEntityPrototype
-  ---@param signals1 Signal[]
-  ---@param signals2 Signal[]
-  ["loader"] = function(createorder,entproto,signals1,signals2)
-    if get_signal_from_set(knownsignals.U,signals1) ~= 0 then 
-      createorder.type = "output"
-    else
-      createorder.type = "input"
-    end
-    createorder.filters = ReadFilters(signals2,entproto.filter_count)
-    createorder.usecc2items=false
-  end,
-  ---@param createorder LuaSurface.create_entity_param
-  ---@param entproto LuaEntityPrototype
-  ---@param signals1 Signal[]
-  ---@param signals2 Signal[]
-  ["train-stop"] = function(createorder,entproto,signals1,signals2)
-    createorder.usecc2items=false
-    local a = get_signal_from_set(knownsignals.white,signals1)
-    if a > 0 and a <= 255 then
-      createorder.color = ReadColor(signals1)
-      createorder.color.a = a
-    end
-  end,
-  ---@param createorder LuaSurface.create_entity_param
-  ---@param entproto LuaEntityPrototype
-  ---@param signals1 Signal[]
-  ---@param signals2 Signal[]
-  ["locomotive"] = function(createorder,entproto,signals1,signals2)
-    local a = get_signal_from_set(knownsignals.white,signals1)
-    if a > 0 and a <= 255 then
-      createorder.color = ReadColor(signals1)
-      createorder.color.a = a
-    end
-    createorder.orientation = math.min(math.max(get_signal_from_set(knownsignals.O,signals1), 0), 65535)/65535
-  end,
-  ---@param createorder LuaSurface.create_entity_param
-  ---@param entproto LuaEntityPrototype
-  ---@param signals1 Signal[]
-  ---@param signals2 Signal[]
-  ["cargo-wagon"] = function(createorder,entproto,signals1,signals2)
-    createorder.inventory = {
-      bar = createorder.bar,
-      filters = ReadInventoryFilters(signals2, entproto.get_inventory_size(defines.inventory.cargo_wagon))
-    }
-    createorder.orientation = math.min(math.max(get_signal_from_set(knownsignals.O,signals1), 0), 65535)/65535
-    createorder.bar = nil
-    local a = get_signal_from_set(knownsignals.white,signals1)
-    if a > 0 and a <= 255 then
-      createorder.color = ReadColor(signals1)
-      createorder.color.a = a
-    end
-    createorder.usecc2items=false
-  end,
-  ["offshore-pump"] = nocc2,
-  ["pump"] = nocc2,
-  ["miner"] = nocc2,
-  ["inserter"] = nocc2,
-  ["curved-rail"] = nocc2,
-  ["straight-rail"] = nocc2,
-  ["rail-signal"] = nocc2,
-  ["rail-chain-signal"] = nocc2,
-  ["wall"] = nocc2,
-  ["transport-belt"] = nocc2,
-  ["lamp"] = nocc2,
-  ["programmable-speaker"] = nocc2,
-  ["power-switch"] = nocc2,
-  ["roboport"] = nocc2,
-  ["accumulator"] = nocc2,
-  ["constant-combinator"] = nocc2,
-  ["arithmetic-combinator"] = nocc2,
-  ["decider-combinator"] = nocc2,
-}
 
 ---@param ghost LuaEntity
 ---@param control LuaGenericOnOffControlBehavior
@@ -2695,20 +2403,6 @@ local function GetBlueprintAnchor(manager,signals1,signals2)
   
   manager.cc2.get_or_create_control_behavior().parameters=outsignals
   manager.clearcc2 = true
-end
-
----@param Report function
----@param Update function
----@return fun(manager:ConManManager,signals1:Signal[],signals2:Signal[])
-local function ReadWrite(Report,Update)
-  return function(manager,signals1,signals2)
-    local write = get_signal_from_set(knownsignals.W,signals1)
-    if write == 1 then
-      return Update(manager,signals1,signals2)
-    else
-      return Report(manager,signals1,signals2)
-    end
-  end
 end
 
 local bp_signal_functions = {

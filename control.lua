@@ -30,6 +30,7 @@ local ConstructionOrder = require("construction_order")
 ---@field preloadstring string|nil
 ---@field active_book LuaItemStack|nil
 ---@field relative boolean
+---@field offset Position|nil
 ---@field schedule TrainScheduleRecord[]|nil
 
 
@@ -138,35 +139,6 @@ local function DestroyBlueprintBook(manager,signals1)
   end
 end
 
----@param position Position
----@param name string
----@param direction defines.direction
----@param searchlist BlueprintEntity[]|Tile[]
-local function AdjustBlueprintPosition(position,name,direction,searchlist)
-  if searchlist then
-    for _,ent in pairs(searchlist) do
-      if ent.name == name then
-        if __DebugAdapter then __DebugAdapter.print(ent) end
-        -- 0 = north => x,y = x,y
-        local x,y = ent.position.x,ent.position.y
-        if direction == 2 then
-          -- 2 = east
-          x,y = -y,x
-        elseif direction == 4 then
-          -- 4 = south
-          x,y = -x,-y
-        elseif direction == 6 then
-          -- 6 = west
-          x,y = y,-x
-        end
-        position.x = position.x - x
-        position.y = position.y - y
-        break
-      end
-    end
-  end
-end
-
 ---@param manager ConManManager
 ---@param signals1 Signal[]
 ---@param signals2 Signal[]
@@ -176,25 +148,23 @@ local function DeployBlueprint(manager,signals1,signals2)
 
     local force_build = get_signal_from_set(knownsignals.F,signals1)==1
     local position = ReadPosition(signals1)
-    local direction = math.floor(get_signal_from_set(knownsignals.D,signals1)/2)*2
+    
+    if manager.relative then
+      local mpos = manager.ent.position
+      position.x = position.x + mpos.x
+      position.y = position.y + mpos.y
+    end
 
-    if manager.anchor then
-      if not manager.anchor.valid then
-        manager.anchor = nil
-      else
-        local bpents = bp.get_blueprint_entities()
-        local name = manager.anchor.name
-        AdjustBlueprintPosition(position,name,direction,bpents)
-      end
-    elseif manager.anchor_tile then
-      if not manager.anchor_tile.valid then
-        manager.anchor_tile = nil
-      else
-        local bptiles = bp.get_blueprint_tiles()
-        local name = manager.anchor_tile.name
-        AdjustBlueprintPosition(position,name,direction,bptiles)
+    do 
+      local offset = manager.offset
+      if offset then
+        position.x = position.x + offset.x
+        position.y = position.y + offset.y
       end
     end
+
+    local direction = math.floor(get_signal_from_set(knownsignals.D,signals1)/2)*2
+
     bp.build_blueprint{
       surface=manager.ent.surface,
       force=manager.ent.force,

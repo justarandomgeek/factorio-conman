@@ -313,12 +313,14 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
                 return false
             end
             
+            ---@type LuaLogisticContainerControlBehavior
             local control = ghost.get_or_create_control_behavior()
             if control and 
                 control.circuit_mode_of_operation == defines.control_behavior.logistic_container.circuit_mode_of_operation.set_requests	and
@@ -347,12 +349,14 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
                 return false
             end
             
+            ---@type LuaConstantCombinatorControlBehavior
             local control = ghost.get_or_create_control_behavior()
             if not control then return false end
             local sig = control.get_signal(1)
@@ -383,12 +387,14 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
                 return false
             end
             
+            ---@type LuaArithmeticCombinatorControlBehavior
             local control = ghost.get_or_create_control_behavior()
             if not control then return false end
             local parameters = control.parameters
@@ -417,12 +423,14 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
                 return false
             end
             
+            ---@type LuaArithmeticCombinatorControlBehavior
             local control = ghost.get_or_create_control_behavior()
             if not control then return false end
             if not (control.parameters.first_signal.name == "signal-each" and 
@@ -451,12 +459,14 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
                 return false
             end
             
+            ---@type LuaArithmeticCombinatorControlBehavior
             local control = ghost.get_or_create_control_behavior()
             if not control then return false end
             if not (control.parameters.first_constant == 12 and 
@@ -485,12 +495,14 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
                 return false
             end
             
+            ---@type LuaDeciderCombinatorControlBehavior
             local control = ghost.get_or_create_control_behavior()
             if not control then return false end
             if not (control.parameters.first_signal.name == "signal-A" and 
@@ -518,12 +530,14 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
                 return false
             end
             
+            ---@type LuaDeciderCombinatorControlBehavior
             local control = ghost.get_or_create_control_behavior()
             if not control then return false end
             if not (control.parameters.first_signal.name == "signal-each" and 
@@ -551,12 +565,14 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
                 return false
             end
             
+            ---@type LuaDeciderCombinatorControlBehavior
             local control = ghost.get_or_create_control_behavior()
             if not control then return false end
             if not (control.parameters.first_signal.name == "signal-everything" and 
@@ -586,12 +602,14 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
                 return false
             end
             
+            ---@type LuaDeciderCombinatorControlBehavior
             local control = ghost.get_or_create_control_behavior()
             if not control then return false end
             if not (control.parameters.first_signal.name == "signal-anything" and 
@@ -619,6 +637,7 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
@@ -649,6 +668,7 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
@@ -673,12 +693,14 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
                 return false
             end
 
+            ---@type LuaMiningDrillControlBehavior
             local control = ghost.get_or_create_control_behavior()
             if not (control.circuit_read_resources and
                 control.resource_read_mode == defines.control_behavior.mining_drill.resource_read_mode.entire_patch) then return false end
@@ -712,6 +734,7 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
@@ -720,6 +743,7 @@ local tests = {
 
             if ghost.backer_name ~= "TEST" then return false end
 
+            ---@type LuaTrainStopControlBehavior
             local control = ghost.get_or_create_control_behavior()
             if not (control.send_to_train and control.read_from_train and control.read_stopped_train and
                 control.stopped_train_signal.name == knownsignals.A.name) then return false end
@@ -746,6 +770,7 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
             if irp then
                 return false
@@ -766,6 +791,7 @@ local tests = {
             local ghost = global.surface.find_entity('entity-ghost', {-4,-4})
             local irp 
             if not ghost then return false end
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
             if irp then
                 return false
@@ -791,12 +817,14 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
                 return false
             end
 
+            ---@type LuaRailSignalControlBehavior
             local control = ghost.get_or_create_control_behavior()
             if not (control.read_signal and
                 control.red_signal.name == knownsignals.A.name and
@@ -829,12 +857,14 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
                 return false
             end
 
+            ---@type LuaRailChainSignalControlBehavior
             local control = ghost.get_or_create_control_behavior()
             if not (
                 control.red_signal.name == knownsignals.A.name and
@@ -861,12 +891,14 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
                 return false
             end
 
+            ---@type LuaWallControlBehavior
             local control = ghost.get_or_create_control_behavior()
             if not ( control.read_sensor and
                 control.output_signal.name == knownsignals.A.name) then return false end
@@ -889,6 +921,7 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
@@ -914,6 +947,7 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
@@ -954,12 +988,14 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
                 return false
             end
 
+            ---@type LuaInserterControlBehavior
             local control = ghost.get_or_create_control_behavior()
             if not (
                 control.circuit_condition.condition.first_signal.name == "signal-A" and 
@@ -996,12 +1032,14 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
                 return false
             end
 
+            ---@type LuaInserterControlBehavior
             local control = ghost.get_or_create_control_behavior()
             if not (
                 ghost.inserter_stack_size_override == 3 and
@@ -1027,12 +1065,14 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
                 return false
             end
 
+            ---@type LuaTransportBeltControlBehavior
             local control = ghost.get_or_create_control_behavior()
             if not ( control.read_contents and 
                 control.read_contents_mode == defines.control_behavior.transport_belt.content_read_mode.hold
@@ -1059,12 +1099,14 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
                 return false
             end
 
+            ---@type LuaLampControlBehavior
             local control = ghost.get_or_create_control_behavior()
             if not ( control.use_colors and 
                 control.circuit_condition.condition.first_signal.name == "signal-A" and 
@@ -1108,13 +1150,14 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
                 return false
             end
 
-            
+            ---@type LuaProgrammableSpeakerControlBehavior
             local control = ghost.get_or_create_control_behavior()
             if not ( control.circuit_parameters.signal_value_is_pitch and
                 control.circuit_parameters.instrument_id == 3 and
@@ -1149,12 +1192,14 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
                 return false
             end
 
+            ---@type LuaGenericOnOffControlBehavior
             local control = ghost.get_or_create_control_behavior()
             if not (
                 control.circuit_condition.condition.first_signal.name == "signal-anything" and 
@@ -1183,12 +1228,14 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-2.5,-2.5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
                 return false
             end
 
+            ---@type LuaGenericOnOffControlBehavior
             local control = ghost.get_or_create_control_behavior()
             if not (
                 control.circuit_condition.condition.first_signal.name == "signal-everything" and 
@@ -1218,12 +1265,14 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-3,-3})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
                 return false
             end
 
+            ---@type LuaRoboportControlBehavior
             local control = ghost.get_or_create_control_behavior()
             if not (
                 control.read_robot_stats and (not control.read_logistics) and
@@ -1249,12 +1298,14 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-4,-4})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp then
                 return false
             end
 
+            ---@type LuaAccumulatorControlBehavior
             local control = ghost.get_or_create_control_behavior()
             if not (control.output_signal.name == "accumulator") then return false end
             
@@ -1291,6 +1342,7 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-5,-5})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if irp or not ghost then
@@ -1335,6 +1387,7 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-3,-3})
             if not ghost then return false end
+            ---@typelist table<string,number>,LuaEntity
             _,ghost = ghost.revive()
             
             if not(
@@ -1391,6 +1444,7 @@ local tests = {
         verify = function()
             local ghost = global.surface.find_entity('entity-ghost', {-3,-3})
             local irp 
+            ---@typelist table<string,number>,LuaEntity,LuaEntity
             _,ghost,irp = ghost.revive{return_item_request_proxy=true}
 
             if not(irp and irp.item_requests[knownsignals.redwire.name] == 12) then return false end
@@ -1845,10 +1899,10 @@ local tests = {
         prepare = function()
             -- build some entities and tiles
             global.entities={
-                global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-3,-3}},
-                global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-3,-5}},
-                global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-5,-3}},
-                global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-5,-5}},
+                global.surface.create_entity{name="steel-chest",force=game.forces["player"],position={-3,-3}},
+                global.surface.create_entity{name="steel-chest",force=game.forces["player"],position={-3,-5}},
+                global.surface.create_entity{name="steel-chest",force=game.forces["player"],position={-5,-3}},
+                global.surface.create_entity{name="steel-chest",force=game.forces["player"],position={-5,-5}},
             }
 
             local tiles = {}
@@ -1887,10 +1941,10 @@ local tests = {
         prepare = function()
             -- build some entities and tiles
             global.entities={
-                global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-3,-3}},
-                global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-3,-5}},
-                global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-5,-3}},
-                global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-5,-5}},
+                global.surface.create_entity{name="steel-chest",force=game.forces["player"],position={-3,-3}},
+                global.surface.create_entity{name="steel-chest",force=game.forces["player"],position={-3,-5}},
+                global.surface.create_entity{name="steel-chest",force=game.forces["player"],position={-5,-3}},
+                global.surface.create_entity{name="steel-chest",force=game.forces["player"],position={-5,-5}},
             }
 
             local tiles = {}
@@ -2196,12 +2250,12 @@ local tests = {
     ["decon"] = {
         prepare = function()
             global.entities={
-                global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-3,-3}},
+                global.surface.create_entity{name="steel-chest",force=game.forces["player"],position={-3,-3}},
                 global.surface.create_entity{name="tree-01",position={-3,-5}},
                 global.surface.create_entity{name="rock-big",position={-5,-3}},
                 global.surface.create_entity{name="cliff",position={-4,-4}},
             }
-            global.wooden= global.surface.create_entity{name="wooden-chest",force=game.forces.player,position={-5,-5}}
+            global.wooden= global.surface.create_entity{name="wooden-chest",force=game.forces["player"],position={-5,-5}}
         end,
         cc1 = {
             {signal = knownsignals.redprint, count = 1},
@@ -2212,10 +2266,10 @@ local tests = {
         },
         verify = function()
             for _,ent in pairs(global.entities) do
-                if not ent.to_be_deconstructed(game.forces.player) then return false end
+                if not ent.to_be_deconstructed(game.forces["player"]) then return false end
                 ent.destroy() 
             end
-            if not global.wooden.to_be_deconstructed(game.forces.player) then return false end
+            if not global.wooden.to_be_deconstructed(game.forces["player"]) then return false end
             global.wooden.destroy()
             return true
         end
@@ -2224,13 +2278,13 @@ local tests = {
     ["filterdecon"] = {
         prepare = function()
             global.entities={
-                global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-3,-3}},
+                global.surface.create_entity{name="steel-chest",force=game.forces["player"],position={-3,-3}},
                 global.surface.create_entity{name="tree-01",position={-3,-5}},
                 global.surface.create_entity{name="rock-big",position={-5,-3}},
                 global.surface.create_entity{name="cliff",position={-4,-4}},
                 
             }
-            global.wooden= global.surface.create_entity{name="wooden-chest",force=game.forces.player,position={-5,-5}}
+            global.wooden= global.surface.create_entity{name="wooden-chest",force=game.forces["player"],position={-5,-5}}
         end,
         cc1 = {
             {signal = knownsignals.redprint, count = 1},
@@ -2247,10 +2301,10 @@ local tests = {
         },
         verify = function()
             for _,ent in pairs(global.entities) do
-                if not ent.to_be_deconstructed(game.forces.player) then return false end
+                if not ent.to_be_deconstructed(game.forces["player"]) then return false end
                 ent.destroy() 
             end
-            if global.wooden.to_be_deconstructed(game.forces.player) then return false end
+            if global.wooden.to_be_deconstructed(game.forces["player"]) then return false end
             global.wooden.destroy()
             return true
         end
@@ -2259,17 +2313,17 @@ local tests = {
     ["canceldecon"] = {
         prepare = function()
             global.entities={
-                global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-3,-3}},
+                global.surface.create_entity{name="steel-chest",force=game.forces["player"],position={-3,-3}},
                 global.surface.create_entity{name="tree-01",position={-3,-5}},
                 global.surface.create_entity{name="rock-big",position={-5,-3}},
                 global.surface.create_entity{name="cliff",position={-4,-4}},
                 
             }
             for _,ent in pairs(global.entities) do
-                ent.order_deconstruction(game.forces.player) 
+                ent.order_deconstruction(game.forces["player"]) 
             end
-            global.wooden= global.surface.create_entity{name="wooden-chest",force=game.forces.player,position={-5,-5}}
-            global.wooden.order_deconstruction(game.forces.player)
+            global.wooden= global.surface.create_entity{name="wooden-chest",force=game.forces["player"],position={-5,-5}}
+            global.wooden.order_deconstruction(game.forces["player"])
         end,
         cc1 = {
             {signal = knownsignals.redprint, count = -1},
@@ -2280,10 +2334,10 @@ local tests = {
         },
         verify = function()
             for _,ent in pairs(global.entities) do
-                if ent.to_be_deconstructed(game.forces.player) then return false end
+                if ent.to_be_deconstructed(game.forces["player"]) then return false end
                 ent.destroy() 
             end
-            if global.wooden.to_be_deconstructed(game.forces.player) then return false end
+            if global.wooden.to_be_deconstructed(game.forces["player"]) then return false end
             global.wooden.destroy()
             return true
         end
@@ -2291,17 +2345,17 @@ local tests = {
     ["filtercanceldecon"] = {
         prepare = function()
             global.entities={
-                global.surface.create_entity{name="steel-chest",force=game.forces.player,position={-3,-3}},
+                global.surface.create_entity{name="steel-chest",force=game.forces["player"],position={-3,-3}},
                 global.surface.create_entity{name="tree-01",position={-3,-5}},
                 global.surface.create_entity{name="rock-big",position={-5,-3}},
                 global.surface.create_entity{name="cliff",position={-4,-4}},
                 
             }
             for _,ent in pairs(global.entities) do
-                ent.order_deconstruction(game.forces.player) 
+                ent.order_deconstruction(game.forces["player"]) 
             end
-            global.wooden= global.surface.create_entity{name="wooden-chest",force=game.forces.player,position={-5,-5}}
-            global.wooden.order_deconstruction(game.forces.player)
+            global.wooden= global.surface.create_entity{name="wooden-chest",force=game.forces["player"],position={-5,-5}}
+            global.wooden.order_deconstruction(game.forces["player"])
         end,
         cc1 = {
             {signal = knownsignals.redprint, count = -1},
@@ -2318,10 +2372,10 @@ local tests = {
         },
         verify = function()
             for _,ent in pairs(global.entities) do
-                if ent.to_be_deconstructed(game.forces.player) then return false end
+                if ent.to_be_deconstructed(game.forces["player"]) then return false end
                 ent.destroy() 
             end
-            if not global.wooden.to_be_deconstructed(game.forces.player) then return false end
+            if not global.wooden.to_be_deconstructed(game.forces["player"]) then return false end
             global.wooden.destroy()
             return true
         end
@@ -3597,7 +3651,7 @@ script.on_event(defines.events.on_game_created_from_scenario,function()
     }
 
     -- make sure things like high stacks on inserters are unlocked so setting them works
-    game.forces.player.research_all_technologies()
+    game.forces["player"].research_all_technologies()
     
     global.testid,_ = next(tests)
     global.state = states.prepare

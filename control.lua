@@ -1,4 +1,23 @@
 local inv_index = require("__conman__/defines.lua").inv_index
+
+---@class ConManManager
+---@field ent LuaEntity
+---@field surface LuaSurface
+---@field force LuaForce
+---@field cc1 LuaEntity
+---@field cc2 LuaEntity
+---@field clearcc2 boolean|nil
+---@field morecc2 table<number,ConstantCombinatorParameters[]>|nil
+---@field preloadstring string|nil
+---@field active_book LuaItemStack|nil
+---@field relative boolean
+---@field schedule TrainScheduleRecord[]|nil
+
+
+
+---@param signal SignalID
+---@param set Signal[]
+---@return number
 local function get_signal_from_set(signal,set)
   for _,sig in pairs(set) do
     if sig.signal.type == signal.type and sig.signal.name == signal.name then
@@ -8,10 +27,11 @@ local function get_signal_from_set(signal,set)
   return 0
 end
 
+---@generic T
+---@param filters table<T,SignalID>
+---@param signals Signal[]
+---@return table<T,number>
 local function get_signals_filtered(filters,signals)
-  --   filters = {
-  --  SignalID,
-  --  }
   local results = {}
   local count = 0
   for _,sig in pairs(signals) do
@@ -46,6 +66,10 @@ local signalsets = {
 }
 
 
+---@param signals Signal[]
+---@param secondary? boolean
+---@param offset? Position
+---@return Position
 local function ReadPosition(signals,secondary,offset)
   local set = secondary and signalsets.position2 or signalsets.position1
   local p = get_signals_filtered(set,signals)
@@ -59,6 +83,8 @@ local function ReadPosition(signals,secondary,offset)
   return p
 end
 
+---@param signals Signal[]
+---@return Color
 local function ReadColor(signals)
   local color = get_signals_filtered(signalsets.color,signals)
   color.r =  math.min(math.max(color.r, 0), 255)
@@ -67,11 +93,17 @@ local function ReadColor(signals)
   return color
 end
 
+---@param signals Signal[]
+---@return BoundingBox
 local function ReadBoundingBox(signals)
   -- adjust offests to make *inclusive* selection
   return {ReadPosition(signals,false,{x=0,y=0}),ReadPosition(signals,true,{x=1,y=1})}
 end
 
+
+---@param signals Signal[]
+---@param count? number
+---@return LogisticFilter[]
 local function ReadFilters(signals,count)
   local filters = {}
   if signals then
@@ -85,6 +117,9 @@ local function ReadFilters(signals,count)
   return filters
 end
 
+---@param signals Signal[]
+---@param count? number
+---@return InventoryFilter[]
 local function ReadInventoryFilters(signals,count)
   local filters = {}
   local nfilters = 0
@@ -110,6 +145,9 @@ local function ReadInventoryFilters(signals,count)
   return filters
 end
 
+---@param signals Signal[]
+---@param count? number
+---@return table<string,number>
 local function ReadItems(signals,count)
   local items = {}
   if signals then
@@ -126,6 +164,11 @@ local function ReadItems(signals,count)
 end
 
 --TODO use iconstrip reader from magiclamp
+
+
+---@param signals Signal[]
+---@param nbits? number
+---@return SignalID[]
 local function ReadSignalList(signals,nbits)
   local selected = {}
   for i=0,(nbits or 31) do
@@ -150,20 +193,36 @@ local specials = {
 
 local splitterside = { "left", "right", }
 
+---@param createorder LuaSurface.create_entity_param
+---@param entproto LuaEntityPrototype
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function nocc2(createorder,entproto,signals1,signals2)
   createorder.usecc2items=false
 end
 local ConstructionOrderEntitySpecific =
 {
+  ---@param createorder LuaSurface.create_entity_param
+  ---@param entproto LuaEntityPrototype
+  ---@param signals1 Signal[]
+  ---@param signals2 Signal[]
   ["assembling-machine"] = function(createorder,entproto,signals1,signals2)
     --set recipe if recipeid lib available
     if remote.interfaces['recipeid'] then
       createorder.recipe = remote.call('recipeid','map_recipe', get_signal_from_set(knownsignals.R,signals1))
     end
   end,
+  ---@param createorder LuaSurface.create_entity_param
+  ---@param entproto LuaEntityPrototype
+  ---@param signals1 Signal[]
+  ---@param signals2 Signal[]
   ["rocket-silo"] = function(createorder,entproto,signals1,signals2)
     createorder.auto_launch = get_signal_from_set(knownsignals.A,signals1) == 1
   end,
+  ---@param createorder LuaSurface.create_entity_param
+  ---@param entproto LuaEntityPrototype
+  ---@param signals1 Signal[]
+  ---@param signals2 Signal[]
   ["logistic-container"] = function(createorder,entproto,signals1,signals2)
     if entproto.logistic_mode == "buffer" or entproto.logistic_mode == "storage" then
       createorder.request_filters = ReadFilters(signals2, entproto.filter_count)
@@ -174,6 +233,10 @@ local ConstructionOrderEntitySpecific =
       createorder.request_from_buffers = get_signal_from_set(knownsignals.R,signals1) ~= 0
     end
   end,
+  ---@param createorder LuaSurface.create_entity_param
+  ---@param entproto LuaEntityPrototype
+  ---@param signals1 Signal[]
+  ---@param signals2 Signal[]
   ["splitter"] = function(createorder,entproto,signals1,signals2)
     createorder.input_priority = splitterside[get_signal_from_set(knownsignals.I,signals1)] or "none"
     createorder.output_priority = splitterside[get_signal_from_set(knownsignals.O,signals1)] or "none"
@@ -181,6 +244,10 @@ local ConstructionOrderEntitySpecific =
     createorder.filter = next(ReadItems(signals2,1))
     createorder.usecc2items=false
   end,
+  ---@param createorder LuaSurface.create_entity_param
+  ---@param entproto LuaEntityPrototype
+  ---@param signals1 Signal[]
+  ---@param signals2 Signal[]
   ["underground-belt"] = function(createorder,entproto,signals1,signals2)
     if get_signal_from_set(knownsignals.U,signals1) ~= 0 then 
       createorder.type = "output"
@@ -189,6 +256,10 @@ local ConstructionOrderEntitySpecific =
     end
     createorder.usecc2items=false
   end,
+  ---@param createorder LuaSurface.create_entity_param
+  ---@param entproto LuaEntityPrototype
+  ---@param signals1 Signal[]
+  ---@param signals2 Signal[]
   ["loader"] = function(createorder,entproto,signals1,signals2)
     if get_signal_from_set(knownsignals.U,signals1) ~= 0 then 
       createorder.type = "output"
@@ -198,6 +269,10 @@ local ConstructionOrderEntitySpecific =
     createorder.filters = ReadFilters(signals2,entproto.filter_count)
     createorder.usecc2items=false
   end,
+  ---@param createorder LuaSurface.create_entity_param
+  ---@param entproto LuaEntityPrototype
+  ---@param signals1 Signal[]
+  ---@param signals2 Signal[]
   ["train-stop"] = function(createorder,entproto,signals1,signals2)
     createorder.usecc2items=false
     local a = get_signal_from_set(knownsignals.white,signals1)
@@ -206,6 +281,10 @@ local ConstructionOrderEntitySpecific =
       createorder.color.a = a
     end
   end,
+  ---@param createorder LuaSurface.create_entity_param
+  ---@param entproto LuaEntityPrototype
+  ---@param signals1 Signal[]
+  ---@param signals2 Signal[]
   ["locomotive"] = function(createorder,entproto,signals1,signals2)
     local a = get_signal_from_set(knownsignals.white,signals1)
     if a > 0 and a <= 255 then
@@ -214,6 +293,10 @@ local ConstructionOrderEntitySpecific =
     end
     createorder.orientation = math.min(math.max(get_signal_from_set(knownsignals.O,signals1), 0), 65535)/65535
   end,
+  ---@param createorder LuaSurface.create_entity_param
+  ---@param entproto LuaEntityPrototype
+  ---@param signals1 Signal[]
+  ---@param signals2 Signal[]
   ["cargo-wagon"] = function(createorder,entproto,signals1,signals2)
     createorder.inventory = {
       bar = createorder.bar,
@@ -248,6 +331,13 @@ local ConstructionOrderEntitySpecific =
   ["decider-combinator"] = nocc2,
 }
 
+---@param ghost LuaEntity
+---@param control LuaGenericOnOffControlBehavior
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
+---@param forblueprint? boolean
+---@return SignalID[]
 local function ReadGenericOnOffControl(ghost,control,manager,signals1,signals2,forblueprint)
   local siglist = {}
   if signals2 then
@@ -282,6 +372,12 @@ end
 
 local ConstructionOrderControlBehavior =
 {
+  ---@param ghost LuaEntity
+  ---@param control LuaConstantCombinatorControlBehavior
+  ---@param manager ConManManager
+  ---@param signals1 Signal[]
+  ---@param signals2 Signal[]
+  ---@param forblueprint? boolean
   [defines.control_behavior.type.constant_combinator] = function(ghost,control,manager,signals1,signals2,forblueprint)
     local filters = {}
     if signals2 then
@@ -297,6 +393,12 @@ local ConstructionOrderControlBehavior =
       control.enabled = get_signal_from_set(knownsignals.O,signals1) == 0
     end
   end,
+  ---@param ghost LuaEntity
+  ---@param control LuaArithmeticCombinatorControlBehavior
+  ---@param manager ConManManager
+  ---@param signals1 Signal[]
+  ---@param signals2 Signal[]
+  ---@param forblueprint? boolean
   [defines.control_behavior.type.arithmetic_combinator] = function(ghost,control,manager,signals1,signals2,forblueprint)
     local siglist = {}
     if signals2 then
@@ -329,6 +431,12 @@ local ConstructionOrderControlBehavior =
       control.parameters=config
     end
   end,
+  ---@param ghost LuaEntity
+  ---@param control LuaDeciderCombinatorControlBehavior
+  ---@param manager ConManManager
+  ---@param signals1 Signal[]
+  ---@param signals2 Signal[]
+  ---@param forblueprint? boolean
   [defines.control_behavior.type.decider_combinator] = function(ghost,control,manager,signals1,signals2,forblueprint)
     local siglist = {}
     if signals2 then
@@ -369,6 +477,12 @@ local ConstructionOrderControlBehavior =
     end
   end,
   [defines.control_behavior.type.generic_on_off] = ReadGenericOnOffControl,
+  ---@param ghost LuaEntity
+  ---@param control LuaMiningDrillControlBehavior
+  ---@param manager ConManManager
+  ---@param signals1 Signal[]
+  ---@param signals2 Signal[]
+  ---@param forblueprint? boolean
   [defines.control_behavior.type.mining_drill] = function(ghost,control,manager,signals1,signals2,forblueprint)
     ReadGenericOnOffControl(ghost,control,manager,signals1,signals2,forblueprint)
 
@@ -388,6 +502,12 @@ local ConstructionOrderControlBehavior =
       control.resource_read_mode = nil
     end
   end,
+  ---@param ghost LuaEntity
+  ---@param control LuaTrainStopControlBehavior
+  ---@param manager ConManManager
+  ---@param signals1 Signal[]
+  ---@param signals2 Signal[]
+  ---@param forblueprint? boolean
   [defines.control_behavior.type.train_stop] = function(ghost,control,manager,signals1,signals2,forblueprint)
     local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2)
 
@@ -421,6 +541,12 @@ local ConstructionOrderControlBehavior =
       manager.preloadcolor = nil
     end
   end,
+  ---@param ghost LuaEntity
+  ---@param control LuaInserterControlBehavior
+  ---@param manager ConManManager
+  ---@param signals1 Signal[]
+  ---@param signals2 Signal[]
+  ---@param forblueprint? boolean
   [defines.control_behavior.type.inserter] = function(ghost,control,manager,signals1,signals2,forblueprint)
     local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2,forblueprint)
 
@@ -483,10 +609,21 @@ local ConstructionOrderControlBehavior =
       end
     end
   end,
+  ---@param ghost LuaEntity
+  ---@param control LuaLampControlBehavior
+  ---@param manager ConManManager
+  ---@param signals1 Signal[]
+  ---@param signals2 Signal[]
+  ---@param forblueprint? boolean
   [defines.control_behavior.type.lamp] = function(ghost,control,manager,signals1,signals2,forblueprint)
     local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2,forblueprint)
     control.use_colors = get_signal_from_set(knownsignals.C,signals1) ~= 0
   end,
+  ---@param ghost LuaEntity
+  ---@param control LuaLogisticContainerControlBehavior
+  ---@param manager ConManManager
+  ---@param signals1 Signal[]
+  ---@param signals2 Signal[]
   [defines.control_behavior.type.logistic_container] = function(ghost,control,manager,signals1,signals2)
     if ghost.ghost_prototype.logistic_mode == "requester" or ghost.ghost_prototype.logistic_mode == "buffer" then
       if get_signal_from_set(knownsignals.S,signals1) ~= 0 then 
@@ -494,6 +631,12 @@ local ConstructionOrderControlBehavior =
       end
     end
   end,
+  ---@param ghost LuaEntity
+  ---@param control LuaRoboportControlBehavior
+  ---@param manager ConManManager
+  ---@param signals1 Signal[]
+  ---@param signals2 Signal[]
+  ---@param forblueprint? boolean
   [defines.control_behavior.type.roboport] = function(ghost,control,manager,signals1,signals2,forblueprint)
     local siglist = {}
     if signals2 then
@@ -508,6 +651,12 @@ local ConstructionOrderControlBehavior =
     control.available_construction_output_signal = siglist[3]
     control.total_construction_output_signal = siglist[4]
   end,
+  ---@param ghost LuaEntity
+  ---@param control LuaTransportBeltControlBehavior
+  ---@param manager ConManManager
+  ---@param signals1 Signal[]
+  ---@param signals2 Signal[]
+  ---@param forblueprint? boolean
   [defines.control_behavior.type.transport_belt] = function(ghost,control,manager,signals1,signals2,forblueprint)
     local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2,forblueprint)
     control.enable_disable = get_signal_from_set(knownsignals.E,signals1) ~= 0
@@ -531,6 +680,11 @@ local ConstructionOrderControlBehavior =
       control.read_contents_mode = nil
     end
   end,
+  ---@param ghost LuaEntity
+  ---@param control LuaAccumulatorControlBehavior
+  ---@param manager ConManManager
+  ---@param signals1 Signal[]
+  ---@param signals2 Signal[]
   [defines.control_behavior.type.accumulator] = function(ghost,control,manager,signals1,signals2)
     local siglist = {}
     if signals2 then
@@ -539,6 +693,12 @@ local ConstructionOrderControlBehavior =
     
     control.output_signal = siglist[1]
   end,
+  ---@param ghost LuaEntity
+  ---@param control LuaRailSignalControlBehavior
+  ---@param manager ConManManager
+  ---@param signals1 Signal[]
+  ---@param signals2 Signal[]
+  ---@param forblueprint? boolean
   [defines.control_behavior.type.rail_signal] = function(ghost,control,manager,signals1,signals2,forblueprint)
     -- Rail doesn't actually inheret from Generic, but it's close enough to work
     local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2,forblueprint)
@@ -557,6 +717,12 @@ local ConstructionOrderControlBehavior =
       control.green_signal = siglist[5]
     end
   end,
+  ---@param ghost LuaEntity
+  ---@param control LuaRailChainSignalControlBehavior
+  ---@param manager ConManManager
+  ---@param signals1 Signal[]
+  ---@param signals2 Signal[]
+  ---@param forblueprint? boolean
   [defines.control_behavior.type.rail_chain_signal] = function(ghost,control,manager,signals1,signals2,forblueprint)
     local siglist = {}
     if signals2 then
@@ -575,6 +741,13 @@ local ConstructionOrderControlBehavior =
       control.blue_signal = siglist[6]
     end
   end,
+  
+  ---@param ghost LuaEntity
+  ---@param control LuaWallControlBehavior
+  ---@param manager ConManManager
+  ---@param signals1 Signal[]
+  ---@param signals2 Signal[]
+  ---@param forblueprint? boolean
   [defines.control_behavior.type.wall] = function(ghost,control,manager,signals1,signals2,forblueprint)
     -- Wall doesn't actually inheret from Generic, but it's close enough to work
     local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2,forblueprint)
@@ -589,6 +762,12 @@ local ConstructionOrderControlBehavior =
     
     control.output_signal = siglist[3]
   end,
+  ---@param ghost LuaEntity
+  ---@param control LuaProgrammableSpeakerControlBehavior
+  ---@param manager ConManManager
+  ---@param signals1 Signal[]
+  ---@param signals2 Signal[]
+  ---@param forblueprint? boolean
   [defines.control_behavior.type.programmable_speaker] = function(ghost,control,manager,signals1,signals2,forblueprint)
     -- Speaker doesn't actually inheret from Generic, but it's close enough to work
     local siglist = ReadGenericOnOffControl(ghost,control,manager,signals1,signals2,forblueprint)
@@ -641,6 +820,11 @@ local EntityTypeToControlBehavior =
   ["pump"] = defines.control_behavior.type.generic_on_off,
 }
 
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
+---@param forblueprint? boolean
+---@return BlueprintEntity|nil
 local function ConstructionOrder(manager,signals1,signals2,forblueprint)
   local createorder = {
     name='entity-ghost',
@@ -733,7 +917,7 @@ local function ConstructionOrder(manager,signals1,signals2,forblueprint)
       end
       if ghost and ghost.name == "entity-ghost" then
         local control = ghost.get_or_create_control_behavior()
-        if control and control.valid then
+        if control then
           local special = ConstructionOrderControlBehavior[control.type]
           if special then
             special(ghost,control,manager,signals1,signals2)
@@ -779,6 +963,7 @@ local function ConstructionOrder(manager,signals1,signals2,forblueprint)
   end
 end
 
+---@param manager ConManManager
 local function EjectBlueprint(manager)
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)[inv_index.bp]
   local outInv = manager.ent.get_inventory(defines.inventory.assembling_machine_output)[inv_index.bp]
@@ -787,6 +972,7 @@ local function EjectBlueprint(manager)
   end
 end
 
+---@param manager ConManManager
 local function EjectBlueprintBook(manager)
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)[inv_index.book]
   local outInv = manager.ent.get_inventory(defines.inventory.assembling_machine_output)[inv_index.book]
@@ -834,6 +1020,8 @@ local function GetBlueprint(manager, signals1)
   return bp
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
 local function ClearOrCreateBlueprint(manager,signals1)
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
   local page = get_signal_from_set(knownsignals.blueprint_book,signals1)
@@ -853,10 +1041,14 @@ local function ClearOrCreateBlueprint(manager,signals1)
   end
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
 local function DestroyBlueprint(manager,signals1)
   GetBlueprint(manager, signals1).clear()
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
 local function ClearOrCreateBlueprintBook(manager,signals1)
   local book = GetActiveBook(manager,signals1,true)
   if book then
@@ -864,6 +1056,8 @@ local function ClearOrCreateBlueprintBook(manager,signals1)
   end
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
 local function DestroyBlueprintBook(manager,signals1)
   local book = GetActiveBook(manager,signals1)
   if book then
@@ -871,6 +1065,10 @@ local function DestroyBlueprintBook(manager,signals1)
   end
 end
 
+---@param position Position
+---@param name string
+---@param direction defines.direction
+---@param searchlist BlueprintEntity[]|Tile[]
 local function AdjustBlueprintPosition(position,name,direction,searchlist)
   if searchlist then
     for _,ent in pairs(searchlist) do
@@ -896,6 +1094,9 @@ local function AdjustBlueprintPosition(position,name,direction,searchlist)
   end
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function DeployBlueprint(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read and bp.is_blueprint_setup() then
@@ -932,6 +1133,9 @@ local function DeployBlueprint(manager,signals1,signals2)
   end
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function CaptureBlueprint(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read then
@@ -975,6 +1179,11 @@ local function CaptureBlueprint(manager,signals1,signals2)
   end
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
+---@param color defines.wire_type
+---@param disconnect? boolean
 local function ConnectWire(manager,signals1,signals2,color,disconnect)
   local z = get_signal_from_set(knownsignals.Z,signals1)
   if z~=2 then z=1 end
@@ -1010,6 +1219,10 @@ local function ConnectWire(manager,signals1,signals2,color,disconnect)
   end
 end
 
+---@param manager ConManManager
+---@param item LuaItemStack
+---@param dumping? boolean
+---@return ConstantCombinatorParameters[]|nil
 local function ReportLabel(manager,item,dumping)
   local outsignals = {}
   if item.label and remote.interfaces['signalstrings'] then
@@ -1029,6 +1242,9 @@ local function ReportLabel(manager,item,dumping)
   manager.clearcc2 = true
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function ReportBlueprintLabel(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   if bp.valid_for_read and bp.is_blueprint then
@@ -1036,6 +1252,9 @@ local function ReportBlueprintLabel(manager,signals1,signals2)
   end
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function ReportBlueprintBookLabel(manager,signals1,signals2)
   local book = GetActiveBook(manager,signals1)
   if book then
@@ -1043,6 +1262,8 @@ local function ReportBlueprintBookLabel(manager,signals1,signals2)
   end
 end
 
+---@param item LuaItemStack
+---@param signals2 Signal[]
 local function UpdateItemLabel(item,signals2)
   -- set or clear label and color from cc2
   if remote.interfaces['signalstrings'] and signals2 then
@@ -1060,14 +1281,19 @@ local function UpdateItemLabel(item,signals2)
   end
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function UpdateBlueprintLabel(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
-  local outsignals = {}
   if bp.valid and bp.valid_for_read and bp.is_blueprint_setup() then
     UpdateItemLabel(bp,signals2)
   end
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function UpdateBlueprintBookLabel(manager,signals1,signals2)
   local book = GetActiveBook(manager,signals1)
   if book then
@@ -1140,6 +1366,9 @@ local function ListBlueprintBook(manager,signals1,signals2)
   end
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function InsertBlueprintToBook(manager,signals1,signals2)
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
   local bp = inInv[inv_index.bp]
@@ -1158,6 +1387,9 @@ local function InsertBlueprintToBook(manager,signals1,signals2)
   end
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function TakeBlueprintFromBook(manager,signals1,signals2)
   local inInv = manager.ent.get_inventory(defines.inventory.assembling_machine_input)
   local bp = inInv[inv_index.bp]
@@ -1173,6 +1405,9 @@ local function TakeBlueprintFromBook(manager,signals1,signals2)
   end
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function ReportBlueprintBoM(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   local outsignals = {}
@@ -1186,14 +1421,20 @@ local function ReportBlueprintBoM(manager,signals1,signals2)
   end
 end
 
+---@param bp LuaItemStack
+---@return ConstantCombinatorParameters[]
 local function ReportBlueprintIconsInternal(bp)
   local outsignals = {}
+  ---@typelist number,BlueprintSignalIcon
   for _,icon in pairs(bp.blueprint_icons) do
     outsignals[#outsignals+1]={index=#outsignals+1,count=bit32.lshift(1,icon.index - 1),signal=icon.signal}
   end
   return outsignals
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function ReportBlueprintIcons(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read then
@@ -1202,6 +1443,9 @@ local function ReportBlueprintIcons(manager,signals1,signals2)
   end
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function UpdateBlueprintIcons(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read and signals2 then
@@ -1217,6 +1461,8 @@ local function UpdateBlueprintIcons(manager,signals1,signals2)
   end
 end
 
+---@param tile table
+---@return ConstantCombinatorParameters[]
 local function ReportBlueprintTileInternal(tile)
   local outsignals = {}
   local item = game.tile_prototypes[tile.name].items_to_place_this[1]
@@ -1225,6 +1471,10 @@ local function ReportBlueprintTileInternal(tile)
   outsignals[3]={index=3,count=tile.position.y,signal=knownsignals.Y}
   return outsignals
 end
+
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function ReportBlueprintTile(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read then
@@ -1238,6 +1488,9 @@ local function ReportBlueprintTile(manager,signals1,signals2)
   end
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function UpdateBlueprintTile(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read then
@@ -1266,6 +1519,9 @@ local function UpdateBlueprintTile(manager,signals1,signals2)
   end
 end
 
+---@param control BlueprintControlBehavior
+---@param cc1 ConstantCombinatorParameters[]
+---@param cc2 ConstantCombinatorParameters[]
 local function ReportGenericOnOffControl(control,cc1,cc2)
   local condition = control.condition or control.circuit_condition
   if condition then
@@ -1295,6 +1551,9 @@ local function ReportGenericOnOffControl(control,cc1,cc2)
   end
 end
 local ReportControlBehavior = {
+  ---@param control BlueprintControlBehavior
+  ---@param cc1 ConstantCombinatorParameters[]
+  ---@param cc2 ConstantCombinatorParameters[]
   [defines.control_behavior.type.constant_combinator] = function(control,cc1,cc2)
     if control.filters then 
       for _,filter in pairs(control.filters) do
@@ -1306,6 +1565,9 @@ local ReportControlBehavior = {
       cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.O}
     end
   end,
+  ---@param control BlueprintControlBehavior
+  ---@param cc1 ConstantCombinatorParameters[]
+  ---@param cc2 ConstantCombinatorParameters[]
   [defines.control_behavior.type.arithmetic_combinator] = function(control,cc1,cc2)
     local condition = control.arithmetic_conditions
     if condition then
@@ -1358,6 +1620,9 @@ local ReportControlBehavior = {
       end
     end
   end,
+  ---@param control BlueprintControlBehavior
+  ---@param cc1 ConstantCombinatorParameters[]
+  ---@param cc2 ConstantCombinatorParameters[]
   [defines.control_behavior.type.decider_combinator] = function(control,cc1,cc2)
     local condition = control.decider_conditions
     if condition then
@@ -1420,6 +1685,9 @@ local ReportControlBehavior = {
     end
   end,
   [defines.control_behavior.type.generic_on_off] = ReportGenericOnOffControl,
+  ---@param control BlueprintControlBehavior
+  ---@param cc1 ConstantCombinatorParameters[]
+  ---@param cc2 ConstantCombinatorParameters[]
   [defines.control_behavior.type.mining_drill] = function(control,cc1,cc2)
     ReportGenericOnOffControl(control,cc1,cc2)
     if control.circuit_enable_disable then
@@ -1433,6 +1701,9 @@ local ReportControlBehavior = {
       end
     end
   end,
+  ---@param control BlueprintControlBehavior
+  ---@param cc1 ConstantCombinatorParameters[]
+  ---@param cc2 ConstantCombinatorParameters[]
   [defines.control_behavior.type.train_stop] = function(control,cc1,cc2)
     ReportGenericOnOffControl(control,cc1,cc2)
     if control.circuit_enable_disable then
@@ -1448,6 +1719,9 @@ local ReportControlBehavior = {
       cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.T}
     end
   end,
+  ---@param control BlueprintControlBehavior
+  ---@param cc1 ConstantCombinatorParameters[]
+  ---@param cc2 ConstantCombinatorParameters[]
   [defines.control_behavior.type.inserter] = function(control,cc1,cc2)
     ReportGenericOnOffControl(control,cc1,cc2)
     if not control.circuit_mode_of_operation or control.circuit_mode_of_operation == defines.control_behavior.inserter.circuit_mode_of_operation.enable_disable then
@@ -1467,17 +1741,26 @@ local ReportControlBehavior = {
       cc2[#cc2+1]={index=#cc2+1,count=4,signal=control.stack_control_input_signal}
     end
   end,
+  ---@param control BlueprintControlBehavior
+  ---@param cc1 ConstantCombinatorParameters[]
+  ---@param cc2 ConstantCombinatorParameters[]
   [defines.control_behavior.type.lamp] = function(control,cc1,cc2)
     ReportGenericOnOffControl(control,cc1,cc2)
     if control.use_colors then
       cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.C}
     end
   end,
+  ---@param control BlueprintControlBehavior
+  ---@param cc1 ConstantCombinatorParameters[]
+  ---@param cc2 ConstantCombinatorParameters[]
   [defines.control_behavior.type.logistic_container] = function(control,cc1,cc2)
     if control.circuit_mode_of_operation == defines.control_behavior.logistic_container.circuit_mode_of_operation.set_requests then
       cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.S}
     end
   end,
+  ---@param control BlueprintControlBehavior
+  ---@param cc1 ConstantCombinatorParameters[]
+  ---@param cc2 ConstantCombinatorParameters[]
   [defines.control_behavior.type.roboport] = function(control,cc1,cc2)
     if control.read_robot_stats then
       cc1[#cc1+1]={index=#cc1+1,count=1,signal=knownsignals.R}
@@ -1501,6 +1784,9 @@ local ReportControlBehavior = {
     end
 
   end,
+  ---@param control BlueprintControlBehavior
+  ---@param cc1 ConstantCombinatorParameters[]
+  ---@param cc2 ConstantCombinatorParameters[]
   [defines.control_behavior.type.transport_belt] = function(control,cc1,cc2)
     ReportGenericOnOffControl(control,cc1,cc2)
     if control.circuit_enable_disable then
@@ -1514,11 +1800,17 @@ local ReportControlBehavior = {
       end
     end
   end,
+  ---@param control BlueprintControlBehavior
+  ---@param cc1 ConstantCombinatorParameters[]
+  ---@param cc2 ConstantCombinatorParameters[]
   [defines.control_behavior.type.accumulator] = function(control,cc1,cc2)
     if control.output_signal then
       cc2[#cc2+1]={index=#cc2+1,count=1,signal=control.output_signal}
     end
   end,
+  ---@param control BlueprintControlBehavior
+  ---@param cc1 ConstantCombinatorParameters[]
+  ---@param cc2 ConstantCombinatorParameters[]
   [defines.control_behavior.type.rail_signal] = function(control,cc1,cc2)
     ReportGenericOnOffControl(control,cc1,cc2)
     if control.circuit_close_signal then
@@ -1537,6 +1829,9 @@ local ReportControlBehavior = {
       cc2[#cc2+1]={index=#cc2+1,count=16,signal=control.green_output_signal}
     end
   end,
+  ---@param control BlueprintControlBehavior
+  ---@param cc1 ConstantCombinatorParameters[]
+  ---@param cc2 ConstantCombinatorParameters[]
   [defines.control_behavior.type.rail_chain_signal] = function(control,cc1,cc2)
     if control.red_output_signal then
       cc2[#cc2+1]={index=#cc2+1,count=4,signal=control.red_output_signal}
@@ -1551,6 +1846,9 @@ local ReportControlBehavior = {
       cc2[#cc2+1]={index=#cc2+1,count=32,signal=control.blue_output_signal}
     end
   end,
+  ---@param control BlueprintControlBehavior
+  ---@param cc1 ConstantCombinatorParameters[]
+  ---@param cc2 ConstantCombinatorParameters[]
   [defines.control_behavior.type.wall] = function(control,cc1,cc2)
     ReportGenericOnOffControl(control,cc1,cc2)
     if control.circuit_open_gate then
@@ -1563,6 +1861,9 @@ local ReportControlBehavior = {
       cc2[#cc2+1]={index=#cc2+1,count=4,signal=control.output_signal}
     end
   end,
+  ---@param control BlueprintControlBehavior
+  ---@param cc1 ConstantCombinatorParameters[]
+  ---@param cc2 ConstantCombinatorParameters[]
   [defines.control_behavior.type.programmable_speaker] = function(control,cc1,cc2)
     ReportGenericOnOffControl(control,cc1,cc2)
     local parameters = control.circuit_parameters
@@ -1580,6 +1881,9 @@ local ReportControlBehavior = {
   end,
 }
 
+---@param entity BlueprintEntity
+---@param i number
+---@return ConstantCombinatorParameters[][]
 local function ReportBlueprintEntityInternal(entity,i)
   local entproto = game.entity_prototypes[entity.name]
   local preload = nil
@@ -1741,6 +2045,9 @@ local function ReportBlueprintEntityInternal(entity,i)
   return outframes
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function ReportBlueprintEntity(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read then
@@ -1756,6 +2063,10 @@ local function ReportBlueprintEntity(manager,signals1,signals2)
     end
   end
 end
+
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function UpdateBlueprintEntity(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read then
@@ -1796,6 +2107,8 @@ local function UpdateBlueprintEntity(manager,signals1,signals2)
   end
 end
 
+---@param items table<string,number>
+---@return ConstantCombinatorParameters[]
 local function ReportBlueprintItemRequestsInternal(items)
   local outsignals = {}
   for item,count in pairs(items) do
@@ -1804,6 +2117,9 @@ local function ReportBlueprintItemRequestsInternal(items)
   return outsignals
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function ReportBlueprintItemRequests(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read then
@@ -1816,6 +2132,10 @@ local function ReportBlueprintItemRequests(manager,signals1,signals2)
     end
   end
 end
+
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function UpdateBlueprintItemRequests(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read then
@@ -1828,6 +2148,12 @@ local function UpdateBlueprintItemRequests(manager,signals1,signals2)
   end
 end
 
+---@param entity_id number
+---@param connector_index number
+---@param color string
+---@param connection_index number
+---@param connection table
+---@return ConstantCombinatorParameters[]
 local function ReportBlueprintWireInternal(entity_id,connector_index,color,connection_index,connection)
   local outsignals = {}
   
@@ -1842,6 +2168,9 @@ local function ReportBlueprintWireInternal(entity_id,connector_index,color,conne
   return outsignals
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function ReportBlueprintWire(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read then
@@ -1881,6 +2210,10 @@ local function ReportBlueprintWire(manager,signals1,signals2)
     end
   end
 end
+
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function UpdateBlueprintWire(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read then
@@ -1956,6 +2289,9 @@ local function UpdateBlueprintWire(manager,signals1,signals2)
   end
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function ReportBlueprintSchedule(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read then
@@ -1974,6 +2310,10 @@ local function ReportBlueprintSchedule(manager,signals1,signals2)
     end
   end
 end
+
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function UpdateBlueprintSchedule(manager,signals1,signals2)
   local bp = GetBlueprint(manager,signals1)
   if bp.valid and bp.valid_for_read then
@@ -2002,6 +2342,7 @@ local function UpdateBlueprintSchedule(manager,signals1,signals2)
 end
 
 ---@param bp LuaItemStack
+---@return ConstantCombinatorParameters[]
 local function ReportBlueprintSnappingInternal(bp)
   local outsignals = {}
   local snap = bp.blueprint_snap_to_grid
@@ -2147,6 +2488,10 @@ local function DumpBlueprint(manager,signals1,signals2)
   end
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
+---@param cancel? boolean
 local function DeconstructionOrder(manager,signals1,signals2,cancel)
   local area = ReadBoundingBox(signals1)
 
@@ -2214,6 +2559,9 @@ local function DeconstructionOrder(manager,signals1,signals2,cancel)
   end
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function DeliveryOrder(manager,signals1,signals2)
   local ent = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(signals1,false,{x=0.5,y=0.5})}[1]
   if not (ent and ent.valid) then return end
@@ -2241,6 +2589,11 @@ local function DeliveryOrder(manager,signals1,signals2)
   end
 end
 
+
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
+---@param flare string
 local function ArtilleryOrder(manager,signals1,signals2,flare)
   manager.ent.surface.create_entity{
     name=flare,
@@ -2253,6 +2606,9 @@ local function ArtilleryOrder(manager,signals1,signals2,flare)
   }
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function SetPreloadString(manager,signals1,signals2)
   -- read string and color from signals2, store in manager.preloadstring and manager.preloadcolor
   if remote.interfaces['signalstrings'] and signals2 then
@@ -2271,6 +2627,9 @@ local function SetPreloadString(manager,signals1,signals2)
   end
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function SetBlueprintAnchor(manager,signals1,signals2)
   -- read item and "relative to conman" flag
   manager.relative = get_signal_from_set(knownsignals.R,signals1) ~= 0
@@ -2302,6 +2661,9 @@ local function SetBlueprintAnchor(manager,signals1,signals2)
   end
 end
 
+---@param manager ConManManager
+---@param signals1 Signal[]
+---@param signals2 Signal[]
 local function GetBlueprintAnchor(manager,signals1,signals2)
   local outsignals = {
     { index = 1, signal = knownsignals.info, count = 2}
@@ -2335,6 +2697,9 @@ local function GetBlueprintAnchor(manager,signals1,signals2)
   manager.clearcc2 = true
 end
 
+---@param Report function
+---@param Update function
+---@return fun(manager:ConManManager,signals1:Signal[],signals2:Signal[])
 local function ReadWrite(Report,Update)
   return function(manager,signals1,signals2)
     local write = get_signal_from_set(knownsignals.W,signals1)
@@ -2380,24 +2745,16 @@ local info_signal_functions = {
   [2] = ReadWrite(GetBlueprintAnchor,SetBlueprintAnchor),
 }
 
+---@param manager ConManManager
 local function onTickManager(manager)
   if manager.morecc2 then
     local i,nextframe = next(manager.morecc2)
     if nextframe then
-      if i%2 == 0 then
-        manager.evens = (manager.evens or 0) + 1
-        if #nextframe == 0  then
-          manager.empties = (manager.empties or 0) + 1
-        end
-      end
       manager.cc2.get_or_create_control_behavior().parameters=nextframe
       manager.morecc2[i] = nil
       return
     else
       manager.morecc2 = nil
-      --log((manager.empties or 0) .. "/" .. (manager.evens or 0))
-      manager.evens = 0
-      manager.empties = 0
     end
   end
   if manager.clearcc2 then
@@ -2504,6 +2861,9 @@ local function onTick()
   end
 end
 
+---@param manager ConManManager
+---@param position Position
+---@return LuaEntity
 local function CreateControl(manager,position)
   local ghost = manager.surface.find_entity('entity-ghost', position)
   if ghost then
@@ -2527,6 +2887,7 @@ local function CreateControl(manager,position)
   return ent
 end
 
+---@param ent LuaEntity
 local function onBuilt(ent)
   if ent.name == "conman" then
     ent.active = false
@@ -2592,18 +2953,26 @@ script.on_event(defines.events.script_raised_revive, function(event) onBuilt(eve
 remote.add_interface('conman',{
   --TODO: call to register items for custom decoding into ghost tags?
 
+
+  ---@param manager_id number
+  ---@return string|nil
   read_preload_string = function(manager_id)
     return global.managers[manager_id] and global.managers[manager_id].preloadstring
   end,
+  ---@param manager_id number
+  ---@return Color|nil
   read_preload_color = function(manager_id)
     return global.managers[manager_id] and global.managers[manager_id].preloadcolor
   end,
-  
+  ---@param manager_id number
+  ---@param str string
   set_preload_string = function(manager_id,str)
     if global.managers[manager_id] then
       global.managers[manager_id].preloadstring = str
     end
   end,
+  ---@param manager_id number
+  ---@param color Color
   set_preload_color = function(manager_id,color)
     if global.managers[manager_id] then
       global.managers[manager_id].preloadcolor = color

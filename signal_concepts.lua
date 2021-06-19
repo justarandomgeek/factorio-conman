@@ -20,18 +20,30 @@ local signalsets = {
   }
 }
 
-
+---@param manager? ConManManager
 ---@param signals Signal[]
 ---@param secondary? boolean
 ---@param offset? Position
 ---@return Position
-local function ReadPosition(signals,secondary,offset)
+local function ReadPosition(manager,signals,secondary,offset,raw)
   local set = secondary and signalsets.position2 or signalsets.position1
   local p = get_signals_filtered(set,signals)
   local x,y = (p.x or 0),(p.y or 0)
   if offset then
     x = x+offset.x
     y = y+offset.y
+  end
+  if manager then
+    if manager.relative then
+      local mpos = manager.ent.position
+      x = x + mpos.x
+      y = y + mpos.y
+    end
+    local moff = manager.offset
+    if moff then
+      x = x + moff.x
+      y = y + moff.y
+    end
   end
   p.x = x
   p.y = y
@@ -48,11 +60,12 @@ local function ReadColor(signals)
   return color
 end
 
+---@param manager? ConManManager
 ---@param signals Signal[]
 ---@return BoundingBox
-local function ReadBoundingBox(signals)
+local function ReadBoundingBox(manager,signals)
   -- adjust offests to make *inclusive* selection
-  return {ReadPosition(signals,false,{x=0,y=0}),ReadPosition(signals,true,{x=1,y=1})}
+  return {ReadPosition(manager,signals,false,{x=0,y=0}),ReadPosition(manager,signals,true,{x=1,y=1})}
 end
 
 

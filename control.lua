@@ -147,21 +147,7 @@ local function DeployBlueprint(manager,signals1,signals2)
   if bp.valid_for_read and bp.is_blueprint_setup() then
 
     local force_build = get_signal_from_set(knownsignals.F,signals1)==1
-    local position = ReadPosition(signals1)
-    
-    if manager.relative then
-      local mpos = manager.ent.position
-      position.x = position.x + mpos.x
-      position.y = position.y + mpos.y
-    end
-
-    do 
-      local offset = manager.offset
-      if offset then
-        position.x = position.x + offset.x
-        position.y = position.y + offset.y
-      end
-    end
+    local position = ReadPosition(manager,signals1)
 
     local direction = math.floor(get_signal_from_set(knownsignals.D,signals1)/2)*2
 
@@ -187,7 +173,7 @@ local function CaptureBlueprint(manager,signals1,signals2)
     bp.create_blueprint{
       surface = manager.ent.surface,
       force = manager.ent.force,
-      area = ReadBoundingBox(signals1),
+      area = ReadBoundingBox(manager,signals1),
       always_include_tiles = capture_tiles,
     }
 
@@ -234,8 +220,8 @@ local function ConnectWire(manager,signals1,signals2,color,disconnect)
   local w = get_signal_from_set(knownsignals.W,signals1)
   if w~=2 then w=1 end
 
-  local ent1 = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(signals1,false,{x=0.5,y=0.5})}[1]
-  local ent2 = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(signals1,true,{x=0.5,y=0.5})}[1]
+  local ent1 = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(manager,signals1,false,{x=0.5,y=0.5})}[1]
+  local ent2 = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(manager,signals1,true,{x=0.5,y=0.5})}[1]
 
   if not (ent1 and ent1.valid and ent2 and ent2.valid) then return end
   
@@ -548,7 +534,7 @@ local function UpdateBlueprintTile(manager,signals1,signals2)
           if tileresult then
             newtile = {
               name = tileresult.result.name,
-              position = ReadPosition(signals1)
+              position = ReadPosition(nil,signals1)
             }
             break -- once we're found one, get out of the loop, so we don't build multiple things.
           end
@@ -1536,7 +1522,7 @@ end
 ---@param signals2 Signal[]
 ---@param cancel? boolean
 local function DeconstructionOrder(manager,signals1,signals2,cancel)
-  local area = ReadBoundingBox(signals1)
+  local area = ReadBoundingBox(manager,signals1)
 
   if not signals2 then
     -- decon all
@@ -1606,7 +1592,7 @@ end
 ---@param signals1 Signal[]
 ---@param signals2 Signal[]
 local function DeliveryOrder(manager,signals1,signals2)
-  local ent = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(signals1,false,{x=0.5,y=0.5})}[1]
+  local ent = manager.ent.surface.find_entities_filtered{force=manager.ent.force,position=ReadPosition(manager,signals1,false,{x=0.5,y=0.5})}[1]
   if not (ent and ent.valid) then return end
 
   if signals2 then
@@ -1641,7 +1627,7 @@ local function ArtilleryOrder(manager,signals1,signals2,flare)
   manager.ent.surface.create_entity{
     name=flare,
     force=manager.ent.force,
-    position=ReadPosition(signals1),
+    position=ReadPosition(manager,signals1),
     movement={0,0},
     frame_speed = 1,
     vertical_speed = 0,
@@ -1706,7 +1692,7 @@ end
 local function SetPlacementMode(manager,signals1,signals2)
   -- read item and "relative to conman" flag
   manager.relative = get_signal_from_set(knownsignals.R,signals1) ~= 0
-  local offset = ReadPosition(signals1)
+  local offset = ReadPosition(nil,signals1)
   if offset.x==0 and offset.y==0 then
     manager.offset = nil
   else
@@ -1821,7 +1807,7 @@ local function onTickManager(manager)
       local ent = manager.ent.surface.find_entities_filtered{
         type={'locomotive','cargo-wagon','fluid-wagon','artillery-wagon'},
         force=manager.ent.force,
-        position=ReadPosition(signals1)}[1]
+        position=ReadPosition(manager,signals1)}[1]
       if ent and ent.valid then
         ent.train.manual_mode = true
         ent.train.schedule = { current = 1, records = manager.schedule}

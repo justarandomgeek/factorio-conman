@@ -485,9 +485,10 @@ local ConstructionOrderControlBehavior =
 ---@param forblueprint? boolean
 ---@return BlueprintEntity|nil
 local function ConstructionOrder(manager,signals1,signals2,forblueprint)
+  local position = ReadPosition(not forblueprint and manager,signals1)
   local createorder = {
     name='entity-ghost',
-    position = ReadPosition(signals1),
+    position = position,
     force = manager.ent.force,
     expires = false,
     direction = get_signal_from_set(knownsignals.D,signals1),
